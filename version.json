@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-82",
-  "publicada": "2026-11-04 02:00",
-  "notas": "Ronda 82: cajas múltiples y áreas de inventario en el POS (POS-10)",
+  "version": "v2026.10.30-84",
+  "publicada": "2026-11-04 02:34",
+  "notas": "Ronda 84: gestión de cobro de cuentas por cobrar vencidas (tarjeta, registro de gestiones y carta)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b373d7a9bfe6c85fe684f78a0dbd9c13164234dd1df39fd5bdd7a9f10453df47",
-      "bytes": 2152163
+      "sha256": "d16d9298ee506b49470990820fab44991c19479023c55b3d73eaf6eee33e4b1a",
+      "bytes": 2159670
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "iuTFolMDvuQQtCBRlTf+jIhQev90995x1Qwrv0l9/bjFBuqOwcMrl0nIbOgOZ6bPEIp8+tF41cnwQxtyoGYaDg=="
+  "firma": "1tM5FI9PEg9WxgvltyDzlS+b6LaeymwSfN7GSonfFDVqhW2gdBcdrKQVwCq4qpC1vneV7YEZWnnvkdiokru8Ag=="
 }
