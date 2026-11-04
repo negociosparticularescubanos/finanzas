@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-89",
-  "publicada": "2026-11-04 11:14",
-  "notas": "Ronda 89: vista de venta renovada del POS (POS-15)",
+  "version": "v2026.10.30-90",
+  "publicada": "2026-11-04 11:47",
+  "notas": "Ronda 90: POS-15b interfaz de venta estilo Stangic (fondo gris azulado, degradados, tarjetas con pastillas de precio y stock, ticket en tabla con barra de acciones)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "c9442c442d0b386f0f2a9b36d4997e8125a44ec3e487f007c67ed184d890202a",
-      "bytes": 2194892
+      "sha256": "1108e0e3863fc6fb8705a6d4d3cfdf47a819ccfdecff8b7cfdb7bf28fd9247bf",
+      "bytes": 2199125
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "1ndKSiJrfnFwK1lwZmi4SBwcZOvE58fsumVuu6oNNvNdMiDQm6a9JS29ZHT/VEDylFwoDyibWxtA65slVxNIBw=="
+  "firma": "wQcpZPliuTMCIu9Ly2TKVq2M+qtiqrBf5EmJBmmKUmgXohHApmw3CLIxdg/NJpdrCKz3i0K1VOYvF5Lp2V34DQ=="
 }

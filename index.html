@@ -7788,7 +7788,37 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             + '.posv-cobrar{width:100%;border:none;border-radius:12px;background:#16a34a;color:#fff;font-size:1.15rem;font-weight:700;padding:12px;box-shadow:0 2px 6px rgba(22,163,74,.35)}'
             + '.posv-cobrar:active{transform:scale(.99)}'
             + '.posv-linea{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f1f5f9}';
-        function posvEnsureStyle() { if (document.getElementById('posvStyle')) return; const st = document.createElement('style'); st.id = 'posvStyle'; st.textContent = POSV_CSS; document.head.appendChild(st); }
+        const POSV_CSS2 = '.posv-grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px}'
+            + '.posv-visual{height:118px}.posv-img{height:118px}.posv-tile{height:118px;font-size:3rem}'
+            + '.posv-nombre{font-size:.92rem;padding:8px 10px 0}.posv-precio{font-size:.95rem;padding:2px 9px}'
+            + '.posv-chip{border:none;padding:8px 16px;font-size:.9rem;box-shadow:0 1px 2px rgba(15,23,42,.08)}'
+            + '.posv-chip-on{background:#7c3aed!important;color:#fff}'
+            + '#posBusq{font-size:1rem;padding:.6rem .9rem;border-radius:12px}'
+            + '.posv-step{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:999px;overflow:hidden;background:#fff}'
+            + '.posv-step button{border:none;background:#f1f5f9;width:28px;height:28px;font-weight:700;font-size:1rem;line-height:1;cursor:pointer}'
+            + '.posv-step input{width:52px;border:none;text-align:center;font-weight:600;outline:none}'
+            + '.posv-linea b{font-size:.95rem}';
+        const POSV_CSS3 = '#posVentaUI{background:#eef1f8;border-radius:16px;padding:10px}'
+            + '.posv-gradbar{display:flex;gap:10px;margin-bottom:10px}'
+            + '.posv-grad{flex:1;border:none;border-radius:10px;padding:10px 12px;color:#fff;font-weight:700;font-size:.95rem;background:linear-gradient(90deg,#4f6df5,#6366f1);box-shadow:0 2px 6px rgba(79,70,229,.25);cursor:pointer}'
+            + '.posv-grad2{background:linear-gradient(90deg,#7c3aed,#8b5cf6)}'
+            + '.posv-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}'
+            + '.posv-card{padding:0 0 8px;border-radius:12px}'
+            + '.posv-visual{display:block;height:96px;background:#fff;border-radius:12px 12px 0 0}'
+            + '.posv-img{height:96px;object-fit:contain;background:#fff}'
+            + '.posv-tile{height:96px;font-size:2.4rem}'
+            + '.posv-precio{background:#4f46e5}'
+            + '.posv-stockpill{position:absolute;top:8px;right:8px;background:#dbeafe;color:#1d4ed8;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px}'
+            + '.posv-nombre{display:block;padding:6px 10px 0}'
+            + '.posv-cod{display:block;color:#94a3b8;font-size:.72rem;padding:0 10px}'
+            + '.posv-meta{display:block;padding:2px 10px 0}'
+            + '.posv-carthead{display:flex;gap:8px;align-items:center;color:#64748b;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em;border-bottom:1px solid #e2e8f0;padding:4px 2px;margin:6px 0 4px}'
+            + '.posv-linea .flex-grow-1 b{color:#0369a1}'
+            + '.posv-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}'
+            + '.posv-totalbox{margin-left:auto;text-align:right;line-height:1.1}'
+            + '.posv-totalbig{font-size:1.45rem;font-weight:800;color:#0f172a}';
+        function posvToggleCats(btn) { const bar = btn && btn.closest('.posv-gradbar'); const ch = bar && bar.nextElementSibling; if (ch) ch.style.display = ch.style.display === 'none' ? '' : 'none'; }
+        function posvEnsureStyle() { if (document.getElementById('posvStyle')) return; const st = document.createElement('style'); st.id = 'posvStyle'; st.textContent = POSV_CSS + POSV_CSS2 + POSV_CSS3; document.head.appendChild(st); }
         function posPintarGrid() {
             posvEnsureStyle();
             const box = document.getElementById('posGrid'); if (!box) return;
@@ -7801,16 +7831,17 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             else if (POS_CAT) prods = prods.filter(p => String(p.categoria || '').trim() === POS_CAT);
             prods = prods.filter(p => !q || String(p.nombre).toLowerCase().includes(q) || String(p.codigo || '').toLowerCase().includes(q))
                 .sort((a, b) => (Number(b.favorito || 0) - Number(a.favorito || 0)) || String(a.nombre).localeCompare(String(b.nombre)));
-            const chips = '<div class="posv-chips">' + POS_CATS.map((c, i) => `<button type="button" class="posv-chip ${POS_CAT === c ? 'posv-chip-on' : ''}" onclick="posSetCatI(${i})">${c === '' ? 'Todos' : c === '__fav' ? '⭐ Favoritos' : esc(c)}</button>`).join('') + '</div>';
-            box.innerHTML = chips + (prods.length ? '<div class="posv-grid">' + prods.map(p => {
+            const chips = '<div class="posv-chips">' + POS_CATS.map((c, i) => `<button type="button" class="posv-chip ${POS_CAT === c ? 'posv-chip-on' : ''}" ${c && c !== '__fav' ? `style="background:${posvColor(c)}"` : ''} onclick="posSetCatI(${i})">${c === '' ? 'Todos' : c === '__fav' ? '⭐ Favoritos' : esc(c)}</button>`).join('') + '</div>';
+            const gradbar = '<div class="posv-gradbar"><button type="button" class="posv-grad" onclick="posvToggleCats(this)">▦ Categorías</button><button type="button" class="posv-grad posv-grad2" onclick="posSetCatI(' + POS_CATS.indexOf('__fav') + ')">⭐ Favoritos</button></div>';
+            box.innerHTML = gradbar + chips + (prods.length ? '<div class="posv-grid">' + prods.map(p => {
                 const ctrl = posControlaStock(conta, p), st = posEsKit(p) ? posKitDisponible(conta, p) : (Number(p.stock) || 0);
                 const of = Number(p.ofertaPct) || 0, pFin = of ? posR2((Number(p.precio) || 0) * (1 - of / 100)) : (Number(p.precio) || 0);
                 const sin = (ctrl || posEsKit(p)) && st <= 0;
                 const bajo = (ctrl || posEsKit(p)) && !sin && (Number(p.stockMin) || 0) > 0 && st <= (Number(p.stockMin) || 0);
                 const visual = p.imagen ? `<img src="${esc(p.imagen)}" alt="" class="posv-img">` : `<span class="posv-tile" style="background:${posvColor(p.categoria || p.nombre)}">${esc(String(p.nombre || '?').trim().charAt(0).toUpperCase())}</span>`;
                 return `<button type="button" class="posv-card ${sin ? 'posv-sin' : ''}" onclick="posAddProd('${esc(p.id)}')">
-                    <span class="posv-visual">${visual}<span class="posv-precio">${moneda(pFin)}</span>${of ? `<span class="posv-oferta">−${of}%</span>` : ''}</span>
-                    <span class="posv-nombre">${p.favorito ? '⭐ ' : ''}${esc(p.nombre)}</span>
+                    <span class="posv-visual">${visual}<span class="posv-precio">${moneda(pFin)}</span>${of ? `<span class="posv-oferta">−${of}%</span>` : ''}${(ctrl || posEsKit(p)) && !sin ? `<span class="posv-stockpill">${st} uds</span>` : ''}</span>
+                    <span class="posv-nombre">${p.favorito ? '⭐ ' : ''}${esc(p.nombre)}</span>${p.codigo ? `<span class="posv-cod">(${esc(p.codigo)})</span>` : ''}
                     <span class="posv-meta">${posEsKit(p) ? '<span class="posv-badge">KIT</span>' : ''}${(p.variantes || []).length ? '<span class="posv-badge posv-badge-var">▾ variantes</span>' : ''}<span class="${sin ? 'posv-stock-mal' : (bajo ? 'posv-stock-bajo' : '')}">${(ctrl || posEsKit(p)) ? (sin ? 'Agotado' : 'Stock: ' + st + (bajo ? ' ⚠' : '')) : 'Sin control'}</span>${posBadgeVenceHtml(p)}</span>
                 </button>`;
             }).join('') + '</div>' : '<p class="small text-secondary mb-0">Sin productos con precio de venta en esta vista. Pon los precios en Configuración → Punto de Venta (POS).</p>');
@@ -7879,9 +7910,9 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             const cob = document.getElementById('posCobro');
             posPintarEsperas();
             if (!POS_CARRITO.length) { box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + '<p class="small text-secondary mb-0">Toca un producto para empezar la venta.</p>'; if (cob) cob.innerHTML = ''; POS_PAGOS = null; return; }
-            box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + POS_CARRITO.map((l, i) => { const dto = (Number(l.ofertaPct) || 0) + (Number(l.dtoPct) || 0); return `<div class="posv-linea">
+            box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + '<div class="posv-carthead"><span style="flex:1">Producto</span><span style="width:250px;text-align:center">Cantidad</span><span style="width:84px;text-align:right">Subtotal</span><span style="width:34px"></span></div>' + POS_CARRITO.map((l, i) => { const dto = (Number(l.ofertaPct) || 0) + (Number(l.dtoPct) || 0); return `<div class="posv-linea">
                 <span class="flex-grow-1 small"><b>${esc(l.nombre)}</b><br><span class="text-muted">${moneda(l.precio)} × </span></span>
-                <input type="number" class="form-control form-control-sm" style="max-width:84px" min="0" step="0.01" value="${l.cantidad}" onchange="posCartQty(${i}, this.value)" title="Cantidad">
+                <span class="posv-step"><button type="button" onclick="posCartQty(${i}, ${posR2(l.cantidad - 1)})">−</button><input type="number" min="0" step="0.01" value="${l.cantidad}" onchange="posCartQty(${i}, this.value)" title="Cantidad"><button type="button" onclick="posCartQty(${i}, ${posR2(l.cantidad + 1)})">+</button></span>
                 <input type="number" class="form-control form-control-sm" style="max-width:62px" min="0" max="100" step="1" value="${Number(l.dtoPct) || 0}" onchange="posCartDto(${i}, this.value)" title="Descuento de esta línea (%)">
                 <span class="small fw-semibold" style="min-width:84px;text-align:right">${moneda(posLineaImporte(l))}${dto ? `<br><span class="text-danger">Dto −${dto}%</span>` : ''}</span>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="posCartDel(${i})">✕</button></div>${(l.extras && l.extras.length) || (posDatos().pos.cfg.extras || []).length ? `<div class="d-flex flex-wrap gap-1 mb-1">${(l.extras || []).map((e, j) => `<span class="badge bg-light text-dark border">${esc(e.nombre)} +${moneda(e.precio)} <a href="#" class="text-danger text-decoration-none" onclick="posLineaExtraDel(${i}, ${j}); return false;">✕</a></span>`).join('')}${(posDatos().pos.cfg.extras || []).map(e => `<button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="posLineaExtra(${i}, '${esc(e.id)}')">+ ${esc(e.nombre)}</button>`).join('')}</div>` : ''}`; }).join('')
@@ -7889,7 +7920,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                     ${posBruto() !== posSubtotal() ? `<div class="d-flex justify-content-between small"><span>Subtotal</span><span>${moneda(posBruto())}</span></div><div class="d-flex justify-content-between small text-danger"><span>Descuentos de líneas y ofertas</span><span>−${moneda(posR2(posBruto() - posSubtotal()))}</span></div>` : ''}
                     <div class="d-flex justify-content-between align-items-center small"><span>Descuento del ticket</span><span class="d-flex gap-1 align-items-center"><select class="form-select form-select-sm" style="max-width:74px" onchange="posDtoTicketSet('tipo', this.value)"><option value="pct" ${POS_DTO_T.tipo === 'pct' ? 'selected' : ''}>%</option><option value="monto" ${POS_DTO_T.tipo === 'monto' ? 'selected' : ''}>$</option></select><input type="number" class="form-control form-control-sm" style="max-width:84px" min="0" step="0.01" value="${Number(POS_DTO_T.valor) || 0}" onchange="posDtoTicketSet('valor', this.value)"><b class="text-danger">${posDtoTicketMonto() ? '−' + moneda(posDtoTicketMonto()) : ''}</b></span></div>
                     <div class="d-flex justify-content-between align-items-center" style="font-size:1.12rem"><span class="fw-semibold">Total</span><span class="fw-bold">${moneda(posTotal())}</span></div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-1" onclick="posEsperaGuardar()">⏸ Dejar esta venta en espera</button>
+                    <div class="posv-bar"><button type="button" class="btn btn-outline-primary" onclick="posCotizGuardar()">🧾 Cotización</button><button type="button" class="btn btn-outline-warning" onclick="posEsperaGuardar()">⏸ Suspender</button><div class="posv-totalbox"><div class="small text-muted">Total a pagar</div><div class="posv-totalbig">${moneda(posTotal())}</div></div></div>
                 </div>`;
             if (!POS_PAGOS) POS_PAGOS = [{ metodo: 'efectivo', monto: posTotal() }];
             if (cob) cob.innerHTML = '<div class="mt-2">' + POS_PAGOS.map((p, i) => `<div class="d-flex gap-2 mb-1">
@@ -20173,7 +20204,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-89';
+        var MANUAL_VERSION = 'v2026.10.30-90';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20875,7 +20906,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
          'mjEstadosUI','mjDJUtilidadesUI','mjReservaUI','mjExportarEstadosCSV','mjFacturaCrearUI','mjDepreciacionAFUI',
          'mjFichaCostosUI','mjIPVUI','abrirEditorNegocio','eliminarNegocio','mjExpedienteToggle','mjRenderExpediente','mjKYCEditar',
          'mjROSAgregarUI','mjExclusionAgregarUI','mjFacturaConfirmarUI','mjFacturaCancelarUI','mjPatronAplicarUI',
-         'facClienteGuardar','facClienteEditar','facClienteLimpiar','facLineaAdd','facLineaDel','facRecalc','facCrearUI','facConfirmarUI','facAnularUI','facImprimirUI','renderFacturas','facPagoToggleUI','facCobroQuitarUI','lluviaToggle','lluviaVolumen','renderContratos','ctorGuardarUI','ctorEditarUI','ctorLimpiarUI','ctorEstadoUI','ctorEliminarUI','ctorRenderLista','ctorAbrirMenu','facContratoRefrescar','ctorAdjAbrir','ctorAdjCerrar','ctorAdjArchivo','ctorAdjVer','ctorAdjDescargar','ctorAdjQuitar','ctorGenAbrir','ctorGenCerrar','ctorGenGenerar','ctorGenFilaAdd','ctorGenFilaDel','ctorAutAdd','ctorAutDel','ctorDocCerrar','ctorDocImprimir','ctrabAbrir','ctrabCerrar','ctrabGenerar','ctrabDocCerrar','ctrabDocImprimir','tarjAbrir','tarjCerrar','tarjPintar','tarjGuardar','tarjRestablecer','tarjImprimir','tarjCertImprimir','tarjDocCerrar','tarjDocImprimir','expdAbrir','expdCerrar','expdGuardar','expdImprimir','retRender','retAbrir','retCerrar','retGuardar','retTipoCambio','retDarBaja','retCertImprimir','retResumenImprimir','retDocCerrar','retDocImprimir','posCfgGuardar','posAbrirTurno','posBusca','posAddProd','posAddManual','posCartQty','posCartDel','posPagoSet','posPagoAdd','posPagoDel','posCobrar','posTicketImprimir','posTicketCerrar','posCajaMovGuardar','posInformeX','posCerrarAbrir','posCerrarTurno','posTicketPos','posHistVer','posReimprimir','posInformeZ','posAnularAbrir','posAnularConfirmar','posSetCliente','posClienteAgregar','posClienteVer','posAbonoAbrir','posAbonoConfirmar','posCierreDenom','posInfSet','posVarAbrir','posVarCerrar','posAddVar','posAddLinea','posVarAdd','posVarDel','posVarSet','posExtraAdd','posExtraDel','posExtraSet','posLineaExtra','posLineaExtraDel','posMesaAbrir','posCuentaGuardar','posCuentaVaciar','posMesaAdd','posMesaDel','posMesaSet','posMesasSembrar','posPintarMesas','posTasaUsdSet','posPintarPanel','posPintarGrid','posPintarInformes','posCajaAdd','posCajaDel','posCajaSet','posAreaAdd','posAreaDel','posAreaSetNom','posAreaSet','posSetCatI','posCartDto','posDtoTicketSet','posDevolverAbrir','posDevolverConfirmar','posEsperaGuardar','posEsperaRecuperar','posEsperaBorrar','posEscanear','posBusqEnter','contaEfeGenerar','dj01DocGenerar',
+         'facClienteGuardar','facClienteEditar','facClienteLimpiar','facLineaAdd','facLineaDel','facRecalc','facCrearUI','facConfirmarUI','facAnularUI','facImprimirUI','renderFacturas','facPagoToggleUI','facCobroQuitarUI','lluviaToggle','lluviaVolumen','renderContratos','ctorGuardarUI','ctorEditarUI','ctorLimpiarUI','ctorEstadoUI','ctorEliminarUI','ctorRenderLista','ctorAbrirMenu','facContratoRefrescar','ctorAdjAbrir','ctorAdjCerrar','ctorAdjArchivo','ctorAdjVer','ctorAdjDescargar','ctorAdjQuitar','ctorGenAbrir','ctorGenCerrar','ctorGenGenerar','ctorGenFilaAdd','ctorGenFilaDel','ctorAutAdd','ctorAutDel','ctorDocCerrar','ctorDocImprimir','ctrabAbrir','ctrabCerrar','ctrabGenerar','ctrabDocCerrar','ctrabDocImprimir','tarjAbrir','tarjCerrar','tarjPintar','tarjGuardar','tarjRestablecer','tarjImprimir','tarjCertImprimir','tarjDocCerrar','tarjDocImprimir','expdAbrir','expdCerrar','expdGuardar','expdImprimir','retRender','retAbrir','retCerrar','retGuardar','retTipoCambio','retDarBaja','retCertImprimir','retResumenImprimir','retDocCerrar','retDocImprimir','posCfgGuardar','posAbrirTurno','posBusca','posAddProd','posAddManual','posCartQty','posCartDel','posPagoSet','posPagoAdd','posPagoDel','posCobrar','posTicketImprimir','posTicketCerrar','posCajaMovGuardar','posInformeX','posCerrarAbrir','posCerrarTurno','posTicketPos','posHistVer','posReimprimir','posInformeZ','posAnularAbrir','posAnularConfirmar','posSetCliente','posClienteAgregar','posClienteVer','posAbonoAbrir','posAbonoConfirmar','posCierreDenom','posInfSet','posVarAbrir','posVarCerrar','posAddVar','posAddLinea','posVarAdd','posVarDel','posVarSet','posExtraAdd','posExtraDel','posExtraSet','posLineaExtra','posLineaExtraDel','posMesaAbrir','posCuentaGuardar','posCuentaVaciar','posMesaAdd','posMesaDel','posMesaSet','posMesasSembrar','posPintarMesas','posTasaUsdSet','posPintarPanel','posPintarGrid','posPintarInformes','posCajaAdd','posCajaDel','posCajaSet','posAreaAdd','posAreaDel','posAreaSetNom','posAreaSet','posSetCatI','posvToggleCats','posCartDto','posDtoTicketSet','posDevolverAbrir','posDevolverConfirmar','posEsperaGuardar','posEsperaRecuperar','posEsperaBorrar','posEscanear','posBusqEnter','contaEfeGenerar','dj01DocGenerar',
          'mjPatronCrearUI','mjPresupuestoAgregarUI','mjInstrumentoUsarUI','mjInstrumentoAnularUI','mjInstrumentoCrearUI',
          'contaTesAdd','contaTesDel','contaTesToggle','contaTesTipoUI','contaCandadoAsumir','contaCandadoDesasumir',
          'contaCuarentenaLiberar','contaCuarentenaLiberarOp','contaCuarentenaDescartar','contaCuarentenaToggle',
