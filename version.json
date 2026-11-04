@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-81",
-  "publicada": "2026-10-31 03:54",
-  "notas": "Ronda 81: panel visual del Punto de Venta con gráfico de 7 días, pago en USD con conversión por la tasa del negocio y fechas de vencimiento con alertas (POS-9).",
+  "version": "v2026.10.30-82",
+  "publicada": "2026-11-04 02:00",
+  "notas": "Ronda 82: cajas múltiples y áreas de inventario en el POS (POS-10)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "49862269fdbee24437ba0d637ac9c681f4b3a5330ebbdb48f73089130dc70e0b",
-      "bytes": 2143332
+      "sha256": "b373d7a9bfe6c85fe684f78a0dbd9c13164234dd1df39fd5bdd7a9f10453df47",
+      "bytes": 2152163
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "VSWlxYIEkjcMt3lTIyFP+YCx2acDzE+2O5xMmRwVv0zB3tGsKtcCBAilIJLf7eHYfy6Igm2LEHsLVGXmuqJYDA=="
+  "firma": "iuTFolMDvuQQtCBRlTf+jIhQev90995x1Qwrv0l9/bjFBuqOwcMrl0nIbOgOZ6bPEIp8+tF41cnwQxtyoGYaDg=="
 }
