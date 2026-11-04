@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-96",
-  "publicada": "2026-11-04 21:40",
-  "notas": "Ronda 96: eliminados el cierre de la versión en línea y su advertencia (la versión en línea reabre para los negocios) y modo gratis permanente para los negocios de prueba (nombre que empieza por «Prueba» y tenedor de prueba: licencia y módulo POS siempre pagados, sin tocar la hoja)",
+  "version": "v2026.10.30-97",
+  "publicada": "2026-11-04 22:44",
+  "notas": "Ronda 97: la tarjeta «Usuarios del POS de tu negocio» se mueve a la pantalla de entrada al Punto de Venta (botón flotante): el dueño del negocio (editor) no tiene pestaña de Configuración y no la alcanzaba; la ven el dueño y el administrador del negocio con el módulo activo",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "4cbbb1dc7e5564df10186961daaf03a83482262c5212f0cd8b9d37adc0d2ffb3",
-      "bytes": 2044064
+      "sha256": "2f494943f030af1b233d1ffe1de35b688e0745136e8479b348d210b78711a15b",
+      "bytes": 2044127
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "u8vjmoSzfviWtcNdT10AQQqs4OWhqu/wbMXoFdVy6SaGSJbLZs04mTIdmPSsm9zs4M4ozIx9ZoUhYtV5eF51BQ=="
+  "firma": "b07hs0kT+HS0+R/JcKmg+74fsbcsU14DMeyXAsqhSucRa0d2KHEbblGpu5OcPIbSgL6QrP4HvWXx41cQtt1aCg=="
 }
