@@ -2287,6 +2287,9 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                                     <select class="form-select form-select-sm" id="newRole">
                                         <option value="consultor">👁️ Consultor</option>
                                         <option value="editor">✏️ Editor</option>
+                                        <option value="pos_admin">🛒 Administrador POS</option>
+                                        <option value="pos_cajero">🧾 Cajero POS</option>
+                                        <option value="pos_almacen">📦 Almacén POS</option>
                                         <option value="tenedor">📚 Tenedor de libros</option>
                                     </select>
                                 </div>
@@ -2325,6 +2328,9 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                                     <select class="form-select form-select-sm" id="newRoleAsociado">
                                         <option value="consultor">👁️ Consultor</option>
                                         <option value="editor">✏️ Editor</option>
+                                        <option value="pos_admin">🛒 Administrador POS</option>
+                                        <option value="pos_cajero">🧾 Cajero POS</option>
+                                        <option value="pos_almacen">📦 Almacén POS</option>
                                     </select>
                                 </div>
                             </div>
@@ -7220,6 +7226,30 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         if (CFG.negocios && CFG.negocios[neg]) CFG.negocios[neg].extras = r.extras;
                     }
                 });
+                /* Ronda -94: módulo POS por negocio (interruptor y pago
+                   del mes en curso), con la misma mecánica de guardado
+                   inmediato vía subs_set modulo:'pos'. */
+                box.addEventListener('click', async e => {
+                    const pm = e.target.closest('[data-modpos-mes]');
+                    if (pm) {
+                        const neg = pm.getAttribute('data-modpos-mes'), clave = pm.getAttribute('data-modpos-clave');
+                        const s2 = subsDeNeg(neg), mp2 = (s2.modulos || {}).pos || { pagos: {} };
+                        const r = await api('subs_set', { negocio: neg, modulo: 'pos', moduloPagos: { [clave]: !mp2.pagos[clave] } });
+                        if (!r.ok) { alert(r.error || 'No se pudo guardar el pago del módulo'); return; }
+                        if (CFG.negocios) { CFG.negocios[neg] = CFG.negocios[neg] || {}; CFG.negocios[neg].subs = r.subs; }
+                        renderSuscripciones();
+                    }
+                });
+                box.addEventListener('change', async e => {
+                    const ps = e.target.closest('[data-modpos]');
+                    if (ps) {
+                        const neg = ps.getAttribute('data-modpos');
+                        const r = await api('subs_set', { negocio: neg, modulo: 'pos', moduloActivo: !!ps.checked });
+                        if (!r.ok) { alert(r.error || 'No se pudo guardar'); ps.checked = !ps.checked; return; }
+                        if (CFG.negocios) { CFG.negocios[neg] = CFG.negocios[neg] || {}; CFG.negocios[neg].subs = r.subs; }
+                        renderSuscripciones();
+                    }
+                });
             }
             /* Ronda -64: los negocios que nacieron dentro de una copia
                sin conexión se anuncian como INSTALACIÓN, no como
@@ -7271,6 +7301,14 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                             <div class="small fw-semibold mb-1">Cuenta en divisa de este PDL <span class="text-muted fw-normal">(el PDL solo abre cuenta en divisas si accede a fuentes lícitas en divisa, Res. 118/2026 del BCC: actívala aquí y le aparece la Tarjeta USD)</span></div>
                             <label class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" data-extras="${esc(neg)}" data-extras-campo="usd" ${exNeg.usd ? 'checked' : ''}> <span class="form-check-label small">Tarjeta USD</span></label>
                         </div>` : '';
+                    const mpNeg = (s.modulos || {}).pos || { activo: false, pagos: {} };
+                    const mpMes = subsMesActual();
+                    const mpPagado = !!mpNeg.pagos[mpMes];
+                    const modPosHtml = `<div class="border-top pt-2 mt-2">
+                            <div class="small fw-semibold mb-1">Módulo Punto de Venta (POS) <span class="text-muted fw-normal">(se paga aparte de la licencia; con el módulo activo y el mes pagado, el negocio puede crear su administrador POS, su cajero y su almacén — uno de cada — y abrir el punto de venta)</span></div>
+                            <label class="form-check form-switch mb-0 me-3"><input class="form-check-input" type="checkbox" data-modpos="${esc(neg)}" ${mpNeg.activo ? 'checked' : ''}> <span class="form-check-label small">Módulo activo</span></label>
+                            <button type="button" class="btn btn-sm ${mpPagado ? 'btn-success' : 'btn-outline-danger'} m-1" data-modpos-mes="${esc(neg)}" data-modpos-clave="${mpMes}">${mpPagado ? '✅' : '🚫'} Pago del mes actual (${mpMes})</button>
+                        </div>`;
                     cuerpo = `<div class="border-top pt-2 mt-2">
                         <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
                             <label class="small mb-0">Año <select id="subsAnioSel" class="form-select form-select-sm d-inline-block w-auto ms-1">${[anio - 1, anio, anio + 1].map(a => `<option value="${a}" ${a === SUBS_ANIO ? 'selected' : ''}>${a}</option>`).join('')}</select></label>
@@ -7279,6 +7317,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         </div>
                         <div>${botones}</div>
                         ${extrasHtml}
+                        ${modPosHtml}
                     </div>`;
                 }
                 const tLic = (typeof GDOCS !== 'undefined' && GDOCS && GDOCS[neg]) ? licTarifaNegocio(neg, GDOCS[neg]) : null;
@@ -7781,7 +7820,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             const neg = (PANEL_LOCAL && PANEL_LOCAL.negocioRegistrado) || getNegocioNombre();
             const tipo = String(getEntityType() || 'tcp').toUpperCase();
             const usuarios = getUsuarios();
-            const roles = { admin: 'Administrador', editor: 'Trabajador', consultor: 'Consultor', viewer: 'Consultor', vendedor: 'Vendedor', tenedor: 'Tenedor' };
+            const roles = { admin: 'Administrador', editor: 'Trabajador', consultor: 'Consultor', viewer: 'Consultor', vendedor: 'Vendedor', tenedor: 'Tenedor', pos_admin: 'Administrador POS', pos_cajero: 'Cajero POS', pos_almacen: 'Almacén POS' };
             const us = Object.keys(usuarios).filter(u => String((usuarios[u] || {}).negocio || '') === neg).sort()
                 .map(u => '<span class="badge bg-light text-dark border me-1 mb-1">' + esc(u) + ' · ' + esc(roles[usuarios[u].role] || usuarios[u].role || '') + '</span>').join('') || '<span class="text-secondary">—</span>';
             let rescate = '<span class="text-secondary">Sin leer</span>';
@@ -16445,6 +16484,9 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         // ===== LOGIN =====
         function handleLogin(e) {
             e.preventDefault();
+            /* Ronda -94: los usuarios del POS no entran a la contabilidad:
+               su pantalla es la del Punto de Venta. */
+            if (typeof ME !== 'undefined' && ME && ME.user && ['pos_admin', 'pos_cajero', 'pos_almacen'].indexOf(ME.user.role) >= 0) { mostrarPosHome(); return; }
             const username = document.getElementById('userInput').value.trim();
             const password = document.getElementById('passInput').value.trim();
             const userData = authenticate(username, password);
@@ -18618,23 +18660,24 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         // respeta, igual que en el servidor, que es quien manda).
         function usuariosLimiteError59(nuevos) {
             if (!USERS_SNAPSHOT) return '';
-            const bucket = r => r === 'editor' ? 'editor' : (r === 'consultor' || r === 'viewer') ? 'consultor' : r === 'vendedor' ? 'vendedor' : '';
+            const bucket = r => r === 'editor' ? 'editor' : (r === 'consultor' || r === 'viewer') ? 'consultor' : r === 'vendedor' ? 'vendedor' : (r === 'pos_admin' || r === 'pos_cajero' || r === 'pos_almacen') ? r : '';
             const cnt = (map) => { const c = {}; Object.values(map || {}).forEach(u => { const b = bucket(u.role); if (b) { const k = (u.negocio || '') + '|' + b; c[k] = (c[k] || 0) + 1; } }); return c; };
             const oldC = cnt(USERS_SNAPSHOT), newC = cnt(nuevos);
             for (const k of Object.keys(newC)) {
                 const neg = k.slice(0, k.lastIndexOf('|')), b = k.slice(k.lastIndexOf('|') + 1);
                 if (b === 'editor' && typeof getRolUsuario === 'function' && getRolUsuario() === 'tenedor') continue; // su editor de acceso no consume el cupo del negocio
                 let lim = 1;
-                if (b === 'vendedor') {
+                if (b === 'vendedor' || b === 'pos_admin' || b === 'pos_cajero' || b === 'pos_almacen') {
                     try {
                         if (window.FINANZAS_LOCAL && typeof PANEL_LOCAL !== 'undefined' && PANEL_LOCAL && PANEL_LOCAL.modo === 'negocio') { const m = (PANEL_LOCAL.modulos || {}).pos || {}; lim = m.vigente ? 1 : 0; }
-                        else if (typeof CFG !== 'undefined' && CFG && CFG.negocios && CFG.negocios[neg]) { lim = 0; }
+                        else { const mp = subsDeNeg(neg).modulos.pos; lim = (mp.activo && mp.pagos[subsMesActual()]) ? 1 : 0; }
                     } catch (e) {}
                 }
                 if (newC[k] > lim && newC[k] > (oldC[k] || 0)) {
                     if (b === 'editor') return '«' + neg + '» ya tiene su usuario de trabajo: el modelo es 1 administrador + 1 trabajador + 1 consultor por negocio.';
                     if (b === 'consultor') return '«' + neg + '» ya tiene su usuario consultor: el modelo es 1 administrador + 1 trabajador + 1 consultor por negocio.';
                     if (lim === 0) return 'El módulo POS no está activo y pagado para «' + neg + '»: el usuario de POS solo se crea con el módulo contratado.';
+                    if (b === 'pos_admin' || b === 'pos_cajero' || b === 'pos_almacen') return '«' + neg + '» ya tiene su usuario de este tipo del POS: es uno solo por negocio (1 administrador POS, 1 cajero y 1 almacén).';
                     return '«' + neg + '» ya tiene su usuario de POS: es uno solo por negocio.';
                 }
             }
@@ -18964,7 +19007,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-93';
+        var MANUAL_VERSION = 'v2026.10.30-94';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -18984,7 +19027,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             {id:'libro', titulo:'16 · Herramientas del Libro: costos, precios y tablero'},
             {id:'impresion', titulo:'17 · Documentos oficiales e impresión'},
             {id:'respaldo', titulo:'18 · Respaldo, Historial y Configuración'},
-            {id:'ideas', titulo:'19 · Ideas 💡: pagar lo justo, ni un peso más'}
+            {id:'ideas', titulo:'19 · Ideas 💡: pagar lo justo, ni un peso más'},
+            {id:'pos', titulo:'20 · Punto de Venta (módulo POS)'}
         ];
         var MANUAL_SECCIONES = [
         {id:'acceso-sesion', modulo:'empezar', titulo:'Entrar a la app y la sesión de 30 días', html:
@@ -19483,7 +19527,13 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<ul><li><b>Las imágenes se reducen solas</b> al subirlas: el logo hasta 60 KB y la firma y el cuño (en PNG con fondo transparente) hasta 40 KB; la firma y el cuño se recortan al trazo. Si el documento completo de tu negocio creciera demasiado, la app <b>no guarda</b> y te dice que reduzcas las imágenes.</li>' +
             '<li><b>Dónde salen:</b> el logo encabeza los <b>documentos de diseño propio</b> (por ejemplo, los estados de cuenta internos y las facturas) y la firma y el cuño van en su pie de firma. En los <b>modelos oficiales cerrados</b> solo aparecen los nombres, porque el modelo no admite imágenes.</li>' +
             '<li><b>Quién firma:</b> el campo «Quién firma Elaborado por» fija el nombre que se usa por defecto en los pies de firma; si lo dejas vacío, se usa el del representante.</li>' +
-            '<li>La tarjeta <b>no aparece en el perfil del administrador general</b>: ese perfil no es un negocio; la identidad solo existe dentro de cada negocio concreto.</li></ul>'}
+            '<li>La tarjeta <b>no aparece en el perfil del administrador general</b>: ese perfil no es un negocio; la identidad solo existe dentro de cada negocio concreto.</li></ul>'},
+        {id:'punto-de-venta', modulo:'pos', titulo:'Punto de Venta: módulo, usuarios y sincronización', html:
+            '<p>El <b>Punto de Venta</b> es un <b>módulo aparte</b> de la licencia: la administradora lo activa por negocio en <b>Configuración → Suscripciones</b> (interruptor «Módulo activo») y marca su <b>pago del mes en curso</b>. Sin las dos cosas, el negocio no puede crear usuarios del POS ni abrirlo.</p>' +
+            '<ul><li><b>Usuarios del POS:</b> se crean en la misma base de usuarios de Finanzas (Gestión de Usuarios o «Asociado a negocio»), con los roles <b>Administrador POS</b>, <b>Cajero POS</b> y <b>Almacén POS</b>: <b>uno de cada por negocio</b> y con <b>nombre de usuario único en toda la base</b> (el servidor no admite repetidos). Cada uno ve solo lo suyo: el administrador POS lo ve todo dentro del POS; el cajero, ventas, clientes y vales; el almacén, inventario, proveedores y compras. Los usuarios del POS <b>no entran a la contabilidad</b>: al entrar a Finanzas van directo a su pantalla del Punto de Venta.</li>' +
+            '<li><b>Los datos viven en Finanzas:</b> productos, ventas, inventario, caja y empleados del POS se guardan en la base de datos de Finanzas, en el espacio propio del negocio. Al pulsar <b>«Abrir Punto de Venta»</b> los datos se bajan a este equipo; al terminar, vuelve a Finanzas y pulsa <b>«Sincronizar datos»</b> para subir los cambios. Entre sincronizaciones el POS trabaja sin conexión en el equipo.</li>' +
+            '<li><b>El PIN:</b> la primera vez que cada usuario abre el POS en un equipo, crea su <b>PIN de 4 dígitos</b>: es la clave con la que entra al punto de venta en ese equipo (distinta de su contraseña de Finanzas, que sigue guardada solo como huella). El administrador POS puede gestionar los empleados dentro del propio POS.</li>' +
+            '<li><b>El dueño del negocio</b> (su usuario editor) también puede abrir el POS con el botón flotante «🛒 Punto de Venta» cuando el módulo está vigente, y entra como administrador del POS.</li></ul>'}
         ];
         function manualEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function manualNorm(s){
@@ -19843,6 +19893,124 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
   window.adornarAyuda=adornarAyuda;
   window.irAyuda=irAyuda;
+
+  /* ===== Ronda -94: puente con el Punto de Venta (página en pos/,
+     SIN tocarla). La página guarda en localStorage «miposcuba_v1» del
+     mismo origen; Finanzas es la base maestra: los usuarios viven en
+     la hoja Usuarios (roles pos_admin / pos_cajero / pos_almacen, con
+     nombre único garantizado por el servidor) y los datos del POS en
+     el documento «pos» del negocio. Este puente baja el documento a
+     localStorage antes de abrir y lo sube al volver. ===== */
+  var POS_LS='miposcuba_v1';
+  var POS_ROLES=['pos_admin','pos_cajero','pos_almacen'];
+  var POS_ROLMAP={pos_admin:'admin',pos_cajero:'ventas',pos_almacen:'almacen',editor:'admin',admin:'admin'};
+  var POS_ROLTXT={pos_admin:'Administrador POS',pos_cajero:'Cajero POS',pos_almacen:'Almacén POS',editor:'Editor',admin:'Administrador'};
+  function posEsRol(){ return !!(typeof ME!=='undefined'&&ME&&ME.user&&POS_ROLES.indexOf(ME.user.role)>=0); }
+  function posLocal(){ try{ var d=JSON.parse(localStorage.getItem(POS_LS)); return (d&&typeof d==='object')?d:null; }catch(e){ return null; } }
+  function posSinMarcas(db){ var c={}; Object.keys(db||{}).forEach(function(k){ if(k.indexOf('__fin')!==0) c[k]=db[k]; }); return c; }
+  function posHash(o){ try{ var s=JSON.stringify(o); var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return String(h); }catch(e){ return ''; } }
+  function posGuardarLocal(db){ try{ localStorage.setItem(POS_LS, JSON.stringify(db)); }catch(e){} }
+  function posDbInicial(){
+    var neg=(ME&&ME.user&&ME.user.negocio)||'Mi Negocio';
+    var et=(ME&&ME.user&&ME.user.entityType)||'tcp';
+    var tipo=et==='mipyme'?'MIPYME':(et==='pdl'?'PDL':'TCP / Autónomo');
+    var tasa=0; try{ tasa=Number(tasaVista())||0; }catch(e){}
+    return { cfg:{name:neg,type:tipo,phone:'',addr:'',foot:'¡Gracias por su compra!',usd:tasa,mlc:0,eur:0,seq:1001,marginPct:45,autoRates:false,ratesAt:null,ratesSrc:'manual',ratesDate:null},
+      employees:[],products:[],customers:[],suppliers:[],sales:[],receivings:[],expenses:[],cashups:[],cashMoves:[],giftcards:[],holds:[] };
+  }
+  async function posVigente(){
+    try{ var s=subsDeNeg(ME.user.negocio); var mp=(s.modulos||{}).pos||{}; if(mp.activo&&mp.pagos[subsMesActual()]) return true; if(mp.activo||Object.keys(mp.pagos||{}).length) return false; }catch(e){}
+    try{ var r=await api('validar_suscripcion',{negocio:ME.user.negocio}); if(r&&r.ok&&r.modulos&&r.modulos.pos) return !!r.modulos.pos.vigente; }catch(e){}
+    return false;
+  }
+  async function posPull(){
+    var d=null; try{ d=await api('data'); }catch(e){}
+    if(d&&d.ok){
+      if(d.vers&&typeof SLOT_VER!=='undefined') SLOT_VER=d.vers;
+      var sd=d.data&&d.data.pos;
+      if(sd&&sd.db&&typeof sd.db==='object'){
+        var loc=posLocal(), mio=(ME&&ME.user&&ME.user.negocio)||'';
+        var ajeno=loc&&loc.__finNegocio&&loc.__finNegocio!==mio;
+        var sucio=loc&&!ajeno&&loc.__finHash&&posHash(posSinMarcas(loc))!==loc.__finHash;
+        if(!ajeno&&!sucio){ var db=sd.db; db.__finSync=sd.updatedAt||Date.now(); db.__finHash=posHash(posSinMarcas(db)); posGuardarLocal(db); return db; }
+      }
+    }
+    return posLocal();
+  }
+  async function posPush(){
+    var loc=posLocal(); if(!loc||loc.__finNegocio!==(ME.user.negocio)) return {ok:false};
+    var r; try{ r=await api('data_set',{k:'pos',v:{db:loc,updatedAt:Date.now(),by:ME.username},ver:(typeof SLOT_VER!=='undefined'&&SLOT_VER.pos)||0}); }catch(e){ return {ok:false}; }
+    if(r&&r.ok){ if(r.ver!=null&&typeof SLOT_VER!=='undefined') SLOT_VER.pos=r.ver; loc.__finSync=Date.now(); loc.__finHash=posHash(posSinMarcas(loc)); posGuardarLocal(loc); return {ok:true}; }
+    if(r&&r.conflicto){ if(r.ver!=null&&typeof SLOT_VER!=='undefined') SLOT_VER.pos=r.ver; return {ok:false,conflicto:true}; }
+    return {ok:false,error:r&&r.error};
+  }
+  function posEstadoTxt(){
+    var el=document.getElementById('posHomeEstado'); if(!el||!ME||!ME.user) return;
+    var loc=posLocal();
+    if(!loc||loc.__finNegocio!==ME.user.negocio){ el.textContent='Este equipo aún no tiene los datos del POS de tu negocio: pulsa «Abrir Punto de Venta» para prepararlo.'; return; }
+    el.textContent='Datos en este equipo: '+((loc.products||[]).length)+' productos · '+((loc.sales||[]).length)+' ventas · '+((loc.employees||[]).length)+' empleado(s). Última sincronización: '+(loc.__finSync?new Date(loc.__finSync).toLocaleString('es-CU'):'sin registrar')+'.';
+  }
+  async function mostrarPosHome(){
+    var lc=document.getElementById('loginContainer'); if(lc) lc.classList.add('hidden');
+    var dc=document.getElementById('dashboardContainer'); if(dc) dc.classList.remove('visible');
+    var ov=document.getElementById('posHome'); if(!ov||!ME||!ME.user) return; ov.style.display='flex';
+    var t=document.getElementById('posHomeNegocio'); if(t) t.textContent=(ME.user.negocio||'')+' · '+ME.username+' ('+(POS_ROLTXT[ME.user.role]||ME.user.role)+')';
+    var vig=await posVigente();
+    var btn=document.getElementById('posHomeAbrir'); if(btn) btn.disabled=!vig;
+    var av=document.getElementById('posHomeAviso'); if(av) av.style.display=vig?'none':'';
+    await posPull(); posEstadoTxt();
+  }
+  function posCerrarHome(){ var ov=document.getElementById('posHome'); if(ov) ov.style.display='none'; if(!posEsRol()){ var dc=document.getElementById('dashboardContainer'); if(dc) dc.classList.add('visible'); } }
+  async function posAbrir(){
+    if(!(await posVigente())){ alert('El módulo POS no está activo y pagado este mes para tu negocio.'); return; }
+    var loc=await posPull();
+    if(!loc||loc.__finNegocio!==ME.user.negocio){
+      if(loc&&loc.__finNegocio&&!confirm('Este equipo guarda datos del POS de otro negocio ('+loc.__finNegocio+'). Se reemplazarán por los de '+ME.user.negocio+'. ¿Continuar?')) return;
+      loc=posDbInicial();
+    }
+    var id='fin_'+ME.username;
+    var emp=(loc.employees||[]).find(function(e){ return e.id===id; });
+    if(!emp){
+      var pin=prompt('Crea tu PIN de 4 dígitos para entrar al Punto de Venta en este equipo:');
+      if(pin===null) return;
+      pin=String(pin).trim();
+      if(!/^\d{4}$/.test(pin)){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
+      loc.employees=loc.employees||[];
+      loc.employees.push({id:id,name:ME.username,pin:pin,role:POS_ROLMAP[ME.user.role]||'ventas',active:true});
+    } else { emp.role=POS_ROLMAP[ME.user.role]||emp.role; emp.active=true; }
+    loc.__finNegocio=ME.user.negocio;
+    posGuardarLocal(loc);
+    var p=await posPush();
+    if(!p.ok&&p.conflicto){ await posPull(); }
+    location.href='pos/';
+  }
+  async function posSincronizar(){
+    var loc=posLocal();
+    if(loc&&loc.__finNegocio===(ME.user.negocio)&&loc.__finHash&&posHash(posSinMarcas(loc))!==loc.__finHash){
+      var p=await posPush();
+      if(!p.ok){ alert('⚠️ No se pudo subir: '+((p&&p.error)||'conflicto de versión. Vuelve a intentarlo.')); return; }
+    }
+    await posPull(); posEstadoTxt(); alert('✅ Datos del POS sincronizados con Finanzas.');
+  }
+  function posSalir(){ api('logout').finally(function(){ try{ localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); }catch(e){} location.reload(); }); }
+  window.mostrarPosHome=mostrarPosHome; window.posAbrir=posAbrir; window.posSincronizar=posSincronizar; window.posCerrarHome=posCerrarHome; window.posSalir=posSalir; window.posEsRol=posEsRol;
+  /* El editor del negocio con el módulo vigente también puede abrir
+     el POS: botón flotante que lleva a la misma pantalla. */
+  var __posBtnTimer=setInterval(function(){
+    var dc=document.getElementById('dashboardContainer');
+    if(dc&&dc.classList.contains('visible')&&typeof ME!=='undefined'&&ME&&ME.user&&ME.user.role==='editor'){
+      clearInterval(__posBtnTimer);
+      posVigente().then(function(v){
+        if(v&&!document.getElementById('btnPosFlotante')){
+          var b=document.createElement('button');
+          b.id='btnPosFlotante'; b.className='btn btn-success'; b.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1080';
+          b.textContent='🛒 Punto de Venta';
+          b.onclick=function(){ mostrarPosHome(); };
+          document.body.appendChild(b);
+        }
+      });
+    }
+  },1500);
 })();
 </script>
 <!-- Importador de estados de cuenta PDF (BANDEC): inyecta el botón «PDF» en
@@ -19851,5 +20019,23 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
      cargaba, así que la importación no aparecía (auditoría 2026-10-24). -->
 <script src="pdf-import.js"></script>
 <script src="iconos.js"></script>
+<!-- Ronda -94: pantalla de entrada al Punto de Venta (usuarios POS y
+     el editor del negocio con el módulo vigente). La página del POS
+     vive en pos/ y no se toca: Finanzas sincroniza sus datos. -->
+<div id="posHome" style="display:none;position:fixed;inset:0;z-index:2000;background:#0d1626;color:#e9eff8;align-items:center;justify-content:center;padding:16px;overflow:auto">
+  <div style="max-width:520px;width:100%;background:#101c30;border:1px solid #1f3049;border-radius:16px;padding:24px;box-shadow:0 24px 54px -20px rgb(0 0 0/.75)">
+    <h3 style="margin-top:0">🛒 Punto de Venta</h3>
+    <p id="posHomeNegocio" style="opacity:.85"></p>
+    <p id="posHomeAviso" class="small" style="display:none;background:#331111;border:1px solid #991b1b;border-radius:8px;padding:8px">⚠️ El módulo POS no está activo y pagado este mes para tu negocio: no podrás abrir el punto de venta hasta que se marque el pago.</p>
+    <p id="posHomeEstado" class="small" style="opacity:.85"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button id="posHomeAbrir" class="btn btn-success" onclick="posAbrir()">Abrir Punto de Venta</button>
+      <button class="btn btn-outline-light" onclick="posSincronizar()">Sincronizar datos</button>
+      <button class="btn btn-outline-light" onclick="posCerrarHome()">Volver a Finanzas</button>
+      <button class="btn btn-outline-danger" onclick="posSalir()">Cerrar sesión</button>
+    </div>
+    <p class="small" style="opacity:.7;margin-top:12px">Los datos del POS viven en Finanzas: al abrir se bajan a este equipo y dentro del POS entras con tu PIN de 4 dígitos. Al terminar, vuelve aquí y pulsa «Sincronizar datos» para subir los cambios.</p>
+  </div>
+</div>
 </body>
 </html>
