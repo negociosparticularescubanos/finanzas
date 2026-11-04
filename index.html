@@ -7706,7 +7706,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             const turno = posTurnoAbierto();
             if (!turno) { posPintarSinTurno(root); posPintarHistorial(); return; }
             root.innerHTML = `<div class="card p-3 mb-3"><h6 class="fw-semibold mb-2">📊 Panel del punto de venta</h6><div id="posPanelBox"></div></div><div class="row g-3">
-                <div class="col-lg-7">
+                <div class="col-lg-7 order-lg-2">
                     <div class="card p-3 mb-3">
                         <div class="d-flex gap-2 mb-2">
                             <input type="text" class="form-control" id="posBusq" placeholder="🔎 Buscar producto por nombre o código…" value="${esc(POS_BUSQ)}" oninput="posBusca(this.value)" onkeydown="posBusqEnter(event)">
@@ -7722,7 +7722,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                     </div>
                     <div class="card p-3 mb-3"><h6 class="fw-semibold mb-2">🍽️ Mesas y cuentas abiertas</h6><div id="posMesasBox"></div></div>
                 </div>
-                <div class="col-lg-5">
+                <div class="col-lg-5 order-lg-1 posv-ticket-col">
                     <div id="posTurnoBox"></div>
                     <div class="card p-3 mb-3"><h6 class="fw-semibold mb-2">🧾 Venta actual</h6><div id="posEsperasBox" class="mb-2"></div><div id="posCart"></div><div id="posCobro"></div></div>
                     <div id="posTicketBox"></div>
@@ -7764,7 +7764,33 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             renderPos();
         }
         function posControlaStock(conta, p) { return (Number(p.stock) || 0) > 0 || (conta.movInventario || []).some(m => m.productoId === p.id); }
+        const POSV_COLORES = ['#fde68a', '#fbcfe8', '#bfdbfe', '#bbf7d0', '#ddd6fe', '#fecaca', '#a7f3d0', '#fde2e4'];
+        function posvColor(semilla) { let h = 0; const t = String(semilla || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return POSV_COLORES[h % POSV_COLORES.length]; }
+        const POSV_CSS = '.posv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}'
+            + '.posv-chip{border:1px solid #e2e8f0;background:#f1f5f9;color:#334155;border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:600}'
+            + '.posv-chip-on{background:#7c3aed;border-color:#7c3aed;color:#fff}'
+            + '.posv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px}'
+            + '.posv-card{border:1px solid #eef1f4;background:#fff;border-radius:14px;padding:0 0 8px;overflow:hidden;text-align:left;box-shadow:0 1px 3px rgba(15,23,42,.08);cursor:pointer;display:flex;flex-direction:column;width:100%}'
+            + '.posv-card:active{transform:scale(.98)}'
+            + '.posv-visual{position:relative;display:block;height:64px}'
+            + '.posv-img{width:100%;height:64px;object-fit:cover;display:block}'
+            + '.posv-tile{display:flex;align-items:center;justify-content:center;height:64px;font-size:1.7rem;font-weight:700;color:rgba(15,23,42,.55)}'
+            + '.posv-precio{position:absolute;top:6px;left:6px;background:rgba(255,255,255,.95);border-radius:8px;padding:1px 7px;font-weight:700;font-size:.85rem;box-shadow:0 1px 2px rgba(15,23,42,.15)}'
+            + '.posv-oferta{position:absolute;top:6px;right:6px;background:#dc2626;color:#fff;border-radius:8px;padding:1px 6px;font-weight:700;font-size:.72rem}'
+            + '.posv-nombre{display:block;padding:6px 8px 0;font-size:.83rem;font-weight:600;line-height:1.15;min-height:2em}'
+            + '.posv-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:2px 8px 0;font-size:.72rem;color:#64748b}'
+            + '.posv-badge{background:#ede9fe;color:#5b21b6;border-radius:6px;padding:0 5px;font-weight:700}'
+            + '.posv-badge-var{background:#e0f2fe;color:#075985}'
+            + '.posv-stock-mal{color:#dc2626;font-weight:700}'
+            + '.posv-stock-bajo{color:#d97706;font-weight:700}'
+            + '.posv-sin{opacity:.55}'
+            + '@media(min-width:992px){.posv-ticket-col{position:sticky;top:8px;align-self:flex-start}}'
+            + '.posv-cobrar{width:100%;border:none;border-radius:12px;background:#16a34a;color:#fff;font-size:1.15rem;font-weight:700;padding:12px;box-shadow:0 2px 6px rgba(22,163,74,.35)}'
+            + '.posv-cobrar:active{transform:scale(.99)}'
+            + '.posv-linea{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f1f5f9}';
+        function posvEnsureStyle() { if (document.getElementById('posvStyle')) return; const st = document.createElement('style'); st.id = 'posvStyle'; st.textContent = POSV_CSS; document.head.appendChild(st); }
         function posPintarGrid() {
+            posvEnsureStyle();
             const box = document.getElementById('posGrid'); if (!box) return;
             const { conta } = posDatos();
             const q = POS_BUSQ.trim().toLowerCase();
@@ -7775,11 +7801,18 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             else if (POS_CAT) prods = prods.filter(p => String(p.categoria || '').trim() === POS_CAT);
             prods = prods.filter(p => !q || String(p.nombre).toLowerCase().includes(q) || String(p.codigo || '').toLowerCase().includes(q))
                 .sort((a, b) => (Number(b.favorito || 0) - Number(a.favorito || 0)) || String(a.nombre).localeCompare(String(b.nombre)));
-            const chips = '<div class="d-flex flex-wrap gap-1 mb-2">' + POS_CATS.map((c, i) => `<button type="button" class="btn btn-sm ${POS_CAT === c ? 'btn-primary' : 'btn-outline-secondary'}" onclick="posSetCatI(${i})">${c === '' ? 'Todos' : c === '__fav' ? '⭐ Favoritos' : esc(c)}</button>`).join('') + '</div>';
-            box.innerHTML = chips + (prods.length ? '<div class="d-flex flex-wrap gap-2">' + prods.map(p => {
+            const chips = '<div class="posv-chips">' + POS_CATS.map((c, i) => `<button type="button" class="posv-chip ${POS_CAT === c ? 'posv-chip-on' : ''}" onclick="posSetCatI(${i})">${c === '' ? 'Todos' : c === '__fav' ? '⭐ Favoritos' : esc(c)}</button>`).join('') + '</div>';
+            box.innerHTML = chips + (prods.length ? '<div class="posv-grid">' + prods.map(p => {
                 const ctrl = posControlaStock(conta, p), st = posEsKit(p) ? posKitDisponible(conta, p) : (Number(p.stock) || 0);
                 const of = Number(p.ofertaPct) || 0, pFin = of ? posR2((Number(p.precio) || 0) * (1 - of / 100)) : (Number(p.precio) || 0);
-                return `<button type="button" class="btn ${ctrl && st <= 0 ? 'btn-outline-danger' : 'btn-outline-primary'} text-start" style="min-width:130px;max-width:176px" onclick="posAddProd('${esc(p.id)}')">${(p.variantes || []).length ? '<span class="badge bg-info text-dark mb-1">▾ variantes</span>' : ''}${p.imagen ? `<img src="${esc(p.imagen)}" alt="" style="display:block;width:100%;height:44px;object-fit:cover;border-radius:6px;margin-bottom:4px">` : ''}<span class="d-block fw-semibold small">${p.favorito ? '⭐ ' : ''}${esc(p.nombre)}</span><span class="d-block">${of ? `<s class="text-muted small">${moneda(p.precio)}</s> <b>${moneda(pFin)}</b> <span class="badge bg-danger">−${of}%</span>` : moneda(p.precio)}</span><span class="d-block small ${ctrl && st <= 0 ? 'text-danger' : (ctrl && (Number(p.stockMin) || 0) > 0 && st <= (Number(p.stockMin) || 0) ? 'text-warning fw-semibold' : 'text-muted')}">${posEsKit(p) ? 'KIT · ' : ''}${(ctrl || posEsKit(p)) ? 'Stock: ' + st + ((Number(p.stockMin) || 0) > 0 && st <= (Number(p.stockMin) || 0) ? ' ⚠ bajo' : '') : 'Sin control de stock'}</span>${posBadgeVenceHtml(p)}</button>`;
+                const sin = (ctrl || posEsKit(p)) && st <= 0;
+                const bajo = (ctrl || posEsKit(p)) && !sin && (Number(p.stockMin) || 0) > 0 && st <= (Number(p.stockMin) || 0);
+                const visual = p.imagen ? `<img src="${esc(p.imagen)}" alt="" class="posv-img">` : `<span class="posv-tile" style="background:${posvColor(p.categoria || p.nombre)}">${esc(String(p.nombre || '?').trim().charAt(0).toUpperCase())}</span>`;
+                return `<button type="button" class="posv-card ${sin ? 'posv-sin' : ''}" onclick="posAddProd('${esc(p.id)}')">
+                    <span class="posv-visual">${visual}<span class="posv-precio">${moneda(pFin)}</span>${of ? `<span class="posv-oferta">−${of}%</span>` : ''}</span>
+                    <span class="posv-nombre">${p.favorito ? '⭐ ' : ''}${esc(p.nombre)}</span>
+                    <span class="posv-meta">${posEsKit(p) ? '<span class="posv-badge">KIT</span>' : ''}${(p.variantes || []).length ? '<span class="posv-badge posv-badge-var">▾ variantes</span>' : ''}<span class="${sin ? 'posv-stock-mal' : (bajo ? 'posv-stock-bajo' : '')}">${(ctrl || posEsKit(p)) ? (sin ? 'Agotado' : 'Stock: ' + st + (bajo ? ' ⚠' : '')) : 'Sin control'}</span>${posBadgeVenceHtml(p)}</span>
+                </button>`;
             }).join('') + '</div>' : '<p class="small text-secondary mb-0">Sin productos con precio de venta en esta vista. Pon los precios en Configuración → Punto de Venta (POS).</p>');
         }
         function posSetCatI(i) { POS_CAT = POS_CATS[i] || ''; posPintarGrid(); }
@@ -7841,11 +7874,12 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             box.innerHTML = esp.length ? '<div class="small fw-semibold mb-1">⏸ Ventas en espera</div>' + esp.map(e => { const sub = posR2((e.lineas || []).reduce((a, l) => a + posLineaImporte(l), 0)); const d = e.dtoTicket || { tipo: 'pct', valor: 0 }; const dtoM = d.tipo === 'pct' ? posR2(sub * (Number(d.valor) || 0) / 100) : posR2(Math.min(Number(d.valor) || 0, sub)); return `<div class="d-flex justify-content-between align-items-center border rounded px-2 py-1 mb-1"><span class="small"><b>${esc(e.nombre)}</b> · ${esc(e.hora)} · ${moneda(posR2(sub - dtoM))}</span><span class="d-flex gap-1"><button type="button" class="btn btn-sm btn-primary" onclick="posEsperaRecuperar('${esc(e.id)}')">Recuperar</button><button type="button" class="btn btn-sm btn-outline-danger" onclick="posEsperaBorrar('${esc(e.id)}')">✕</button></span></div>`; }).join('') : '';
         }
         function posPintarCarrito() {
+            posvEnsureStyle();
             const box = document.getElementById('posCart'); if (!box) return;
             const cob = document.getElementById('posCobro');
             posPintarEsperas();
             if (!POS_CARRITO.length) { box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + '<p class="small text-secondary mb-0">Toca un producto para empezar la venta.</p>'; if (cob) cob.innerHTML = ''; POS_PAGOS = null; return; }
-            box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + POS_CARRITO.map((l, i) => { const dto = (Number(l.ofertaPct) || 0) + (Number(l.dtoPct) || 0); return `<div class="d-flex align-items-center gap-2 mb-1">
+            box.innerHTML = posCuentaBannerHtml() + posClienteSelectorHtml() + POS_CARRITO.map((l, i) => { const dto = (Number(l.ofertaPct) || 0) + (Number(l.dtoPct) || 0); return `<div class="posv-linea">
                 <span class="flex-grow-1 small"><b>${esc(l.nombre)}</b><br><span class="text-muted">${moneda(l.precio)} × </span></span>
                 <input type="number" class="form-control form-control-sm" style="max-width:84px" min="0" step="0.01" value="${l.cantidad}" onchange="posCartQty(${i}, this.value)" title="Cantidad">
                 <input type="number" class="form-control form-control-sm" style="max-width:62px" min="0" max="100" step="1" value="${Number(l.dtoPct) || 0}" onchange="posCartDto(${i}, this.value)" title="Descuento de esta línea (%)">
@@ -7854,7 +7888,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 + `<div class="border-top pt-2 mt-2">
                     ${posBruto() !== posSubtotal() ? `<div class="d-flex justify-content-between small"><span>Subtotal</span><span>${moneda(posBruto())}</span></div><div class="d-flex justify-content-between small text-danger"><span>Descuentos de líneas y ofertas</span><span>−${moneda(posR2(posBruto() - posSubtotal()))}</span></div>` : ''}
                     <div class="d-flex justify-content-between align-items-center small"><span>Descuento del ticket</span><span class="d-flex gap-1 align-items-center"><select class="form-select form-select-sm" style="max-width:74px" onchange="posDtoTicketSet('tipo', this.value)"><option value="pct" ${POS_DTO_T.tipo === 'pct' ? 'selected' : ''}>%</option><option value="monto" ${POS_DTO_T.tipo === 'monto' ? 'selected' : ''}>$</option></select><input type="number" class="form-control form-control-sm" style="max-width:84px" min="0" step="0.01" value="${Number(POS_DTO_T.valor) || 0}" onchange="posDtoTicketSet('valor', this.value)"><b class="text-danger">${posDtoTicketMonto() ? '−' + moneda(posDtoTicketMonto()) : ''}</b></span></div>
-                    <div class="d-flex justify-content-between"><span class="fw-semibold">Total</span><span class="fw-bold">${moneda(posTotal())}</span></div>
+                    <div class="d-flex justify-content-between align-items-center" style="font-size:1.12rem"><span class="fw-semibold">Total</span><span class="fw-bold">${moneda(posTotal())}</span></div>
                     <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-1" onclick="posEsperaGuardar()">⏸ Dejar esta venta en espera</button>
                 </div>`;
             if (!POS_PAGOS) POS_PAGOS = [{ metodo: 'efectivo', monto: posTotal() }];
@@ -7870,7 +7904,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 ${POS_PAGOS.length > 1 ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="posPagoDel(${i})">✕</button>` : ''}
             </div>`).join('')
                 + `<div class="d-flex justify-content-between small"><span>Pagado: <b>${moneda(posPagado())}</b>${posVuelto() > 0 ? ' · Vuelto: <b>' + moneda(posVuelto()) + '</b>' : ''}${posFiadoPagos() > 0 ? ' · 📒 Fiado: <b>' + moneda(posFiadoPagos()) + '</b>' : ''}${posPagado() < posTotal() ? ' · <span class="text-danger">Faltan ' + moneda(posTotal() - posPagado()) + '</span>' : ''}</span><button type="button" class="btn btn-sm btn-link" onclick="posPagoAdd()">+ Otro pago</button></div>`
-                + `<button type="button" class="btn btn-success w-100 mt-1" onclick="posCobrar()">💰 Cobrar ${moneda(posTotal())}</button></div>`;
+                + `<button type="button" class="posv-cobrar mt-2" onclick="posCobrar()">💵 Cobrar · ${moneda(posTotal())}</button></div>`;
         }
         function posPagado() { return posR2((POS_PAGOS || []).reduce((a, p) => a + (Number(p.monto) || 0), 0)); }
         function posFiadoPagos() { return posR2((POS_PAGOS || []).filter(p => p.metodo === 'credito').reduce((a, p) => a + (Number(p.monto) || 0), 0)); }
@@ -20139,7 +20173,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-88';
+        var MANUAL_VERSION = 'v2026.10.30-89';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20652,6 +20686,11 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<li>Cuando el cliente acepta, pulsa <b>Convertir en venta</b>: el ticket se carga con los precios guardados y, al cobrarlo, la cotización queda marcada <b>Convertida</b> con el número de su venta. El stock se descuenta en ese momento, como en cualquier venta.</li>' +
             '<li>El botón 🖨 imprime la cotización para entregarla al cliente. Vencida, la tarjeta lo avisa; aun así puedes convertirla, confirmándolo.</li>' +
             '<li>Es función de venta: también el <b>vendedor</b> puede cotizar y convertir.</li></ul>'},
+        {id:'pos-vista', modulo:'gestion', titulo:'Punto de Venta: la pantalla de venta', html:
+            '<p>La pantalla de venta del Punto de Venta está pensada para cobrar rápido, también desde el teléfono:</p>' +
+            '<ul><li>A la <b>izquierda</b> va el <b>ticket</b> (en el teléfono queda debajo de los productos) y a la derecha la <b>parrilla de productos</b> en tarjetas: precio en la pastilla, foto si el producto la tiene y, si no, su inicial en color según la categoría.</li>' +
+            '<li>Las <b>categorías</b> son las pestañas de colores sobre la parrilla. Cada tarjeta muestra el <b>stock</b> (con aviso de bajo o agotado), la insignia <b>KIT</b> y las ofertas.</li>' +
+            '<li>El botón verde grande <b>Cobrar</b> lleva el total dentro; los demás métodos de pago se añaden con «+ Otro pago», igual que siempre.</li></ul>'},
         {id:'pos-menu', modulo:'gestion', titulo:'Punto de Venta (POS): el módulo de mostrador', html:
             '<p>El <b>Punto de Venta</b> es un módulo que se paga <b>aparte de la licencia</b> de Finanzas (5 000 CUP/mes). Mientras no esté contratado y pagado el mes, <b>no aparece en ningún sitio</b>: ni su menú, ni su tarjeta de ajustes, ni su rol de usuario.</p>' +
             '<ul><li><b>Quién lo ve:</b> lo ve el negocio que lo tiene vigente. Su administrador lo ajusta en <b>Configuración → Punto de Venta (POS)</b>: si las ventas pasan o no a los ingresos de Finanzas y el precio de venta de cada producto del inventario.</li>' +

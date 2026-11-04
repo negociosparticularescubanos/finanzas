@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-88",
-  "publicada": "2026-11-04 10:49",
-  "notas": "Ronda 88: cotizaciones en el POS (POS-14 de OSPOS, cierra el mapa)",
+  "version": "v2026.10.30-89",
+  "publicada": "2026-11-04 11:14",
+  "notas": "Ronda 89: vista de venta renovada del POS (POS-15)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "98ead0a466afabaa3a4e5db94bb95958e8480309182f3337557d4df0bd6925bd",
-      "bytes": 2190811
+      "sha256": "c9442c442d0b386f0f2a9b36d4997e8125a44ec3e487f007c67ed184d890202a",
+      "bytes": 2194892
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "6fsqk06cPSi2XseDhHX6seS+0h42hTD7qr7WPfQOF0q6YxrxHFgCGi4bhNSYLJxGIy2xz9ZKPb52ac4PuHDEBA=="
+  "firma": "1ndKSiJrfnFwK1lwZmi4SBwcZOvE58fsumVuu6oNNvNdMiDQm6a9JS29ZHT/VEDylFwoDyibWxtA65slVxNIBw=="
 }
