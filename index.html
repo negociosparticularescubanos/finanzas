@@ -7982,7 +7982,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         function posPintarHistorial() {
             const root = document.getElementById('posRoot'); if (!root) return;
             let box = document.getElementById('posHistBox');
-            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posRecepBox"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
+            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posRecepBox"></div><div id="posEtiqBox" class="mt-3"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
             const { pos } = posDatos();
             const hoyS = hoy(), mesS = subsMesActual();
             const ventas = pos.ventas.filter(v => POS_HIST_MES ? String(v.fecha || '').slice(0, 7) === mesS : v.fecha === hoyS).slice(-50).reverse();
@@ -7997,6 +7997,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             </div>`;
             posPintarClientes();
             posPintarRecepciones();
+            posPintarEtiquetas();
             posPintarInformes();
             posPintarMesas();
             posPintarPanel();
@@ -8079,6 +8080,51 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             saveConta(c);
             posPintarRecepciones(); posPintarGrid();
             alert('✅ Recepción ' + rid + ' registrada: ' + moneda(total) + (forma === 'credito' ? ' a crédito (cuenta por pagar creada).' : ' al contado.'));
+        }
+        const POS_C39 = { '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000', '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101', '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001', 'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000', 'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100', 'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011', 'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110', 'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001', 'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000', '-': '010000101', '.': '110000100', ' ': '011000100', '$': '010101000', '/': '010100010', '+': '010001010', '%': '000101010', '*': '010010100' };
+        function posCod39Valido(cod) { return !!cod && [...cod].every(ch => POS_C39[ch] && ch !== '*'); }
+        function posBarcode39(codigo) {
+            const cod = String(codigo || '').toUpperCase();
+            if (!posCod39Valido(cod)) return '';
+            const full = '*' + cod + '*';
+            let x = 0; const rects = [];
+            for (let ci = 0; ci < full.length; ci++) {
+                const pat = POS_C39[full[ci]];
+                for (let ei = 0; ei < 9; ei++) { const w = pat[ei] === '1' ? 3 : 1; if (ei % 2 === 0) rects.push('<rect x="' + x + '" y="0" width="' + w + '" height="40" fill="#000"/>'); x += w; }
+                x += 1;
+            }
+            return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + x + ' 40" style="width:100%;height:9mm" preserveAspectRatio="none">' + rects.join('') + '</svg>';
+        }
+        function posEtiqCodigo(p) { const cod = String((p && p.codigo) || '').toUpperCase().trim(); if (posCod39Valido(cod)) return cod; const alt = String((p && p.id) || '').toUpperCase().trim(); if (posCod39Valido(alt)) return alt; return ''; }
+        function posPintarEtiquetas() {
+            const box = document.getElementById('posEtiqBox'); if (!box) return;
+            if (getRolUsuario() === 'vendedor') { box.innerHTML = ''; return; }
+            const { conta } = posDatos();
+            const prods = (conta.productos || []).filter(p => Number(p.precio) > 0);
+            const filas = prods.map(p => { const cod = posEtiqCodigo(p); return `<label class="d-flex gap-2 align-items-center mb-1"><input type="checkbox" class="posEtiqSel" value="${p.id}" ${cod ? '' : 'disabled'}> <span class="small">${esc(p.nombre)} · ${moneda(p.precio)}${cod ? ' · ' + esc(cod) : ' · <span class="text-danger">sin código válido</span>'}</span></label>`; }).join('');
+            box.innerHTML = `<div class="card"><div class="card-body">
+                <h6 class="fw-semibold">🏷️ Etiquetas con código de barras</h6>
+                ${prods.length ? filas : '<p class="small text-secondary mb-2">Sin productos con precio.</p>'}
+                <div class="d-flex gap-2 flex-wrap align-items-end mt-2">
+                    <label class="small">Copias por etiqueta <input type="number" id="posEtiqCopias" class="form-control form-control-sm" value="1" min="1" max="50" style="max-width:90px"></label>
+                    <label class="small">Tamaño <select id="posEtiqTam" class="form-select form-select-sm" style="max-width:180px"><option value="p">Pequeña (40 × 25 mm)</option><option value="m">Mediana (58 × 35 mm)</option></select></label>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="posEtiqImprimir()">🖨 Imprimir etiquetas</button>
+                </div>
+                <div id="posEtiqPrint" class="mt-2"></div>
+            </div></div>`;
+        }
+        function posEtiqImprimir() {
+            const { conta } = posDatos();
+            const sel = [...document.querySelectorAll('.posEtiqSel:checked')].map(x => x.value);
+            if (!sel.length) { alert('Marca al menos un producto.'); return; }
+            const copias = Math.min(50, Math.max(1, Number((document.getElementById('posEtiqCopias') || {}).value) || 1));
+            const tam = (document.getElementById('posEtiqTam') || {}).value === 'm' ? { w: 58, h: 35 } : { w: 40, h: 25 };
+            let etiquetas = '';
+            for (const id of sel) { const p = (conta.productos || []).find(x => x.id === id); if (!p) continue; const cod = posEtiqCodigo(p); if (!cod) continue; const una = `<div class="pos-etiq" style="width:${tam.w}mm;min-height:${tam.h}mm;border:1px dashed #999;padding:1.5mm;margin:1mm;display:inline-block;vertical-align:top;text-align:center;overflow:hidden"><div style="font-size:8pt;font-weight:600;line-height:1.1">${esc(p.nombre)}</div><div style="font-size:10pt;font-weight:700">${moneda(p.precio)}</div>${posBarcode39(cod)}<div style="font-size:7pt;letter-spacing:1px">${esc(cod)}</div></div>`; for (let i = 0; i < copias; i++) etiquetas += una; }
+            if (!etiquetas) { alert('Ningún producto marcado tiene un código válido para CODE 39.'); return; }
+            const area = document.getElementById('posEtiqPrint'); if (!area) return;
+            area.innerHTML = etiquetas;
+            printPane('posEtiqPrint', 'Etiquetas');
         }
         function posHistVer(mes) { POS_HIST_MES = !!mes; posPintarHistorial(); }
         function posReimprimir(id) { const { pos } = posDatos(); const v = pos.ventas.find(x => x.id === id); if (v) posPintarTicket(v, 'posHistTicket'); }
@@ -20020,7 +20066,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-86';
+        var MANUAL_VERSION = 'v2026.10.30-87';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20522,6 +20568,11 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<li>Al <b>vender</b> un kit, el stock que baja es el de sus <b>componentes</b>; al <b>anular</b> o <b>devolver</b>, los componentes se reponen solos.</li>' +
             '<li>El ticket y los informes muestran el kit por su nombre; el costo del kit para el margen se calcula sumando el costo de sus componentes.</li>' +
             '<li>Un kit no puede llevar otro kit dentro, ni variantes: si necesitas variantes, véndelas por separado.</li></ul>'},
+        {id:'pos-etiquetas', modulo:'gestion', titulo:'Punto de Venta: etiquetas con código de barras', html:
+            '<p>En la pestaña <b>Punto de Venta</b>, la tarjeta <b>Etiquetas con código de barras</b> (solo la ve el negocio, no el vendedor) imprime etiquetas listas para pegar en los productos.</p>' +
+            '<ul><li>Marca los productos, elige las <b>copias por etiqueta</b> y el <b>tamaño</b> (pequeña 40 × 25 mm o mediana 58 × 35 mm) y pulsa <b>Imprimir etiquetas</b>.</li>' +
+            '<li>Cada etiqueta lleva el <b>nombre</b>, el <b>precio</b> y el <b>código de barras</b> del producto en formato CODE 39, que lee cualquier lector y también la cámara de la propia app al vender.</li>' +
+            '<li>El código que se imprime es el <b>código del producto</b> (el de Contabilidad → Inventario). Si un producto no tiene un código válido, la tarjeta lo avisa y no lo etiqueta: ponle su código primero.</li></ul>'},
         {id:'pos-menu', modulo:'gestion', titulo:'Punto de Venta (POS): el módulo de mostrador', html:
             '<p>El <b>Punto de Venta</b> es un módulo que se paga <b>aparte de la licencia</b> de Finanzas (5 000 CUP/mes). Mientras no esté contratado y pagado el mes, <b>no aparece en ningún sitio</b>: ni su menú, ni su tarjeta de ajustes, ni su rol de usuario.</p>' +
             '<ul><li><b>Quién lo ve:</b> lo ve el negocio que lo tiene vigente. Su administrador lo ajusta en <b>Configuración → Punto de Venta (POS)</b>: si las ventas pasan o no a los ingresos de Finanzas y el precio de venta de cada producto del inventario.</li>' +
@@ -20722,7 +20773,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
          'docResumenPrint','docNominaSubmayoresPrint','docTrimestresPrint','docOnatPrint','docCierreAnualPrint','docBalanceAperturaPrint',
          'docProgramadorPrint','docMotorTributosPrint','docCalendarioPrint','docGestorCalendarioPrint','docBancarizacionPrint',
          'docExpedientePrint','docKYCPrint','docPresupuestoPrint','docFlujoProyectadoPrint','docIndicadoresPrint',
-         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI','posPintarRecepciones','posRecepAddLinea','posRecepDelLinea','posRecepRegistrar','posKitAdd','posKitSet','posKitDel'
+         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI','posPintarRecepciones','posRecepAddLinea','posRecepDelLinea','posRecepRegistrar','posKitAdd','posKitSet','posKitDel','posPintarEtiquetas','posEtiqImprimir','posBarcode39'
         ].forEach(function(n){ try { var f = eval(n); if (typeof f === 'function') window[n] = f; } catch(e) {} });
         // Gancho de prueba (node) para la retención de divisa del PDL
         window.__retDivTest = { procesar: retDivisaProcesar, registros: function(){ try { return getFiscal().retDivisa || []; } catch(e) { return []; } }, editar: retDivisaEditar, enlazar: retDivisaEnlazarManual, desenlazar: retDivisaDesenlazar, esPDL: retDivisaEsPDL, resumenMes: retDivisaResumenMes };
