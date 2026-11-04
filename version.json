@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-94",
-  "publicada": "2026-11-04 20:29",
-  "notas": "Ronda 94: módulo POS — la página de Leonardo (pos/, sin tocar) integrada: activación y pago por negocio en Suscripciones, usuarios Administrador POS/Cajero/Almacén (uno de cada, nombre único) en la misma base de usuarios, datos del POS en el documento «pos» del negocio con sincronización desde Finanzas; manual actualizado",
+  "version": "v2026.10.30-95",
+  "publicada": "2026-11-04 21:24",
+  "notas": "Ronda 95: flujo POS del negocio — la administradora activa el módulo y el administrador del negocio crea sus usuarios del POS (administrador, cajero, almacén) desde su tarjeta «Punto de Venta» en Configuración; todo se autentica en el acceso de Finanzas y cada usuario cae en su plataforma",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "e03be5e6525746b38326709cfcb2292738679358ad6132c4e7ed9041aafd81cc",
-      "bytes": 2036609
+      "sha256": "9f3676944993b777f547ee4ddadd4b99024fe787f98ddb37d1813df6cacf8c00",
+      "bytes": 2044502
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "wpOD0bfH9bAAaryzi6Sd4bKwGmQgyR1NXt4PEBYNCPt3cLwp4avGi0hTWt5/XGAG22sN5Jc5wcYN5Je5i9ZcBw=="
+  "firma": "vqutxojU5eCKcQ4jMBlo36+ESSxRPwn2lw1/uKtBAp0ABcTy0nkK8UCncoylb4uT/fl6v5hp3UR/uZl+OootDg=="
 }
