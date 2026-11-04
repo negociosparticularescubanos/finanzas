@@ -7657,6 +7657,8 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             if (!Array.isArray(g.pos.esperas)) g.pos.esperas = [];
             if (!Array.isArray(g.pos.clientes)) g.pos.clientes = [];
             if (!Array.isArray(g.pos.abonos)) g.pos.abonos = [];
+            if (!Array.isArray(g.pos.recepciones)) g.pos.recepciones = [];
+            if (g.pos.seqRecep == null) g.pos.seqRecep = 0;
             if (!Array.isArray(g.pos.cfg.extras)) g.pos.cfg.extras = [];
             if (!Array.isArray(g.pos.mesas)) g.pos.mesas = [];
             if (!Array.isArray(g.pos.cuentas)) g.pos.cuentas = [];
@@ -7978,7 +7980,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         function posPintarHistorial() {
             const root = document.getElementById('posRoot'); if (!root) return;
             let box = document.getElementById('posHistBox');
-            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
+            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posRecepBox"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
             const { pos } = posDatos();
             const hoyS = hoy(), mesS = subsMesActual();
             const ventas = pos.ventas.filter(v => POS_HIST_MES ? String(v.fecha || '').slice(0, 7) === mesS : v.fecha === hoyS).slice(-50).reverse();
@@ -7992,9 +7994,89 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 ${cierres.length ? cierres.map(t => `<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom py-2"><span class="small"><b>${esc(t.id)}</b> · ${esc(t.vendedor)} · cerró ${esc(t.cierre.fecha)} ${esc(t.cierre.hora)} · ${t.cierre.numVentas} ventas (${moneda(t.cierre.totalVentas)}) · diferencia <b class="${t.cierre.diferencia !== 0 ? 'text-danger' : ''}">${moneda(t.cierre.diferencia)}</b></span><button type="button" class="btn btn-sm btn-outline-primary" onclick="posInformeZ('${esc(t.id)}')">Informe Z</button></div>`).join('') : '<p class="small text-secondary mb-0">Todavía no hay cierres.</p>'}
             </div>`;
             posPintarClientes();
+            posPintarRecepciones();
             posPintarInformes();
             posPintarMesas();
             posPintarPanel();
+        }
+        let POS_RECEP_LINEAS = [];
+        function posPintarRecepciones() {
+            const box = document.getElementById('posRecepBox'); if (!box) return;
+            if (typeof getRolUsuario === 'function' && getRolUsuario() === 'vendedor') { box.innerHTML = ''; return; }
+            const { conta: c, pos } = posDatos();
+            const _pv = { prov: (document.getElementById('posRecepProv') || {}).value || '', nuevo: (document.getElementById('posRecepProvNuevo') || {}).value || '', forma: (document.getElementById('posRecepForma') || {}).value || '', plazo: (document.getElementById('posRecepPlazo') || {}).value || '' };
+            const provs = (c.contrapartes || []).filter(x => x.tipo === 'proveedor' || x.tipo === 'ambos');
+            const prodOpts = (c.productos || []).map(p => `<option value="${p.id}">${esc(p.nombre)} (stock ${p.stock || 0})</option>`).join('');
+            const lineasHtml = POS_RECEP_LINEAS.map((l, i) => `<tr><td>${esc(l.nombre)}</td><td class="text-end">${l.cantidad}</td><td class="text-end">${moneda(l.costoUnit)}</td><td class="text-end">${moneda(l.cantidad * l.costoUnit)}</td><td><button type="button" class="btn btn-sm btn-outline-danger" onclick="posRecepDelLinea(${i})">✕</button></td></tr>`).join('');
+            const mes = hoy().slice(0, 7);
+            const hist = (pos.recepciones || []).filter(r => (r.fecha || '').slice(0, 7) === mes).slice().reverse().map(r => `<tr><td>${esc(r.fecha)}</td><td>${esc(r.proveedorNombre || '')}</td><td>${r.lineas.length} línea(s)</td><td class="text-end">${moneda(r.total)}</td><td>${r.formaPago === 'credito' ? 'A crédito' : 'Al contado'}</td></tr>`).join('');
+            box.innerHTML = `<div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2">📥 Recepciones · Compras a proveedor</h6>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-4"><label class="form-label mb-1 small">Proveedor</label><select id="posRecepProv" class="form-select form-select-sm">${provs.map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select></div>
+              <div class="col-md-4"><label class="form-label mb-1 small">Proveedor nuevo (si no está en la lista)</label><input id="posRecepProvNuevo" class="form-control form-control-sm" placeholder="Nombre del proveedor"></div>
+              <div class="col-md-2"><label class="form-label mb-1 small">Forma de pago</label><select id="posRecepForma" class="form-select form-select-sm"><option value="credito">A crédito (CxP)</option><option value="contado">Al contado</option></select></div>
+              <div class="col-md-2"><label class="form-label mb-1 small">Plazo (días, si es crédito)</label><input id="posRecepPlazo" type="number" class="form-control form-control-sm" value="30" min="0"></div>
+            </div>
+            <div class="row g-2 align-items-end mt-1">
+              <div class="col-md-5"><label class="form-label mb-1 small">Producto</label><select id="posRecepProd" class="form-select form-select-sm">${prodOpts}</select></div>
+              <div class="col-md-2"><label class="form-label mb-1 small">Cantidad</label><input id="posRecepCant" type="number" step="any" class="form-control form-control-sm" value="1" min="0"></div>
+              <div class="col-md-2"><label class="form-label mb-1 small">Costo unitario</label><input id="posRecepCosto" type="number" step="any" class="form-control form-control-sm" value="0" min="0"></div>
+              <div class="col-md-3"><button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="posRecepAddLinea()">＋ Añadir línea</button></div>
+            </div>
+            ${POS_RECEP_LINEAS.length ? `<div class="table-responsive mt-2"><table class="table table-sm align-middle mb-1"><thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th class="text-end">Importe</th><th></th></tr></thead><tbody>${lineasHtml}</tbody></table></div>
+            <div class="d-flex justify-content-between align-items-center"><b>Total: ${moneda(POS_RECEP_LINEAS.reduce((a, l) => a + l.cantidad * l.costoUnit, 0))}</b><button type="button" class="btn btn-sm btn-primary" onclick="posRecepRegistrar()">Registrar recepción</button></div>` : '<p class="small text-secondary mt-2 mb-0">Añade las líneas de la compra y regístrala: el stock entra solo a su área y el costo promedio se recalcula.</p>'}
+            ${hist ? `<h6 class="fw-semibold mt-3">Recepciones de este mes</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Proveedor</th><th>Detalle</th><th class="text-end">Total</th><th>Pago</th></tr></thead><tbody>${hist}</tbody></table></div>` : ''}
+            </div>`;
+            const _r1 = document.getElementById('posRecepProv'); if (_r1 && _pv.prov) _r1.value = _pv.prov;
+            const _r2 = document.getElementById('posRecepProvNuevo'); if (_r2 && _pv.nuevo) _r2.value = _pv.nuevo;
+            const _r3 = document.getElementById('posRecepForma'); if (_r3 && _pv.forma) _r3.value = _pv.forma;
+            const _r4 = document.getElementById('posRecepPlazo'); if (_r4 && _pv.plazo) _r4.value = _pv.plazo;
+        }
+        function posRecepAddLinea() {
+            const { conta: c } = posDatos();
+            const pid = (document.getElementById('posRecepProd') || {}).value;
+            const p = (c.productos || []).find(x => x.id === pid);
+            if (!p) { alert('Primero crea un producto.'); return; }
+            const cant = Number((document.getElementById('posRecepCant') || {}).value) || 0;
+            const costo = Number((document.getElementById('posRecepCosto') || {}).value) || 0;
+            if (cant <= 0) { alert('Cantidad inválida.'); return; }
+            POS_RECEP_LINEAS.push({ productoId: pid, nombre: p.nombre, cantidad: cant, costoUnit: costo });
+            posPintarRecepciones();
+        }
+        function posRecepDelLinea(i) { POS_RECEP_LINEAS.splice(i, 1); posPintarRecepciones(); }
+        function posRecepRegistrar() {
+            if (!POS_RECEP_LINEAS.length) { alert('Añade al menos una línea.'); return; }
+            const { conta: c, pos } = posDatos();
+            const P = c.plantillas || ctaPlantillasDef();
+            let provId = (document.getElementById('posRecepProv') || {}).value || '';
+            const provNuevo = ((document.getElementById('posRecepProvNuevo') || {}).value || '').trim();
+            if (provNuevo) { provId = 'CP' + Date.now(); c.contrapartes.push({ id: provId, nombre: provNuevo, tipo: 'proveedor' }); }
+            const prov = (c.contrapartes || []).find(x => x.id === provId);
+            if (!prov) { alert('Elige un proveedor o escribe su nombre si es nuevo.'); return; }
+            const forma = (document.getElementById('posRecepForma') || {}).value || 'credito';
+            const plazo = Number((document.getElementById('posRecepPlazo') || {}).value) || 0;
+            pos.seqRecep = (pos.seqRecep || 0) + 1;
+            const rid = 'RCP' + pos.seqRecep;
+            const fecha = hoy();
+            const total = ctaR2(POS_RECEP_LINEAS.reduce((a, l) => a + l.cantidad * l.costoUnit, 0));
+            for (const l of POS_RECEP_LINEAS) {
+                const r = ctaInventarioEntrada(c, l.productoId, l.cantidad, l.costoUnit, fecha, 'pos-recep:' + rid + ':' + l.productoId, forma === 'credito' ? 'cxp' : 'contado');
+                if (!r.ok) { alert('⚠ ' + r.motivo); return; }
+            }
+            let docId = '';
+            if (forma === 'credito') {
+                c.seqDoc = (c.seqDoc || 0) + 1; docId = 'D' + c.seqDoc;
+                const venc = new Date(fecha + 'T12:00:00'); venc.setDate(venc.getDate() + plazo);
+                c.documentos.push({ id: docId, tipo: 'cxp', contraparteId: prov.id, numero: rid, concepto: 'Recepción de mercancía (POS)', fecha: fecha, vencimiento: venc.toISOString().slice(0, 10), importe: total, esInventario: true, productoId: '', cantidad: 0, sinAsiento: false });
+            }
+            const crCuenta = forma === 'credito' ? P.cxp : (P.caja || '101-010');
+            const a = ctaAgregarAsiento(c, { fecha: fecha, concepto: 'Recepción de mercancía ' + rid + ' · ' + prov.nombre, origen: 'pos', fuenteKey: 'pos-recep:' + rid + ':asiento', lineas: [{ cuenta: P.inventarios, debe: total, haber: 0 }, { cuenta: crCuenta, debe: 0, haber: total, analisis: prov.id }] });
+            if (!a.ok) { alert('⚠ ' + a.motivo); return; }
+            pos.recepciones.push({ id: rid, fecha: fecha, proveedorId: prov.id, proveedorNombre: prov.nombre, lineas: POS_RECEP_LINEAS.slice(), total: total, formaPago: forma, documentoId: docId, asientoId: '' });
+            POS_RECEP_LINEAS = [];
+            saveConta(c);
+            posPintarRecepciones(); posPintarGrid();
+            alert('✅ Recepción ' + rid + ' registrada: ' + moneda(total) + (forma === 'credito' ? ' a crédito (cuenta por pagar creada).' : ' al contado.'));
         }
         function posHistVer(mes) { POS_HIST_MES = !!mes; posPintarHistorial(); }
         function posReimprimir(id) { const { pos } = posDatos(); const v = pos.ventas.find(x => x.id === id); if (v) posPintarTicket(v, 'posHistTicket'); }
@@ -19927,7 +20009,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-84';
+        var MANUAL_VERSION = 'v2026.10.30-85';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20416,6 +20498,13 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<li><b>El resumen de licencia firmado:</b> al registrarse, la copia calcula desde sus propios datos su <b>resumen de licencia</b> — trabajadores en la ficha, socios e ingresos del año (en una copia de tenedor, los negocios que lleva; si el negocio es un TCP, en vez de socios verás sus <b>titulares</b>: el TCP no tiene socios, y el nombre del titular sale en su Vector Fiscal) —, se lo <b>muestra al cliente en su tarjeta antes de enviarlo</b> y lo manda firmado (la firma amarra el resumen a esa PC y a ese pedido). En tu lista de instalaciones verás el resumen junto al botón «Generar llave» con su sello: <b>«✔ Resumen íntegro»</b> si la firma recalculada coincide, o el aviso si no coincide. Verifícalo antes de emitir la llave: es el dato contra el que se cobra la tarifa. Si el cliente cambia sus datos, debe volver a registrar la instalación para refrescarlo. Las copias con servidor local anterior a esta mejora se registran «sin resumen».</li>' +
             '<li>Las instalaciones anteriores a las licencias (sin modo elegido) siguen con la validación de suscripción de siempre; las llaves mandan en las que tienen modo.</li>' +
             '</ul>'},
+        {id:'pos-recepciones', modulo:'gestion', titulo:'Punto de Venta: recepciones (compras a proveedor)', html:
+            '<p>En la pestaña <b>Punto de Venta</b>, la tarjeta <b>Recepciones · Compras a proveedor</b> (solo la ve el negocio, no el vendedor) registra la mercancía que entra comprada:</p>' +
+            '<ul><li>Eliges el <b>proveedor</b> (o lo creas escribiendo su nombre) y añades <b>líneas</b>: producto, cantidad y costo unitario.</li>' +
+            '<li>Al registrar, el <b>stock entra solo</b> al área de cada producto y el <b>costo promedio se recalcula</b> con la compra, igual que en la entrada de inventario de Contabilidad.</li>' +
+            '<li><b>A crédito:</b> crea la <b>cuenta por pagar</b> con el plazo que pongas, y la deuda aparece en el submayor de CxP. <b>Al contado:</b> el asiento va contra caja; el pago bancario se sigue contabilizando desde el estado de cuenta.</li>' +
+            '<li>La recepción genera su asiento (inventario contra cuentas por pagar o caja) y queda en el historial de recepciones del mes.</li>' +
+            '<li>Las recepciones son de productos base; las variantes se ajustan desde Contabilidad.</li></ul>'},
         {id:'pos-menu', modulo:'gestion', titulo:'Punto de Venta (POS): el módulo de mostrador', html:
             '<p>El <b>Punto de Venta</b> es un módulo que se paga <b>aparte de la licencia</b> de Finanzas (5 000 CUP/mes). Mientras no esté contratado y pagado el mes, <b>no aparece en ningún sitio</b>: ni su menú, ni su tarjeta de ajustes, ni su rol de usuario.</p>' +
             '<ul><li><b>Quién lo ve:</b> lo ve el negocio que lo tiene vigente. Su administrador lo ajusta en <b>Configuración → Punto de Venta (POS)</b>: si las ventas pasan o no a los ingresos de Finanzas y el precio de venta de cada producto del inventario.</li>' +
@@ -20616,7 +20705,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
          'docResumenPrint','docNominaSubmayoresPrint','docTrimestresPrint','docOnatPrint','docCierreAnualPrint','docBalanceAperturaPrint',
          'docProgramadorPrint','docMotorTributosPrint','docCalendarioPrint','docGestorCalendarioPrint','docBancarizacionPrint',
          'docExpedientePrint','docKYCPrint','docPresupuestoPrint','docFlujoProyectadoPrint','docIndicadoresPrint',
-         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI'
+         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI','posPintarRecepciones','posRecepAddLinea','posRecepDelLinea','posRecepRegistrar'
         ].forEach(function(n){ try { var f = eval(n); if (typeof f === 'function') window[n] = f; } catch(e) {} });
         // Gancho de prueba (node) para la retención de divisa del PDL
         window.__retDivTest = { procesar: retDivisaProcesar, registros: function(){ try { return getFiscal().retDivisa || []; } catch(e) { return []; } }, editar: retDivisaEditar, enlazar: retDivisaEnlazarManual, desenlazar: retDivisaDesenlazar, esPDL: retDivisaEsPDL, resumenMes: retDivisaResumenMes };

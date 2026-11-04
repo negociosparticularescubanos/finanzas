@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-84",
-  "publicada": "2026-11-04 02:34",
-  "notas": "Ronda 84: gestión de cobro de cuentas por cobrar vencidas (tarjeta, registro de gestiones y carta)",
+  "version": "v2026.10.30-85",
+  "publicada": "2026-11-04 03:05",
+  "notas": "Ronda 85: recepciones del POS — compras a proveedor con entrada a inventario (POS-11 de OSPOS)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "d16d9298ee506b49470990820fab44991c19479023c55b3d73eaf6eee33e4b1a",
-      "bytes": 2159670
+      "sha256": "bd0016e9c8dc61d49e664755880ef298e39df90c4f70d88baf9687f9841143dc",
+      "bytes": 2170108
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "1tM5FI9PEg9WxgvltyDzlS+b6LaeymwSfN7GSonfFDVqhW2gdBcdrKQVwCq4qpC1vneV7YEZWnnvkdiokru8Ag=="
+  "firma": "6/xB1eCTb/skhSpuZVU62vaS8PLS5TuUCNVzz9ydYU62+fHdrWDEIQCleAzKEBTJp4fWamhh8VPx4Phf8K0wCQ=="
 }
