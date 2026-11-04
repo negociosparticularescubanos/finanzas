@@ -7701,11 +7701,54 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 if (!on && o) o.remove();
             });
         }
+
+        /* ===== POS-16 · Pantalla de venta completa del vendedor (ronda -91) ===== */
+        let POSFS_OFF = false;
+        function posFsActivo() { return getRolUsuario() === 'vendedor' && !POSFS_OFF; }
+        const POSFS_CSS = '.posfs-shell{position:fixed;inset:0;z-index:1040;background:#eef1f8;display:flex;flex-direction:column}'
+            + '.posfs-top{display:flex;gap:10px;align-items:center;background:#fff;padding:10px 14px;box-shadow:0 1px 4px rgba(15,23,42,.10);flex-wrap:wrap}'
+            + '.posfs-brand{font-weight:800;font-size:1.05rem;color:#0f172a}'
+            + '.posfs-clock{color:#64748b;font-weight:600;font-size:.9rem}'
+            + '.posfs-spacer{flex:1}'
+            + '.posfs-tbtn{border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}'
+            + '.posfs-tbtn:hover{background:#eef2ff}'
+            + '.posfs-main{flex:1;display:flex;gap:12px;padding:12px;min-height:0}'
+            + '.posfs-left{width:43%;min-width:330px;background:#fff;border-radius:14px;padding:14px;overflow-y:auto;box-shadow:0 1px 3px rgba(15,23,42,.06)}'
+            + '.posfs-right{flex:1;overflow-y:auto;min-height:0}'
+            + '.posfs-right .card{border:none;box-shadow:0 1px 3px rgba(15,23,42,.06)}'
+            + '.posfs-shell .posv-grid{grid-template-columns:repeat(auto-fill,minmax(136px,1fr))}'
+            + '.posfs-over{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1045;display:flex;justify-content:flex-end}'
+            + '.posfs-over-card{background:#fff;width:min(700px,100%);height:100%;overflow-y:auto;padding:16px}'
+            + '.posfs-stage{position:fixed;inset:0;background:#eef1f8;z-index:1040;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto}'
+            + '.posfs-stage>.card{width:min(560px,100%);box-shadow:0 4px 18px rgba(15,23,42,.10)}'
+            + '@media (max-width:991px){.posfs-main{flex-direction:column;overflow-y:auto}.posfs-left{width:100%;min-width:0;order:2;overflow:visible}.posfs-right{order:1;overflow:visible}}';
+        function posfsEnsureStyle() { if (document.getElementById('posfsStyle')) return; const st = document.createElement('style'); st.id = 'posfsStyle'; st.textContent = POSFS_CSS; document.head.appendChild(st); }
+        function posFsShellHtml() {
+            return `<div class="posfs-shell">
+            <div class="posfs-top"><span class="posfs-brand">🧾 ${esc(getNegocioNombre() || 'Punto de Venta')}</span><span class="posfs-clock" id="posfsClock"></span><span class="posfs-spacer"></span><button type="button" class="posfs-tbtn" onclick="posFsHistorial()">📋 Historial</button><button type="button" class="posfs-tbtn" onclick="posFsFull()">⛶ Pantalla completa</button><button type="button" class="posfs-tbtn" onclick="posFsSalir()">↩ Vista normal</button></div>
+            <div class="posfs-main">
+                <section class="posfs-left"><div id="posTurnoBox"></div><div id="posEsperasBox" class="mb-2"></div><h6 class="fw-semibold mb-2">🧾 Venta actual</h6><div id="posCart"></div><div id="posCobro"></div><div id="posTicketBox"></div></section>
+                <section class="posfs-right"><div class="card p-3 mb-3">
+                    <div class="d-flex gap-2 mb-2"><input type="text" class="form-control" id="posBusq" placeholder="🔎 Buscar producto por nombre o código…" value="${esc(POS_BUSQ)}" oninput="posBusca(this.value)" onkeydown="posBusqEnter(event)"><button type="button" class="btn btn-outline-secondary" onclick="posEscanear()" title="Escanear el código con la cámara">📷</button></div>
+                    <div class="d-flex gap-2 mb-3"><input type="text" class="form-control" id="posManNom" placeholder="Línea manual: concepto"><input type="number" class="form-control" id="posManPrecio" placeholder="Precio" min="0" step="0.01" style="max-width:120px"><button type="button" class="btn btn-outline-secondary" onclick="posAddManual()">Añadir</button></div>
+                    <div id="posGrid"></div><div id="posVarBox" class="mt-2"></div>
+                </div></section>
+            </div>
+            <div class="posfs-over" id="posfsOver" hidden><div class="posfs-over-card"><div class="d-flex justify-content-between align-items-center mb-2"><b>📋 Historial, clientes y cotizaciones</b><button type="button" class="btn btn-sm btn-outline-secondary" onclick="posFsHistorial()">✕ Cerrar</button></div><div id="posfsOverBody"></div></div></div>
+            <div class="d-none"><div id="posPanelBox"></div><div id="posMesasBox"></div><div id="posInformeBox"></div></div>
+            </div>`;
+        }
+        function posFsMoverPaneles() { const ob = document.getElementById('posfsOverBody'); if (!ob) return; ['posHistBox', 'posHistTicket', 'posCotizBox', 'posClientesBox'].forEach(id => { const el = document.getElementById(id); if (el && el.parentElement !== ob) ob.appendChild(el); }); }
+        function posFsClockStart() { const tick = () => { const el = document.getElementById('posfsClock'); if (!el) return; const d = new Date(); el.textContent = d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }; tick(); if (!window.__posfsClock) window.__posfsClock = setInterval(tick, 1000); }
+        function posFsHistorial() { const o = document.getElementById('posfsOver'); if (o) o.hidden = !o.hidden; }
+        function posFsFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { } }
+        function posFsSalir() { POSFS_OFF = true; renderPos(); }
+        function posFsEntrar() { POSFS_OFF = false; renderPos(); }
         function renderPos() {
             const root = document.getElementById('posRoot'); if (!root) return;
             const turno = posTurnoAbierto();
-            if (!turno) { posPintarSinTurno(root); posPintarHistorial(); return; }
-            root.innerHTML = `<div class="card p-3 mb-3"><h6 class="fw-semibold mb-2">📊 Panel del punto de venta</h6><div id="posPanelBox"></div></div><div class="row g-3">
+            if (!turno) { posPintarSinTurno(root); posPintarHistorial(); root.classList.toggle('posfs-stage', posFsActivo()); if (posFsActivo()) posfsEnsureStyle(); return; }
+            root.classList.remove('posfs-stage'); posfsEnsureStyle(); if (posFsActivo()) { root.innerHTML = posFsShellHtml(); } else { root.innerHTML = `<div class="card p-3 mb-3"><h6 class="fw-semibold mb-2">📊 Panel del punto de venta</h6><div id="posPanelBox"></div></div><div class="row g-3">
                 <div class="col-lg-7 order-lg-2">
                     <div class="card p-3 mb-3">
                         <div class="d-flex gap-2 mb-2">
@@ -7729,7 +7772,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                     <div id="posInformeBox"></div>
                 </div>
             </div>`;
-            posPintarGrid(); posPintarTurno(); posPintarCarrito(); posPintarHistorial();
+            } posPintarGrid(); posPintarTurno(); posPintarCarrito(); posPintarHistorial(); if (posFsActivo()) { posFsMoverPaneles(); posFsClockStart(); } else if (getRolUsuario() === 'vendedor') { root.insertAdjacentHTML('afterbegin', '<button type="button" class="btn btn-primary w-100 mb-3" onclick="posFsEntrar()">🖥️ Abrir la pantalla de venta</button>'); }
         }
         /* ===== POS-2 · Venta y turnos (tarea 38, ronda -54) ===== */
         let POS_CARRITO = [], POS_BUSQ = '', POS_PAGOS = null, POS_DTO_T = { tipo: 'pct', valor: 0 }, POS_CAT = '', POS_CATS = [], POS_CLIENTE = '';
@@ -20204,7 +20247,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-90';
+        var MANUAL_VERSION = 'v2026.10.30-91';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20717,6 +20760,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<li>Cuando el cliente acepta, pulsa <b>Convertir en venta</b>: el ticket se carga con los precios guardados y, al cobrarlo, la cotización queda marcada <b>Convertida</b> con el número de su venta. El stock se descuenta en ese momento, como en cualquier venta.</li>' +
             '<li>El botón 🖨 imprime la cotización para entregarla al cliente. Vencida, la tarjeta lo avisa; aun así puedes convertirla, confirmándolo.</li>' +
             '<li>Es función de venta: también el <b>vendedor</b> puede cotizar y convertir.</li></ul>'},
+        {id:'pos-pantalla', modulo:'gestion', titulo:'POS: la pantalla de venta completa', html:'<p>Quien entra como <b>vendedor</b> trabaja en una <b>pantalla de venta dedicada</b>, como los puntos de venta modernos: cubre toda la aplicación y no se mezcla con las demás pantallas de Finanzas.</p><ul><li><b>Arriba:</b> el nombre de tu negocio y el <b>reloj en vivo</b>; botones para ver el <b>Historial</b> (con clientes y cotizaciones), poner la <b>pantalla completa</b> real del equipo o volver a la <b>vista normal</b>.</li><li><b>Izquierda:</b> tu turno y el ticket de la venta actual, con los pagos y el botón de cobrar.</li><li><b>Derecha:</b> el buscador, la línea manual y la parrilla de productos con sus categorías.</li><li>En el teléfono las dos columnas se apilan: primero los productos y debajo el ticket.</li></ul><p>Los usuarios del negocio siguen viendo el Punto de Venta dentro de su pestaña, con el panel y las tarjetas de gestión.</p>'},
         {id:'pos-vista', modulo:'gestion', titulo:'Punto de Venta: la pantalla de venta', html:
             '<p>La pantalla de venta del Punto de Venta está pensada para cobrar rápido, también desde el teléfono:</p>' +
             '<ul><li>A la <b>izquierda</b> va el <b>ticket</b> (en el teléfono queda debajo de los productos) y a la derecha la <b>parrilla de productos</b> en tarjetas: precio en la pastilla, foto si el producto la tiene y, si no, su inicial en color según la categoría.</li>' +
@@ -20906,7 +20950,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
          'mjEstadosUI','mjDJUtilidadesUI','mjReservaUI','mjExportarEstadosCSV','mjFacturaCrearUI','mjDepreciacionAFUI',
          'mjFichaCostosUI','mjIPVUI','abrirEditorNegocio','eliminarNegocio','mjExpedienteToggle','mjRenderExpediente','mjKYCEditar',
          'mjROSAgregarUI','mjExclusionAgregarUI','mjFacturaConfirmarUI','mjFacturaCancelarUI','mjPatronAplicarUI',
-         'facClienteGuardar','facClienteEditar','facClienteLimpiar','facLineaAdd','facLineaDel','facRecalc','facCrearUI','facConfirmarUI','facAnularUI','facImprimirUI','renderFacturas','facPagoToggleUI','facCobroQuitarUI','lluviaToggle','lluviaVolumen','renderContratos','ctorGuardarUI','ctorEditarUI','ctorLimpiarUI','ctorEstadoUI','ctorEliminarUI','ctorRenderLista','ctorAbrirMenu','facContratoRefrescar','ctorAdjAbrir','ctorAdjCerrar','ctorAdjArchivo','ctorAdjVer','ctorAdjDescargar','ctorAdjQuitar','ctorGenAbrir','ctorGenCerrar','ctorGenGenerar','ctorGenFilaAdd','ctorGenFilaDel','ctorAutAdd','ctorAutDel','ctorDocCerrar','ctorDocImprimir','ctrabAbrir','ctrabCerrar','ctrabGenerar','ctrabDocCerrar','ctrabDocImprimir','tarjAbrir','tarjCerrar','tarjPintar','tarjGuardar','tarjRestablecer','tarjImprimir','tarjCertImprimir','tarjDocCerrar','tarjDocImprimir','expdAbrir','expdCerrar','expdGuardar','expdImprimir','retRender','retAbrir','retCerrar','retGuardar','retTipoCambio','retDarBaja','retCertImprimir','retResumenImprimir','retDocCerrar','retDocImprimir','posCfgGuardar','posAbrirTurno','posBusca','posAddProd','posAddManual','posCartQty','posCartDel','posPagoSet','posPagoAdd','posPagoDel','posCobrar','posTicketImprimir','posTicketCerrar','posCajaMovGuardar','posInformeX','posCerrarAbrir','posCerrarTurno','posTicketPos','posHistVer','posReimprimir','posInformeZ','posAnularAbrir','posAnularConfirmar','posSetCliente','posClienteAgregar','posClienteVer','posAbonoAbrir','posAbonoConfirmar','posCierreDenom','posInfSet','posVarAbrir','posVarCerrar','posAddVar','posAddLinea','posVarAdd','posVarDel','posVarSet','posExtraAdd','posExtraDel','posExtraSet','posLineaExtra','posLineaExtraDel','posMesaAbrir','posCuentaGuardar','posCuentaVaciar','posMesaAdd','posMesaDel','posMesaSet','posMesasSembrar','posPintarMesas','posTasaUsdSet','posPintarPanel','posPintarGrid','posPintarInformes','posCajaAdd','posCajaDel','posCajaSet','posAreaAdd','posAreaDel','posAreaSetNom','posAreaSet','posSetCatI','posvToggleCats','posCartDto','posDtoTicketSet','posDevolverAbrir','posDevolverConfirmar','posEsperaGuardar','posEsperaRecuperar','posEsperaBorrar','posEscanear','posBusqEnter','contaEfeGenerar','dj01DocGenerar',
+         'facClienteGuardar','facClienteEditar','facClienteLimpiar','facLineaAdd','facLineaDel','facRecalc','facCrearUI','facConfirmarUI','facAnularUI','facImprimirUI','renderFacturas','facPagoToggleUI','facCobroQuitarUI','lluviaToggle','lluviaVolumen','renderContratos','ctorGuardarUI','ctorEditarUI','ctorLimpiarUI','ctorEstadoUI','ctorEliminarUI','ctorRenderLista','ctorAbrirMenu','facContratoRefrescar','ctorAdjAbrir','ctorAdjCerrar','ctorAdjArchivo','ctorAdjVer','ctorAdjDescargar','ctorAdjQuitar','ctorGenAbrir','ctorGenCerrar','ctorGenGenerar','ctorGenFilaAdd','ctorGenFilaDel','ctorAutAdd','ctorAutDel','ctorDocCerrar','ctorDocImprimir','ctrabAbrir','ctrabCerrar','ctrabGenerar','ctrabDocCerrar','ctrabDocImprimir','tarjAbrir','tarjCerrar','tarjPintar','tarjGuardar','tarjRestablecer','tarjImprimir','tarjCertImprimir','tarjDocCerrar','tarjDocImprimir','expdAbrir','expdCerrar','expdGuardar','expdImprimir','retRender','retAbrir','retCerrar','retGuardar','retTipoCambio','retDarBaja','retCertImprimir','retResumenImprimir','retDocCerrar','retDocImprimir','posCfgGuardar','posAbrirTurno','posBusca','posAddProd','posAddManual','posCartQty','posCartDel','posPagoSet','posPagoAdd','posPagoDel','posCobrar','posTicketImprimir','posTicketCerrar','posCajaMovGuardar','posInformeX','posCerrarAbrir','posCerrarTurno','posTicketPos','posHistVer','posReimprimir','posInformeZ','posAnularAbrir','posAnularConfirmar','posSetCliente','posClienteAgregar','posClienteVer','posAbonoAbrir','posAbonoConfirmar','posCierreDenom','posInfSet','posVarAbrir','posVarCerrar','posAddVar','posAddLinea','posVarAdd','posVarDel','posVarSet','posExtraAdd','posExtraDel','posExtraSet','posLineaExtra','posLineaExtraDel','posMesaAbrir','posCuentaGuardar','posCuentaVaciar','posMesaAdd','posMesaDel','posMesaSet','posMesasSembrar','posPintarMesas','posTasaUsdSet','posPintarPanel','posPintarGrid','posPintarInformes','posCajaAdd','posCajaDel','posCajaSet','posAreaAdd','posAreaDel','posAreaSetNom','posAreaSet','posSetCatI','posvToggleCats','posFsHistorial','posFsFull','posFsSalir','posFsEntrar','posCartDto','posDtoTicketSet','posDevolverAbrir','posDevolverConfirmar','posEsperaGuardar','posEsperaRecuperar','posEsperaBorrar','posEscanear','posBusqEnter','contaEfeGenerar','dj01DocGenerar',
          'mjPatronCrearUI','mjPresupuestoAgregarUI','mjInstrumentoUsarUI','mjInstrumentoAnularUI','mjInstrumentoCrearUI',
          'contaTesAdd','contaTesDel','contaTesToggle','contaTesTipoUI','contaCandadoAsumir','contaCandadoDesasumir',
          'contaCuarentenaLiberar','contaCuarentenaLiberarOp','contaCuarentenaDescartar','contaCuarentenaToggle',

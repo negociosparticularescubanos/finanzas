@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-90",
-  "publicada": "2026-11-04 11:47",
-  "notas": "Ronda 90: POS-15b interfaz de venta estilo Stangic (fondo gris azulado, degradados, tarjetas con pastillas de precio y stock, ticket en tabla con barra de acciones)",
+  "version": "v2026.10.30-91",
+  "publicada": "2026-11-04 12:15",
+  "notas": "Ronda 91: POS-16 pantalla de venta completa del vendedor (pantalla dedicada estilo Stangic, reloj en vivo, panel de historial, pantalla completa real)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "1108e0e3863fc6fb8705a6d4d3cfdf47a819ccfdecff8b7cfdb7bf28fd9247bf",
-      "bytes": 2199125
+      "sha256": "f2021cdd8c06bf5e4381f9bafae8add57d8420f29fb155d7b78c328fd0a8d9eb",
+      "bytes": 2206431
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "wQcpZPliuTMCIu9Ly2TKVq2M+qtiqrBf5EmJBmmKUmgXohHApmw3CLIxdg/NJpdrCKz3i0K1VOYvF5Lp2V34DQ=="
+  "firma": "ZG/fJU85wEAAXBc+FDosN/gKiNvSx6FjaWU4veJmsCJqt7m/UTSjQNS1jkKbJoLZvIrJI4s+LzHWx5Q1HCpgDw=="
 }
