@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-85",
-  "publicada": "2026-11-04 03:05",
-  "notas": "Ronda 85: recepciones del POS — compras a proveedor con entrada a inventario (POS-11 de OSPOS)",
+  "version": "v2026.10.30-86",
+  "publicada": "2026-11-04 03:18",
+  "notas": "Ronda 86: kits y combos en el POS (POS-12 de OSPOS)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "bd0016e9c8dc61d49e664755880ef298e39df90c4f70d88baf9687f9841143dc",
-      "bytes": 2170108
+      "sha256": "73df7dbb9d3819d91af4759487a2ad9b8753fcde3a324717d16e1fdfc300d714",
+      "bytes": 2176158
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "6/xB1eCTb/skhSpuZVU62vaS8PLS5TuUCNVzz9ydYU62+fHdrWDEIQCleAzKEBTJp4fWamhh8VPx4Phf8K0wCQ=="
+  "firma": "n7CMswgvfQGiuQ3fzhCiOkVKh5kkVdz1qNAIhQ8y1JQsx3X2JpQZh97GldXnPOj6nYLO5BjFo0T182cAbnj8Ag=="
 }
