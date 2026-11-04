@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-92",
-  "publicada": "2026-11-04 12:29",
-  "notas": "Ronda 92: corrección POS-16, la pantalla de venta se monta fuera del panel y cubre toda la aplicación",
+  "version": "v2026.10.30-93",
+  "publicada": "2026-11-04 13:21",
+  "notas": "Ronda 93: borrado completo del módulo POS de Finanzas (orden de Leonardo); el POS pasa a ser externo con INTEGRACION-POS.md",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "6fb9243b20cb04e836368573d68fd269e0efb957df7beeb2ad08998118739b1f",
-      "bytes": 2207061
+      "sha256": "7384ae643084821d806c41b9ed9a9e663abf6ac7d538c7d799851c67e7805e58",
+      "bytes": 2020275
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "8wz5HWwDusS/ytrkxt0KP1BYQnD6cEGtYftKxtrlT/feBxtoYjbieAXDXJ9TaNnTYR6EAdpwDSH/4IBHwy/rAA=="
+  "firma": "dzbPhi4gwMbnOTY6g7SjUYNoX6r5xThwgY+sQicCAHuaQiNaKZ5h1+fjc/aIUuBKrfF3/DU9JnRhPyu7/ipTCg=="
 }
