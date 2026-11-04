@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-87",
-  "publicada": "2026-11-04 03:34",
-  "notas": "Ronda 87: etiquetas con código de barras en el POS (POS-13 de OSPOS)",
+  "version": "v2026.10.30-88",
+  "publicada": "2026-11-04 10:49",
+  "notas": "Ronda 88: cotizaciones en el POS (POS-14 de OSPOS, cierra el mapa)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "f97f639677eb2f698e9bed61d2585636e96ec26da0fb8db9a4c58e4eef10c112",
-      "bytes": 2182424
+      "sha256": "98ead0a466afabaa3a4e5db94bb95958e8480309182f3337557d4df0bd6925bd",
+      "bytes": 2190811
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "75r62JxlpqCrCjEsVllY6xHLl4gPKKxYRG5FnL1wckJ0hi+YICVBsrjALpGuUieiIuO86OlJg0w9H//EZ1MPCQ=="
+  "firma": "6fsqk06cPSi2XseDhHX6seS+0h42hTD7qr7WPfQOF0q6YxrxHFgCGi4bhNSYLJxGIy2xz9ZKPb52ac4PuHDEBA=="
 }

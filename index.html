@@ -7659,6 +7659,8 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             if (!Array.isArray(g.pos.abonos)) g.pos.abonos = [];
             if (!Array.isArray(g.pos.recepciones)) g.pos.recepciones = [];
             if (g.pos.seqRecep == null) g.pos.seqRecep = 0;
+            if (!Array.isArray(g.pos.cotizaciones)) g.pos.cotizaciones = [];
+            if (g.pos.seqCotiz == null) g.pos.seqCotiz = 0;
             if (!Array.isArray(g.pos.cfg.extras)) g.pos.cfg.extras = [];
             if (!Array.isArray(g.pos.mesas)) g.pos.mesas = [];
             if (!Array.isArray(g.pos.cuentas)) g.pos.cuentas = [];
@@ -7920,6 +7922,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 const p = (conta.productos || []).find(x => x.id === l.productoId); if (!p) continue;
                 for (const mv of posLineaMovs(conta, l)) { const pm = (conta.productos || []).find(x => x.id === mv.productoId); if (!pm) continue; const vrC = mv.varianteId ? (pm.variantes || []).find(x => x.id === mv.varianteId) : null; if (vrC && typeof vrC.stock === 'number') vrC.stock = posR2(vrC.stock - mv.cantidad); else pm.stock = posR2((Number(pm.stock) || 0) - mv.cantidad); conta.seqInv = (conta.seqInv || 0) + 1; conta.movInventario.push({ id: 'I' + conta.seqInv, productoId: pm.id, varianteId: mv.varianteId || '', tipo: 'salida', cantidad: mv.cantidad, costoUnit: Number(pm.costoProm) || 0, fecha: venta.fecha, origenKey: 'pos:' + vid }); }
             }
+            if (POS_COTIZ_ORIGEN) { const cotM = (pos.cotizaciones || []).find(x => x.id === POS_COTIZ_ORIGEN); if (cotM && cotM.estado === 'abierta') { cotM.estado = 'convertida'; cotM.ventaId = vid; } POS_COTIZ_ORIGEN = ''; }
             saveConta(conta);
             if (pos.cfg.aIngresos) {
                 const cuentaDe = { efectivo: 'caja', tarjeta: 'tarjeta_cup', transferencia: 'chequera', usd: (typeof cuentaEstaActiva === 'function' && cuentaEstaActiva('tarjeta_usd')) ? 'tarjeta_usd' : 'caja' };
@@ -7982,7 +7985,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         function posPintarHistorial() {
             const root = document.getElementById('posRoot'); if (!root) return;
             let box = document.getElementById('posHistBox');
-            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posRecepBox"></div><div id="posEtiqBox" class="mt-3"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
+            if (!box) { root.insertAdjacentHTML('beforeend', '<div id="posHistBox"></div><div id="posHistTicket"></div><div id="posClientesBox"></div><div id="posRecepBox"></div><div id="posEtiqBox" class="mt-3"></div><div id="posCotizBox" class="mt-3"></div><div id="posInformesBox"></div>'); box = document.getElementById('posHistBox'); }
             const { pos } = posDatos();
             const hoyS = hoy(), mesS = subsMesActual();
             const ventas = pos.ventas.filter(v => POS_HIST_MES ? String(v.fecha || '').slice(0, 7) === mesS : v.fecha === hoyS).slice(-50).reverse();
@@ -7998,6 +8001,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             posPintarClientes();
             posPintarRecepciones();
             posPintarEtiquetas();
+            posPintarCotizaciones();
             posPintarInformes();
             posPintarMesas();
             posPintarPanel();
@@ -8125,6 +8129,75 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             const area = document.getElementById('posEtiqPrint'); if (!area) return;
             area.innerHTML = etiquetas;
             printPane('posEtiqPrint', 'Etiquetas');
+        }
+        var POS_COTIZ_ORIGEN = '';
+        function posPintarCotizaciones() {
+            const box = document.getElementById('posCotizBox'); if (!box) return;
+            const { pos } = posDatos();
+            const cots = (pos.cotizaciones || []).slice().sort((a, b) => (a.id < b.id ? 1 : -1));
+            const hoyS = hoy();
+            const filas = cots.map(c => { const venc = c.estado === 'abierta' && c.vence < hoyS; return `<div class="d-flex justify-content-between align-items-center border-bottom py-1 flex-wrap gap-1"><span class="small"><b>${c.id}</b> · ${c.fecha} · ${esc(c.clienteNombre || 'Mostrador')} · <b>${moneda(c.total)}</b> ${c.estado === 'convertida' ? '<span class="badge bg-success">Convertida → ' + esc(c.ventaId) + '</span>' : (venc ? '<span class="badge bg-warning text-dark">Vencida el ' + c.vence + '</span>' : '<span class="badge bg-info text-dark">Abierta · vence ' + c.vence + '</span>')}</span>${c.estado === 'abierta' ? `<span class="d-flex gap-1"><button type="button" class="btn btn-sm btn-success" onclick="posCotizConvertir('${c.id}')">Convertir en venta</button><button type="button" class="btn btn-sm btn-outline-secondary" onclick="posCotizImprimir('${c.id}')">🖨</button><button type="button" class="btn btn-sm btn-outline-danger" onclick="posCotizBorrar('${c.id}')">✕</button></span>` : ''}</div>`; }).join('');
+            box.innerHTML = `<div class="card"><div class="card-body">
+                <h6 class="fw-semibold">🧾 Cotizaciones</h6>
+                <div class="d-flex gap-2 flex-wrap align-items-end mb-2">
+                    <label class="small">Validez (días) <input type="number" id="posCotizDias" class="form-control form-control-sm" value="15" min="1" max="365" style="max-width:90px"></label>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="posCotizGuardar()">Guardar el ticket como cotización</button>
+                    <span class="small text-secondary">Usa el carrito y el cliente del ticket. Cotizar no descuenta stock.</span>
+                </div>
+                ${filas || '<p class="small text-secondary mb-0">Sin cotizaciones todavía.</p>'}
+                <div id="posCotizPrint" class="mt-2"></div>
+            </div></div>`;
+        }
+        function posCotizGuardar() {
+            if (!POS_CARRITO.length) { alert('El ticket está vacío: añade productos antes de cotizar.'); return; }
+            const { conta, pos } = posDatos();
+            if (!Array.isArray(pos.cotizaciones)) pos.cotizaciones = [];
+            pos.seqCotiz = (pos.seqCotiz || 0) + 1;
+            const dias = Math.min(365, Math.max(1, Number((document.getElementById('posCotizDias') || {}).value) || 15));
+            const f = hoy(); const v = new Date(f + 'T12:00:00'); v.setDate(v.getDate() + dias);
+            const vence = v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0');
+            const cli = POS_CLIENTE ? (pos.clientes || []).find(c => c.id === POS_CLIENTE) : null;
+            const lineas = POS_CARRITO.map(l => ({ productoId: l.productoId, varianteId: l.varianteId || '', nombre: l.nombre, cantidad: l.cantidad, precio: l.precio, ofertaPct: Number(l.ofertaPct) || 0, dtoPct: Number(l.dtoPct) || 0, extras: (l.extras || []).map(e => ({ ...e })) }));
+            const total = posTotal();
+            const idN = 'COT' + pos.seqCotiz;
+            pos.cotizaciones.push({ id: idN, fecha: f, vence: vence, clienteId: POS_CLIENTE || '', clienteNombre: cli ? cli.nombre : '', lineas: lineas, dtoTicket: { ...POS_DTO_T }, total: total, estado: 'abierta', ventaId: '' });
+            saveConta(conta);
+            POS_CARRITO = []; POS_PAGOS = null; POS_CLIENTE = ''; POS_COTIZ_ORIGEN = '';
+            posPintarCarrito(); posPintarCotizaciones();
+            alert('Cotización ' + idN + ' guardada por ' + moneda(total) + ' (válida hasta el ' + vence + ').');
+        }
+        function posCotizConvertir(id) {
+            const { pos } = posDatos();
+            const c = (pos.cotizaciones || []).find(x => x.id === id); if (!c || c.estado !== 'abierta') return;
+            if (POS_CARRITO.length && !confirm('La venta actual se sustituye por la cotización. ¿Seguir?')) return;
+            if (c.vence < hoy() && !confirm('Esta cotización venció el ' + c.vence + '. ¿Convertirla igualmente con sus precios guardados?')) return;
+            POS_CARRITO = (c.lineas || []).map(l => ({ ...l, extras: (l.extras || []).map(e => ({ ...e })) }));
+            POS_DTO_T = c.dtoTicket ? { ...c.dtoTicket } : { tipo: 'pct', valor: 0 };
+            POS_CLIENTE = c.clienteId || '';
+            POS_PAGOS = null;
+            POS_COTIZ_ORIGEN = id;
+            posPintarCarrito(); posPintarCotizaciones();
+        }
+        function posCotizBorrar(id) {
+            if (!confirm('¿Borrar la cotización ' + id + '?')) return;
+            const { conta, pos } = posDatos();
+            pos.cotizaciones = (pos.cotizaciones || []).filter(x => x.id !== id);
+            saveConta(conta);
+            posPintarCotizaciones();
+        }
+        function posCotizImprimir(id) {
+            const { pos } = posDatos();
+            const c = (pos.cotizaciones || []).find(x => x.id === id); if (!c) return;
+            const area = document.getElementById('posCotizPrint'); if (!area) return;
+            const negocio = ((document.getElementById('negocioNombreBadge') || {}).textContent || '').trim();
+            const filas = (c.lineas || []).map(l => { const imp = posR2(l.cantidad * l.precio * (1 - (Number(l.ofertaPct) || 0) / 100) * (1 - (Number(l.dtoPct) || 0) / 100)) + posR2((l.extras || []).reduce((a, e) => a + (Number(e.precio) || 0), 0) * l.cantidad); return `<tr><td>${esc(l.nombre)}</td><td style="text-align:right">${l.cantidad}</td><td style="text-align:right">${moneda(l.precio)}</td><td style="text-align:right">${moneda(imp)}</td></tr>`; }).join('');
+            area.innerHTML = `<div style="max-width:560px;font-family:Arial,sans-serif;color:#000">
+                <h5 style="margin:0 0 4px">Cotización ${c.id}</h5>
+                <p style="margin:2px 0">${esc(negocio)}<br>Fecha: ${c.fecha} · Válida hasta: ${c.vence}<br>Cliente: ${esc(c.clienteNombre || 'Mostrador')}</p>
+                <table style="width:100%;border-collapse:collapse" border="1" cellpadding="4"><tr><th style="text-align:left">Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${filas}</table>
+                <p style="text-align:right;font-weight:700">Total: ${moneda(c.total)}</p>
+                <p>Cotización sin compromiso: la existencia se confirma al realizarse la venta.</p></div>`;
+            printPane('posCotizPrint', 'Cotización ' + c.id);
         }
         function posHistVer(mes) { POS_HIST_MES = !!mes; posPintarHistorial(); }
         function posReimprimir(id) { const { pos } = posDatos(); const v = pos.ventas.find(x => x.id === id); if (v) posPintarTicket(v, 'posHistTicket'); }
@@ -20066,7 +20139,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-87';
+        var MANUAL_VERSION = 'v2026.10.30-88';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20573,6 +20646,12 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<ul><li>Marca los productos, elige las <b>copias por etiqueta</b> y el <b>tamaño</b> (pequeña 40 × 25 mm o mediana 58 × 35 mm) y pulsa <b>Imprimir etiquetas</b>.</li>' +
             '<li>Cada etiqueta lleva el <b>nombre</b>, el <b>precio</b> y el <b>código de barras</b> del producto en formato CODE 39, que lee cualquier lector y también la cámara de la propia app al vender.</li>' +
             '<li>El código que se imprime es el <b>código del producto</b> (el de Contabilidad → Inventario). Si un producto no tiene un código válido, la tarjeta lo avisa y no lo etiqueta: ponle su código primero.</li></ul>'},
+        {id:'pos-cotizaciones', modulo:'gestion', titulo:'Punto de Venta: cotizaciones', html:
+            '<p>Una <b>cotización</b> es un presupuesto con los precios de hoy: se guarda desde la pestaña <b>Punto de Venta</b>, tarjeta <b>Cotizaciones</b>, con el botón <b>Guardar el ticket como cotización</b> (usa el carrito y el cliente del ticket, con los <b>días de validez</b> que elijas; 15 por defecto).</p>' +
+            '<ul><li>Cotizar <b>no descuenta stock ni crea una venta</b>: solo guarda las líneas con sus precios.</li>' +
+            '<li>Cuando el cliente acepta, pulsa <b>Convertir en venta</b>: el ticket se carga con los precios guardados y, al cobrarlo, la cotización queda marcada <b>Convertida</b> con el número de su venta. El stock se descuenta en ese momento, como en cualquier venta.</li>' +
+            '<li>El botón 🖨 imprime la cotización para entregarla al cliente. Vencida, la tarjeta lo avisa; aun así puedes convertirla, confirmándolo.</li>' +
+            '<li>Es función de venta: también el <b>vendedor</b> puede cotizar y convertir.</li></ul>'},
         {id:'pos-menu', modulo:'gestion', titulo:'Punto de Venta (POS): el módulo de mostrador', html:
             '<p>El <b>Punto de Venta</b> es un módulo que se paga <b>aparte de la licencia</b> de Finanzas (5 000 CUP/mes). Mientras no esté contratado y pagado el mes, <b>no aparece en ningún sitio</b>: ni su menú, ni su tarjeta de ajustes, ni su rol de usuario.</p>' +
             '<ul><li><b>Quién lo ve:</b> lo ve el negocio que lo tiene vigente. Su administrador lo ajusta en <b>Configuración → Punto de Venta (POS)</b>: si las ventas pasan o no a los ingresos de Finanzas y el precio de venta de cada producto del inventario.</li>' +
@@ -20773,7 +20852,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
          'docResumenPrint','docNominaSubmayoresPrint','docTrimestresPrint','docOnatPrint','docCierreAnualPrint','docBalanceAperturaPrint',
          'docProgramadorPrint','docMotorTributosPrint','docCalendarioPrint','docGestorCalendarioPrint','docBancarizacionPrint',
          'docExpedientePrint','docKYCPrint','docPresupuestoPrint','docFlujoProyectadoPrint','docIndicadoresPrint',
-         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI','posPintarRecepciones','posRecepAddLinea','posRecepDelLinea','posRecepRegistrar','posKitAdd','posKitSet','posKitDel','posPintarEtiquetas','posEtiqImprimir','posBarcode39'
+         'docOrdenProduccionPrint','docIPVPrint','docConsignacionPrint','docUtilesPrint','docPanelGestorPrint','renderCobro','cobroFormUI','cobroGuardarUI','cobroCartaUI','posPintarRecepciones','posRecepAddLinea','posRecepDelLinea','posRecepRegistrar','posKitAdd','posKitSet','posKitDel','posPintarEtiquetas','posEtiqImprimir','posBarcode39','posPintarCotizaciones','posCotizGuardar','posCotizConvertir','posCotizImprimir','posCotizBorrar'
         ].forEach(function(n){ try { var f = eval(n); if (typeof f === 'function') window[n] = f; } catch(e) {} });
         // Gancho de prueba (node) para la retención de divisa del PDL
         window.__retDivTest = { procesar: retDivisaProcesar, registros: function(){ try { return getFiscal().retDivisa || []; } catch(e) { return []; } }, editar: retDivisaEditar, enlazar: retDivisaEnlazarManual, desenlazar: retDivisaDesenlazar, esPDL: retDivisaEsPDL, resumenMes: retDivisaResumenMes };
