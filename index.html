@@ -935,7 +935,6 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 <span class="icono-anim" data-icono="info"></span> Acceso solo para usuarios registrados
             </div>
         </form>
-        <div id="loginAvisoCierre70" class="alert alert-warning py-2 small mt-3 text-start" style="display:none">📢 <b>La versión en línea cerró para los negocios</b> (30 de octubre de 2026). La versión oficial de Finanzas es tu <b>copia sin conexión</b>, instalada en tu computadora: entra por ella. Tus datos de aquí quedan guardados, y tu proveedor puede migrarlos a tu copia con el puente cuando lo necesites. <span class="text-secondary">Si eres la administradora general, entra como siempre: tu panel sigue aquí.</span></div>
         <!-- Instalación inicial (solo versión sin conexión, primera vez) -->
         <div id="instalacionBox" class="d-none text-start">
             <div class="alert alert-info py-2 small">👋 <b>Primera vez en esta máquina.</b> Vamos a instalar tu copia: dime cómo la vas a usar y crea tu contraseña. Solo se hace una vez.</div>
@@ -18561,7 +18560,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
                     `<div class="d-flex justify-content-end mb-2 no-print"><button type="button" class="btn btn-sm btn-outline-secondary" data-doc-c1="resumen" onclick="docResumenPrint()"><i class="bi bi-printer me-1"></i>PDF</button></div>`);
             }
         }
-        (function avisoCierre70() { var av = document.getElementById('loginAvisoCierre70'); if (av && !window.FINANZAS_LOCAL) av.style.display = ''; })();
+        /* Aviso de cierre de la versión en línea: ELIMINADO por orden de
+           Leonardo (2026-11-04) junto con la regla del servidor. */
         initRecuperaLogin();
         try { initInstalacion(); } catch (e) {}
         loginForm.addEventListener('submit', async function(e){
@@ -18688,7 +18688,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
                 if (b === 'vendedor' || b === 'pos_admin' || b === 'pos_cajero' || b === 'pos_almacen') {
                     try {
                         if (window.FINANZAS_LOCAL && typeof PANEL_LOCAL !== 'undefined' && PANEL_LOCAL && PANEL_LOCAL.modo === 'negocio') { const m = (PANEL_LOCAL.modulos || {}).pos || {}; lim = m.vigente ? 1 : 0; }
-                        else { const mp = subsDeNeg(neg).modulos.pos; lim = (mp.activo && mp.pagos[subsMesActual()]) ? 1 : 0; }
+                        else { const mp = subsDeNeg(neg).modulos.pos; lim = (mp.activo && (mp.pagos[subsMesActual()] || /^prueba/i.test(String(neg || '')))) ? 1 : 0; }
                     } catch (e) {}
                 }
                 if (newC[k] > lim && newC[k] > (oldC[k] || 0)) {
@@ -19025,7 +19025,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-95';
+        var MANUAL_VERSION = 'v2026.10.30-96';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19937,7 +19937,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
       employees:[],products:[],customers:[],suppliers:[],sales:[],receivings:[],expenses:[],cashups:[],cashMoves:[],giftcards:[],holds:[] };
   }
   async function posVigente(){
-    try{ var s=subsDeNeg(ME.user.negocio); var mp=(s.modulos||{}).pos||{}; if(mp.activo&&mp.pagos[subsMesActual()]) return true; if(mp.activo||Object.keys(mp.pagos||{}).length) return false; }catch(e){}
+    try{ var s=subsDeNeg(ME.user.negocio); var mp=(s.modulos||{}).pos||{}; if(mp.activo&&mp.pagos[subsMesActual()]) return true; if(mp.activo&&/^prueba/i.test(String(ME.user.negocio||''))) return true; if(mp.activo||Object.keys(mp.pagos||{}).length) return false; }catch(e){}
     try{ var r=await api('validar_suscripcion',{negocio:ME.user.negocio}); if(r&&r.ok&&r.modulos&&r.modulos.pos) return !!r.modulos.pos.vigente; }catch(e){}
     return false;
   }

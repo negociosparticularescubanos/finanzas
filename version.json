@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-95",
-  "publicada": "2026-11-04 21:24",
-  "notas": "Ronda 95: flujo POS del negocio — la administradora activa el módulo y el administrador del negocio crea sus usuarios del POS (administrador, cajero, almacén) desde su tarjeta «Punto de Venta» en Configuración; todo se autentica en el acceso de Finanzas y cada usuario cae en su plataforma",
+  "version": "v2026.10.30-96",
+  "publicada": "2026-11-04 21:40",
+  "notas": "Ronda 96: eliminados el cierre de la versión en línea y su advertencia (la versión en línea reabre para los negocios) y modo gratis permanente para los negocios de prueba (nombre que empieza por «Prueba» y tenedor de prueba: licencia y módulo POS siempre pagados, sin tocar la hoja)",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "9f3676944993b777f547ee4ddadd4b99024fe787f98ddb37d1813df6cacf8c00",
-      "bytes": 2044502
+      "sha256": "4cbbb1dc7e5564df10186961daaf03a83482262c5212f0cd8b9d37adc0d2ffb3",
+      "bytes": 2044064
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "vqutxojU5eCKcQ4jMBlo36+ESSxRPwn2lw1/uKtBAp0ABcTy0nkK8UCncoylb4uT/fl6v5hp3UR/uZl+OootDg=="
+  "firma": "u8vjmoSzfviWtcNdT10AQQqs4OWhqu/wbMXoFdVy6SaGSJbLZs04mTIdmPSsm9zs4M4ozIx9ZoUhYtV5eF51BQ=="
 }
