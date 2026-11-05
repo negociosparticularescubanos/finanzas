@@ -1,14 +1,14 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-100",
-  "publicada": "2026-11-05 02:26",
-  "notas": "Ronda 100: botón «Editar» en los usuarios del POS (cambiar rol y contraseña desde el menú del negocio) y nombres de usuario saneados al crear (sin @ inicial).",
+  "version": "v2026.10.30-101",
+  "publicada": "2026-11-05 02:46",
+  "notas": "Ronda 101: eliminada la frase «100% offline» de la página del Punto de Venta (pantalla de acceso, encabezado y pie): no es cierta, el POS sincroniza con Finanzas.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "684b514264161cd3e5b5d6808610e23aba921ee036655cac2b7ed56ec6503dd0",
+      "sha256": "e8f20bc77fdfc7d4f51c02b8d468cd65b0819ffab4b935a0ddad182ab0b1ee07",
       "bytes": 2049131
     },
     {
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "rKTN0IaGy6dsthGZ/kxJe+XfN1PyOgmS7EpZRcqxAyqyb4CPTbSPwJqOb9XfyXzReEiU0BuBsdj5QXuHjQlwAg=="
+  "firma": "5N9GRMgJ7KFsLwurzrbUQvF/AnOD3WQ7TM2dYamyGIspy9EqPxvRhTBPauzGyR3o9e6i8vwbre8H+HcKUvDLBQ=="
 }
