@@ -1075,6 +1075,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         <li class="nav-item" id="adminTabNav"><button class="nav-link admin" id="tab-admin" data-bs-toggle="tab" data-bs-target="#pane-admin"><span class="icono-anim me-1" data-icono="ajustes"></span> Configuración</button></li>
         <li class="nav-item"><button class="nav-link ayuda" id="tab-ayuda" data-bs-toggle="tab" data-bs-target="#pane-ayuda"><span class="icono-anim me-1" data-icono="ayuda"></span> Ayuda</button></li>
         <li class="nav-item"><button class="nav-link instrucciones" id="tab-instrucciones" data-bs-toggle="tab" data-bs-target="#pane-instrucciones"><span class="icono-anim me-1" data-icono="info"></span> Instrucciones</button></li>
+        <li class="nav-item" id="navPosUsuarios" style="display:none"><button class="nav-link" id="tab-posusuarios" data-bs-toggle="tab" data-bs-target="#pane-posusuarios">👥 Usuarios POS</button></li>
     </ul>
 
     <!-- CONTENIDO -->
@@ -3200,6 +3201,22 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         </div>
 
         <!-- INSTRUCCIONES · MANUAL COMPLETO (fuente única: MANUAL_SECCIONES) -->
+        <div class="tab-pane fade" id="pane-posusuarios">
+          <div class="card"><div class="card-body">
+    <div id="posCardWrap" style="border:1px solid #1f3049;border-radius:12px;padding:12px;margin-top:12px;text-align:left">
+      <h6 style="margin-top:0">👥 Usuarios del POS de tu negocio</h6>
+      <p class="small" id="posCardInfo" style="opacity:.85">Crea aquí los usuarios del Punto de Venta de tu negocio — <b>un administrador, un cajero y un almacén</b> —: entran por el mismo acceso de Finanzas y caen directo en el Punto de Venta, cada uno con lo suyo. Los nombres de usuario no se pueden repetir en toda Finanzas.</p>
+      <div id="posCardLista" class="mb-2"></div>
+      <div class="row g-2">
+        <div class="col-12"><input id="posNewUser" class="form-control form-control-sm" placeholder="Usuario nuevo (ej. cajero1)"></div>
+        <div class="col-6"><input id="posNewPass" type="text" class="form-control form-control-sm" placeholder="Contraseña"></div>
+        <div class="col-6"><select id="posNewRole" class="form-select form-select-sm"><option value="pos_admin">🛒 Administrador POS</option><option value="pos_cajero">🧾 Cajero POS</option><option value="pos_almacen">📦 Almacén POS</option></select></div>
+        <div class="col-12"><button class="btn btn-success btn-sm w-100" onclick="posCardCrear()">➕ Crear usuario del POS</button></div>
+      </div>
+      <div class="small mt-2" id="posCardMsg"></div>
+    </div>
+          </div></div>
+        </div>
         <div class="tab-pane fade" id="pane-instrucciones">
             <div class="card p-3 p-md-4 mb-4">
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
@@ -19011,7 +19028,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-98';
+        var MANUAL_VERSION = 'v2026.10.30-99';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19534,9 +19551,9 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<li>La tarjeta <b>no aparece en el perfil del administrador general</b>: ese perfil no es un negocio; la identidad solo existe dentro de cada negocio concreto.</li></ul>'},
         {id:'punto-de-venta', modulo:'pos', titulo:'Punto de Venta: módulo, usuarios y sincronización', html:
             '<p>El <b>Punto de Venta</b> es un <b>módulo aparte</b> de la licencia: la administradora lo activa por negocio en <b>Configuración → Suscripciones</b> (interruptor «Módulo activo») y marca su <b>pago del mes en curso</b>. Sin las dos cosas, el negocio no puede crear usuarios del POS ni abrirlo.</p>' +
-            '<ul><li><b>Usuarios del POS:</b> cuando la administradora general activa el módulo, al <b>administrador del negocio</b> le aparece la tarjeta <b>«Usuarios del POS de tu negocio»</b> en su pantalla de entrada al Punto de Venta (el botón flotante «🛒 Punto de Venta»): desde ahí crea y gestiona sus usuarios del POS, con los roles <b>Administrador POS</b>, <b>Cajero POS</b> y <b>Almacén POS</b>: <b>uno de cada por negocio</b> y con <b>nombre de usuario único en toda la base de Finanzas</b> (el servidor no admite repetidos; la administradora también puede crearlos en Gestión de Usuarios). Todo se autentica en el acceso de Finanzas y, según el usuario que entre, cae donde le corresponde. Cada uno ve solo lo suyo: el administrador POS lo ve todo dentro del POS; el cajero, ventas, clientes y vales; el almacén, inventario, proveedores y compras. Los usuarios del POS <b>no entran a la contabilidad</b>: al entrar a Finanzas van directo a su pantalla del Punto de Venta.</li>' +
+            '<ul><li><b>Usuarios del POS:</b> con el módulo activo y pagado, en el menú del <b>administrador del negocio</b> aparece la opción <b>«👥 Usuarios POS»</b>: desde ahí crea y gestiona los usuarios del Punto de Venta de su negocio, con los roles <b>Administrador POS</b>, <b>Cajero POS</b> y <b>Almacén POS</b>: <b>uno de cada por negocio</b> y con <b>nombre de usuario único en toda la base de Finanzas</b> (al crear, la app comprueba que el nombre elegido no esté en uso y el servidor no admite repetidos; la administradora general también puede crearlos en Gestión de Usuarios). Todo se autentica en el acceso de Finanzas y, según el usuario que entre, cae donde le corresponde. Cada uno ve solo lo suyo: el administrador POS lo ve todo dentro del POS; el cajero, ventas, clientes y vales; el almacén, inventario, proveedores y compras. Los usuarios del POS <b>no entran a la contabilidad</b>: al entrar a Finanzas van directo a su pantalla del Punto de Venta.</li>' +
             '<li><b>Los datos viven en Finanzas:</b> productos, ventas, inventario, caja y empleados del POS se guardan en la base de datos de Finanzas, en el espacio propio del negocio. Al pulsar <b>«Abrir Punto de Venta»</b> los datos se bajan a este equipo; al terminar, vuelve a Finanzas y pulsa <b>«Sincronizar datos»</b> para subir los cambios. Entre sincronizaciones el POS trabaja sin conexión en el equipo.</li>' +
-            '<li><b>El PIN:</b> la primera vez que cada usuario abre el POS en un equipo, crea su <b>PIN de 4 dígitos</b>: es la clave con la que entra al punto de venta en ese equipo (distinta de su contraseña de Finanzas, que sigue guardada solo como huella). El administrador POS puede gestionar los empleados dentro del propio POS.</li>' +
+            '<li><b>Sin PIN ni claves extra:</b> nadie crea ni escribe ningún PIN: al pulsar <b>«Abrir Punto de Venta»</b> el POS se abre <b>ya con tu usuario</b>, porque la llave es tu propio acceso de Finanzas. Tu contraseña de Finanzas sigue guardada solo como huella.</li>' +
             '<li><b>El dueño del negocio</b> (su usuario editor) también puede abrir el POS con el botón flotante «🛒 Punto de Venta» cuando el módulo está vigente, y entra como administrador del POS.</li></ul>'}
         ];
         function manualEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -19958,7 +19975,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
   }
   async function posPush(){
     var loc=posLocal(); if(!loc||loc.__finNegocio!==(F().ME.user.negocio)) return {ok:false};
-    var r; try{ r=await F().api('data_set',{k:'pos',v:{db:loc,updatedAt:Date.now(),by:F().ME.username},ver:(typeof F().SLOT_VER!=='undefined'&&F().SLOT_VER.pos)||0}); }catch(e){ return {ok:false}; }
+    var r; try{ r=await F().api('data_set',{k:'pos',v:{db:(function(){ var c=Object.assign({},loc); delete c.__finAuto; return c; })(),updatedAt:Date.now(),by:F().ME.username},ver:(typeof F().SLOT_VER!=='undefined'&&F().SLOT_VER.pos)||0}); }catch(e){ return {ok:false}; }
     if(r&&r.ok){ if(r.ver!=null&&typeof F().SLOT_VER!=='undefined') F().SLOT_VER.pos=r.ver; loc.__finSync=Date.now(); loc.__finHash=posHash(posSinMarcas(loc)); posGuardarLocal(loc); return {ok:true}; }
     if(r&&r.conflicto){ if(r.ver!=null&&typeof F().SLOT_VER!=='undefined') F().SLOT_VER.pos=r.ver; return {ok:false,conflicto:true}; }
     return {ok:false,error:r&&r.error};
@@ -19978,18 +19995,6 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     var btn=document.getElementById('posHomeAbrir'); if(btn) btn.disabled=!vig;
     var av=document.getElementById('posHomeAviso'); if(av) av.style.display=vig?'none':'';
     await posPull(); posEstadoTxt();
-    /* Tarjeta de usuarios del POS: solo para el administrador/dueño
-       del negocio y solo si la administradora le activó el módulo. */
-    var wrap=document.getElementById('posCardWrap');
-    if(wrap){
-      var mgr=(F().ME.user.role==='editor')||(F().ME.user.role==='admin'&&!!F().ME.user.negocio);
-      var act=false; try{ var vv=await F().api('validar_suscripcion',{negocio:F().ME.user.negocio}); act=!!(vv&&vv.ok&&vv.modulos&&vv.modulos.pos&&vv.modulos.pos.activo); }catch(e){}
-      wrap.style.display=(mgr&&act)?'':'none';
-      if(mgr&&act){
-        if(!vig){ var inf=document.getElementById('posCardInfo'); if(inf&&!inf.dataset.pend){ inf.dataset.pend='1'; inf.innerHTML+=' <b style="color:#fbbf24">⚠️ El pago de este mes está pendiente: no podrás crear usuarios hasta regularizarlo.</b>'; } }
-        posCardRender();
-      }
-    }
   }
   function posCerrarHome(){ var ov=document.getElementById('posHome'); if(ov) ov.style.display='none'; if(!posEsRol()){ var dc=document.getElementById('dashboardContainer'); if(dc) dc.classList.add('visible'); } }
   async function posAbrir(){
@@ -20002,14 +20007,14 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     var id='fin_'+F().ME.username;
     var emp=(loc.employees||[]).find(function(e){ return e.id===id; });
     if(!emp){
-      var pin=prompt('Crea tu PIN de 4 dígitos para entrar al Punto de Venta en este equipo:');
-      if(pin===null) return;
-      pin=String(pin).trim();
-      if(!/^\d{4}$/.test(pin)){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
       loc.employees=loc.employees||[];
-      loc.employees.push({id:id,name:F().ME.username,pin:pin,role:POS_ROLMAP[F().ME.user.role]||'ventas',active:true});
-    } else { emp.role=POS_ROLMAP[F().ME.user.role]||emp.role; emp.active=true; }
+      emp={id:id,name:F().ME.username,pin:'',role:POS_ROLMAP[F().ME.user.role]||'ventas',active:true};
+      loc.employees.push(emp);
+    } else { emp.role=POS_ROLMAP[F().ME.user.role]||emp.role; emp.active=true; emp.pin=''; }
     loc.__finNegocio=F().ME.user.negocio;
+    /* Acceso directo sin PIN (ronda -99): la página del POS entra
+       sola con este empleado al abrir (marca de un solo uso). */
+    loc.__finAuto={id:id,ts:Date.now()};
     posGuardarLocal(loc);
     var p=await posPush();
     if(!p.ok&&p.conflicto){ await posPull(); }
@@ -20024,6 +20029,34 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     await posPull(); posEstadoTxt(); alert('✅ Datos del POS sincronizados con Finanzas.');
   }
   function posSalir(){ F().api('logout').finally(function(){ try{ localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); }catch(e){} location.reload(); }); }
+  /* Menú «Usuarios POS» del negocio (ronda -99): en el menú del
+     administrador del negocio, visible solo con el módulo vigente; la
+     tarjeta vive en su pestaña y se pinta al abrirla. */
+  var __pmT=0, __pmBusy=false;
+  /* Veredicto local de vigencia (sin red): el mismo primer tramo de
+     posVigente; null cuando los datos locales no alcanzan. */
+  function posLocalVigente(){
+    try{ var s=F().subsDeNeg(F().ME.user.negocio); var mp=(s&&s.modulos&&s.modulos.pos)||{};
+      if(mp.activo&&(mp.pagos[F().subsMesActual()]||/^prueba/i.test(String(F().ME.user.negocio||'')))) return true;
+      if(mp.activo||Object.keys(mp.pagos||{}).length) return false;
+    }catch(e){}
+    return null;
+  }
+  async function posMenuRefrescar(){
+    var li=document.getElementById('navPosUsuarios'); if(!li) return;
+    var now=Date.now(); if(__pmBusy||now-__pmT<5000) return; __pmT=now; __pmBusy=true;
+    var ok=false;
+    try{
+      if(F().ME&&F().ME.user&&(F().ME.user.role==='editor'||(F().ME.user.role==='admin'&&!!F().ME.user.negocio))){
+        var lv=posLocalVigente();
+        ok=(lv!==null)?lv:!!(await posVigente());
+      }
+    }catch(e){}
+    li.style.display=ok?'':'none';
+    __pmBusy=false;
+  }
+  try{ var tp=document.getElementById('tab-posusuarios'); if(tp){ tp.addEventListener('shown.bs.tab', function(){ posCardRender(); }); tp.addEventListener('click', function(){ setTimeout(posCardRender, 350); }); } }catch(e){}
+  setInterval(posMenuRefrescar, 30000); posMenuRefrescar();
   window.mostrarPosHome=mostrarPosHome; window.posAbrir=posAbrir; window.posSincronizar=posSincronizar; window.posCerrarHome=posCerrarHome; window.posSalir=posSalir; window.posEsRol=posEsRol;
   /* --- Tarjeta del POS del propio negocio (ronda -95) ---
      La administradora general activa el módulo y entonces, en la
@@ -20096,6 +20129,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
   /* El editor del negocio con el módulo vigente también puede abrir
      el POS: botón flotante que lleva a la misma pantalla. */
   var __posBtnTimer=setInterval(function(){
+    posMenuRefrescar();
     var dc=document.getElementById('dashboardContainer');
     if(dc&&dc.classList.contains('visible')&&typeof F().ME!=='undefined'&&F().ME&&F().ME.user&&(F().ME.user.role==='editor'||(F().ME.user.role==='admin'&&F().ME.user.negocio))){
       clearInterval(__posBtnTimer);
@@ -20130,25 +20164,13 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     <!-- Usuarios del POS del negocio (ronda -97): solo lo ve el
          administrador/dueño del negocio; vive en esta pantalla porque
          el dueño (editor) no tiene pestaña de Configuración. -->
-    <div id="posCardWrap" style="display:none;border:1px solid #1f3049;border-radius:12px;padding:12px;margin-top:12px;text-align:left">
-      <h6 style="margin-top:0">👥 Usuarios del POS de tu negocio</h6>
-      <p class="small" id="posCardInfo" style="opacity:.85">Crea aquí los usuarios del Punto de Venta de tu negocio — <b>un administrador, un cajero y un almacén</b> —: entran por el mismo acceso de Finanzas y caen directo en el Punto de Venta, cada uno con lo suyo. Los nombres de usuario no se pueden repetir en toda Finanzas.</p>
-      <div id="posCardLista" class="mb-2"></div>
-      <div class="row g-2">
-        <div class="col-12"><input id="posNewUser" class="form-control form-control-sm" placeholder="Usuario nuevo (ej. cajero1)"></div>
-        <div class="col-6"><input id="posNewPass" type="text" class="form-control form-control-sm" placeholder="Contraseña"></div>
-        <div class="col-6"><select id="posNewRole" class="form-select form-select-sm"><option value="pos_admin">🛒 Administrador POS</option><option value="pos_cajero">🧾 Cajero POS</option><option value="pos_almacen">📦 Almacén POS</option></select></div>
-        <div class="col-12"><button class="btn btn-success btn-sm w-100" onclick="posCardCrear()">➕ Crear usuario del POS</button></div>
-      </div>
-      <div class="small mt-2" id="posCardMsg"></div>
-    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button id="posHomeAbrir" class="btn btn-success" onclick="posAbrir()">Abrir Punto de Venta</button>
       <button class="btn btn-outline-light" onclick="posSincronizar()">Sincronizar datos</button>
       <button class="btn btn-outline-light" onclick="posCerrarHome()">Volver a Finanzas</button>
       <button class="btn btn-outline-danger" onclick="posSalir()">Cerrar sesión</button>
     </div>
-    <p class="small" style="opacity:.7;margin-top:12px">Los datos del POS viven en Finanzas: al abrir se bajan a este equipo y dentro del POS entras con tu PIN de 4 dígitos. Al terminar, vuelve aquí y pulsa «Sincronizar datos» para subir los cambios.</p>
+    <p class="small" style="opacity:.7;margin-top:12px">Los datos del POS viven en Finanzas: al abrir se bajan a este equipo y el POS se abre ya con tu usuario, sin PIN ni claves extra. Al terminar, vuelve aquí y pulsa «Sincronizar datos» para subir los cambios.</p>
   </div>
 </div>
 </body>

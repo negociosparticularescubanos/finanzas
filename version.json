@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-98",
-  "publicada": "2026-11-05 00:22",
-  "notas": "Ronda 98: puente del bloque del Punto de Venta con el núcleo de la app (el botón flotante y la pantalla del POS ya funcionan para el dueño y los usuarios del POS) y chequeo permanente del flujo completo del POS.",
+  "version": "v2026.10.30-99",
+  "publicada": "2026-11-05 01:25",
+  "notas": "Ronda 99: menú «Usuarios POS» en el menú del negocio (módulo activo y pagado) y acceso al Punto de Venta sin PIN: desde el acceso de Finanzas se entra directo, con el usuario ya puesto.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "d8a06996793ebbf7a7ec9d689b30ddd23522058f72db87e547ab2ee1f136efb8",
-      "bytes": 2045438
+      "sha256": "622f734a4887d13bfafa1b6360ecae6da5063e5180ce71bd0c8135b5ea3f8643",
+      "bytes": 2046402
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "PZBfC5NPEKQfUfD8FA9DqT3EC7rkbXkq0Udj7eBllCoIr6sw2qAIVj3Jaj0524XpWOSXxNhyjyDmZRG+xLIbDQ=="
+  "firma": "CwSe/0DGzn7S0HY1HfMP60nhdZ1kbSsTXjh6TZc6HXrD80GIGjKqZhwiR3NJMdeUYG/wEO/Y4TpCNTqozWkXCQ=="
 }
