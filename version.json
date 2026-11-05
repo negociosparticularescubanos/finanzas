@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-103",
-  "publicada": "2026-11-05 03:12",
-  "notas": "Ronda 103: el POS vuelve a coger solo el precio del dólar de elToque — ahora lo consulta el servidor de Finanzas (sin el bloqueo del navegador) y lo sirve con caché de 1 hora; la página del POS estrena el indicador de conexión con la base de datos (verde/rojo), regla nueva de Leonardo.",
+  "version": "v2026.10.30-104",
+  "publicada": "2026-11-05 06:32",
+  "notas": "Ronda 104: Finanzas se muda a las cuentas nuevas de Leonardo (GitHub y Google «negociosparticularescubanos»): la app y el POS ya consultan el servidor de la cuenta nueva. Sin cambios de funciones ni de datos; el servidor viejo queda de respaldo.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "dfeca781554d51785a7b44371d466def3111e30b65ffdd1f63e2c0afcf2bd843",
-      "bytes": 2049578
+      "sha256": "cbdd594227fb1d3aa2cf031431344a41c2fb89b66b79e9369602902f91894f0c",
+      "bytes": 2049576
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "cH8ywNLJNIA5CvezrNZc36YqTenReHfE0q2jF5ly+u0zTH0+bS0PkkipxibMQ+3xqcsy6wNbuSwBLJp8VI/ZBg=="
+  "firma": "ASFvmH2ehYzoi3zSC+4fqgVidjNayAwqLCuOzLIxwi8M+0UQIGMlTaC9XKt2Lv3VOYHXck7aVSDM35tH/VEOCw=="
 }
