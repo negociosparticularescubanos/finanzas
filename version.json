@@ -1,14 +1,14 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-102",
-  "publicada": "2026-11-05 02:56",
-  "notas": "Ronda 102: al salir del Punto de Venta se vuelve al acceso de Finanzas y se cierra la sesión (ya no sale el acceso propio del POS); la página del POS estrena icono en la pestaña del navegador.",
+  "version": "v2026.10.30-103",
+  "publicada": "2026-11-05 03:12",
+  "notas": "Ronda 103: el POS vuelve a coger solo el precio del dólar de elToque — ahora lo consulta el servidor de Finanzas (sin el bloqueo del navegador) y lo sirve con caché de 1 hora; la página del POS estrena el indicador de conexión con la base de datos (verde/rojo), regla nueva de Leonardo.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "7ac93f91ff25780c178ad7aef17ff26a9f32215e54cf2f089b3456f2e01f9451",
+      "sha256": "dfeca781554d51785a7b44371d466def3111e30b65ffdd1f63e2c0afcf2bd843",
       "bytes": 2049578
     },
     {
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "16dVbJE2RwWSTfY606KaO3S7aHVji1JSv6HynOq1X7RnpJEmsEtdCSMQ369e/4TBSQHdPwQJB1Od/78IpgQIDg=="
+  "firma": "cH8ywNLJNIA5CvezrNZc36YqTenReHfE0q2jF5ly+u0zTH0+bS0PkkipxibMQ+3xqcsy6wNbuSwBLJp8VI/ZBg=="
 }
