@@ -205,6 +205,7 @@ img[loading="lazy"]{background:var(--bg2)}
     <span class="chip" id="userEl">—</span>
     <span class="chip" id="cajaEl">Caja: —</span>
     <span class="chip" id="rateEl">Tasas: —</span>
+    <span class="chip" id="dbEl" title="Conexión con la base de datos de Finanzas">● Base de datos: …</span>
     <span style="flex:1"></span>
     <button class="btn sec" onclick="quickBackup()">⤓ Respaldo</button>
     <button class="btn sec" onclick="doLogout()">Salir</button>
@@ -684,6 +685,14 @@ function printTicket(s){$("printZone").innerHTML=ticketHTML(s);setTimeout(()=>wi
 function printArqueo(esp,cont,dif){$("printZone").innerHTML=`<div class="ticket"><h3>${esc(DB.cfg.name)}</h3><div class="c">ARQUEO DE CAJA<br>${nowT()} · ${esc(currentUser?.name||"")}</div><hr>Esperado: ${fmt(esp)}<br>Contado: ${fmt(cont)}<br>Diferencia: ${fmt(dif)}<hr><div class="c">Firma: _______________</div></div>`}
 
 /* ---------- tasas elToque (cada 1h si hay conexión) ---------- */
+const FIN_API="https://script.google.com/macros/s/AKfycbxnsS1IaVCWfv-qio1Hd9FStbvT_HMcJaI466ozn7MVq4ZiavQZonprPh31LEtgmwZcEQ/exec";
+async function fetchToqueRates(){
+  /* Ronda -103: primero el servidor de Finanzas, que consulta a
+     elToque sin el bloqueo CORS del navegador y cachea 1 h. Si no
+     responde, se intenta la lectura directa de la página. */
+  try{ const r=await fetch(FIN_API,{method:"POST",body:JSON.stringify({a:"tasas"}),redirect:"follow"}); const j=await r.json(); if(j&&j.ok&&(j.usd||j.eur||j.mlc)) return {usd:j.usd,eur:j.eur,mlc:j.mlc,date:j.date||null}; }catch(e){}
+  const h=await fetchToqueHTML(); return parseToqueRates(h);
+}
 async function fetchToqueHTML(){
   try{const r=await fetch("https://eltoque.com/tasas-de-cambio-cuba",{cache:"no-store"});if(r.ok){const h=await r.text();if(h.includes("variableMeasured"))return h}}catch(e){}
   const r2=await root.superFetch("https://eltoque.com/tasas-de-cambio-cuba");return await r2.text();
@@ -704,7 +713,7 @@ async function updateRatesFromToque(manual){
   if(!navigator.onLine){ratesStatus("Sin conexión — se conservan las tasas actuales y se reintentará en 1h.");if(manual)toast("❌ Sin conexión a internet");return}
   try{
     if(manual){ratesStatus("Consultando elToque…");$("ratesBtn")?.classList.add("loading")}
-    const r=await fetchToqueHTML(),out=parseToqueRates(r);
+    const out=await fetchToqueRates();
     if(out.usd)DB.cfg.usd=out.usd;if(out.eur)DB.cfg.eur=out.eur;if(out.mlc)DB.cfg.mlc=out.mlc;
     DB.cfg.ratesAt=new Date().toISOString();DB.cfg.ratesSrc="elToque";DB.cfg.ratesDate=out.date;
     save();refreshTop();if($("v-aj").classList.contains("on"))renderCfg();
@@ -714,7 +723,17 @@ async function updateRatesFromToque(manual){
   }catch(e){$("ratesBtn")?.classList.remove("loading");ratesStatus("⚠️ No se pudo contactar a elToque ("+(String(e&&e.message||e)).slice(0,80)+"). Se mantienen las tasas actuales.");if(manual)toast("❌ No se pudo contactar a elToque — revise su internet","err")}
 }
 setInterval(()=>{try{if(DB&&DB.cfg&&DB.cfg.autoRates!==false)updateRatesFromToque(false)}catch(e){}},3600000);
-window.addEventListener("online",()=>{try{if(DB&&DB.cfg&&DB.cfg.autoRates!==false)updateRatesFromToque(false)}catch(e){}});
+window.addEventListener("online",()=>{try{if(DB&&DB.cfg&&DB.cfg.autoRates!==false)updateRatesFromToque(false)}catch(e){} dbPing();});
+window.addEventListener("offline",()=>dbSet(false));
+setInterval(()=>{dbPing()},60000);
+setTimeout(()=>{dbPing()},1500);
+
+/* ---------- indicador de conexión con la base de datos ----------
+   Regla de Leonardo (2026-11-04): todo proyecto enlazado a una base
+   de datos muestra el indicador: verde si hay conexión, rojo si no.
+   Aquí la base es el servidor de Finanzas: se le hace «ping». */
+function dbSet(ok){ const el=$("dbEl"); if(!el)return; el.textContent=ok?"● Base de datos: conectada":"● Base de datos: sin conexión"; el.style.color=ok?"#12b76a":"#dc2626"; el.title=ok?"Hay conexión con la base de datos de Finanzas":"Sin conexión con la base de datos de Finanzas"; }
+async function dbPing(){ try{ const r=await fetch(FIN_API,{method:"POST",body:JSON.stringify({a:"ping"}),redirect:"follow"}); const j=await r.json(); dbSet(!!(j&&j.ok)); }catch(e){ dbSet(false); } }
 
 /* ---------- tema / ripple / microinteracciones ---------- */
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem("miposcuba_theme",t)}catch(e){}$("themeBtn").innerHTML=t==="dark"?`<svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>`:`<svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>`}
