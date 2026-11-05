@@ -1,3 +1,4 @@
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230e7c3e'/%3E%3Cg fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9.5' cy='20' r='1.3'/%3E%3Ccircle cx='17' cy='20' r='1.3'/%3E%3Cpath d='M3 3h2l2.5 11.5h9.8L20 7H6'/%3E%3C/g%3E%3C/svg%3E">
 <style>
 
 @property --ga { syntax: "<angle>"; initial-value: 135deg; inherits: false; }
@@ -428,7 +429,7 @@ function buildNav(){const role=currentUser?.role||"admin";$("navEl").innerHTML=V
 function go(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("on"));$("v-"+v).classList.add("on");document.querySelectorAll("#navEl button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
  if(v==="ventas"){renderProdGrid();recalcSale();renderSalesHist()}if(v==="inv")renderInv();if(v==="cli")renderCli();if(v==="prov")renderProv();if(v==="comp")renderRec();if(v==="gastos")renderExp();if(v==="caja")renderCash();if(v==="rep")renderReports();if(v==="vales")renderVales();if(v==="emp")renderEmp();if(v==="aj")renderCfg()}
 function doLogin(){const id=$("loginUserInput").value,pin=$("loginPinInput").value.trim();const u=DB.employees.find(e=>e.id===id&&e.active);if(!u||u.pin!==pin){toast("❌ Usuario o PIN incorrecto");return}currentUser=u;$("login").style.display="none";buildNav();refreshTop();go("ventas");toast("👋 Hola, "+u.name)}
-function doLogout(){currentUser=null;$("login").style.display="flex"}
+function doLogout(){currentUser=null;/* Ronda -102: al salir del POS se vuelve al acceso de Finanzas (y se cierra la sesión allí), no al acceso propio del POS. */location.href="../?salir=1"}
 function refreshTop(){$("userEl").textContent="👤 "+(currentUser?currentUser.name+" ("+currentUser.role+")":"—");
  const open=DB.cashMoves.some(m=>m.kind==="APERTURA"&&!m.closedTurn);
  $("cajaEl").textContent=open?"🟢 Caja ABIERTA":"🔴 Caja CERRADA";
