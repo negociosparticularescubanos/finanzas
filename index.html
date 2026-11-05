@@ -579,7 +579,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
 .blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;animation:blob 14s ease-in-out infinite;pointer-events:none}
 .blob.b1{width:340px;height:340px;background:#14b8a6;top:-80px;left:-60px}
 .blob.b2{width:300px;height:300px;background:#0ea5e9;bottom:-90px;right:-40px;animation-delay:-5s}
-.blob.b3{width:220px;height:220px;background:#a3e635;top:40%;left:60%;opacity:.25;animation-delay:-9s}
+.blob.b3{width:220px;height:220px;background:#2dd4bf;top:40%;left:60%;opacity:.25;animation-delay:-9s}
 .login-card{position:relative;z-index:1;background:rgba(255,255,255,.93);backdrop-filter:blur(16px);animation:fadeUp .8s cubic-bezier(.2,.8,.2,1) both}
 .house-wrap{position:relative;display:inline-block;margin-bottom:.25rem}
 .house-ring{position:absolute;inset:0;border-radius:18px;border:2px solid #14b8a6;animation:ring 2.6s ease-out infinite;pointer-events:none}
@@ -588,6 +588,22 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
 #loginContainer .bi-shop::after{content:"";position:absolute;top:0;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:shine 3.5s ease-in-out 1.2s infinite}
 .login-card h4,.login-card p{animation:fadeUp .7s .35s both}
 .login-card form>*{animation:fadeUp .6s both}.login-card form>*:nth-child(1){animation-delay:.5s}.login-card form>*:nth-child(2){animation-delay:.6s}.login-card form>*:nth-child(3){animation-delay:.7s}.login-card form>*:nth-child(4){animation-delay:.8s}
+/* ===== Login de cristal (ronda -106, estilo de la foto de referencia) ===== */
+#loginContainer .login-card{background:rgba(255,255,255,.09);backdrop-filter:blur(20px) saturate(1.35);-webkit-backdrop-filter:blur(20px) saturate(1.35);border:1px solid rgba(255,255,255,.28);color:#eafaf5;box-shadow:0 30px 80px -20px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.22)}
+#loginContainer h4{color:#fff!important}
+.login-card .text-secondary{color:rgba(234,250,245,.72)!important}
+.login-card .form-text{color:rgba(234,250,245,.62)!important}
+.login-card .form-label{color:#eafaf5}
+.login-card .btn-link{color:#5eead4}
+#loginContainer .bi-shop{width:92px;height:92px;border-radius:50%;font-size:2.5rem!important}
+.house-ring{border-radius:50%}
+#loginContainer .input-group-clean{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.30)}
+#loginContainer .input-group-clean:focus-within{border-color:#2dd4bf;box-shadow:0 0 0 4px rgba(45,212,191,.22)}
+#loginContainer .input-group-clean .input-group-text{background:transparent;border:0;color:rgba(234,250,245,.82)}
+#loginContainer .input-group-clean .form-control{background:transparent;border:0;box-shadow:none;color:#fff}
+#loginContainer .input-group-clean .form-control::placeholder{color:rgba(234,250,245,.55)}
+#loginForm .btn-primary-custom{background:linear-gradient(135deg,#14b8a6,#0d9488);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 12px 26px -10px rgba(20,184,166,.55)}
+.conn-badge-login{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.22)}
 .btn-primary-custom{position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
 .btn-primary-custom:hover{transform:translateY(-2px);box-shadow:0 12px 24px -10px rgba(15,118,110,.8)}
 .btn-primary-custom::after{content:"";position:absolute;top:0;left:-70%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg)}
@@ -19033,7 +19049,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-105';
+        var MANUAL_VERSION = 'v2026.10.30-106';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19058,7 +19074,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         ];
         var MANUAL_SECCIONES = [
         {id:'acceso-sesion', modulo:'empezar', titulo:'Entrar a la app y la sesión de 30 días', html:
-            '<p>Abre la app y entra con tu usuario y contraseña. La sesión queda guardada en este equipo durante <b>30 días</b>: cerrar la pestaña o la app <b>no</b> te desconecta.</p>' +
+            '<p>Abre la app y entra con tu usuario y contraseña. La pantalla de entrada es una <b>tarjeta de cristal</b> sobre el fondo verde de Finanzas, con el icono de la tienda animado arriba y el indicador de conexión en la esquina. La sesión queda guardada en este equipo durante <b>30 días</b>: cerrar la pestaña o la app <b>no</b> te desconecta.</p>' +
             '<p><b>Desde el 30 de octubre de 2026 la versión en línea está cerrada para los negocios:</b> la versión oficial es la <b>copia sin conexión</b> instalada en tu computadora. La página en línea queda solo para el panel de la administradora general y para las pruebas internas; si tu usuario es de un negocio, la propia pantalla de entrada te lo avisa y el servidor no te deja entrar (tus datos en línea quedan guardados para el respaldo y el puente).</p>' +
             '<ol><li>Escribe tu usuario y tu contraseña y pulsa <b>Ingresar</b>.</li>' +
             '<li>Arriba verás el indicador de conexión: en verde, la app está hablando con el servidor; si sale en rojo, trabaja igualmente y sincroniza al volver la conexión.</li>' +
