@@ -178,7 +178,7 @@ img[loading="lazy"]{background:var(--bg2)}
 
 <header class="topbar">
   <div class="brand"><span class="flag" title="Cuba"><svg viewBox="0 0 30 20" width="26" height="18" style="border-radius:3px;vertical-align:-3px"><rect width="30" height="20" fill="#fff"/><rect width="30" height="4" y="0" fill="#002a8f"/><rect width="30" height="4" y="8" fill="#002a8f"/><rect width="30" height="4" y="16" fill="#002a8f"/><polygon points="0,0 13,10 0,20" fill="#cf142b"/><g fill="#fff"><polygon points="5,6.2 5.9,8.9 8.8,8.9 6.4,10.6 7.3,13.3 5,11.6 2.7,13.3 3.6,10.6 1.2,8.9 4.1,8.9"/></g></svg></span> <span>MiPOS Cuba <span class="badge cup">CUP</span></span></div>
-  <div class="sub" id="bizLineEl">MIPYME · La Habana · 100% offline</div>
+  <div class="sub" id="bizLineEl">MIPYME · La Habana</div>
   <nav class="nav" id="navEl" aria-label="Módulos del punto de venta"></nav>
   <button class="iconbtn" id="themeBtn" onclick="toggleTheme()" title="Modo oscuro / claro" aria-label="Cambiar entre modo oscuro y claro"></button>
 </header>
@@ -357,7 +357,7 @@ img[loading="lazy"]{background:var(--bg2)}
     </div>
   </section>
 
-  <footer class="app">MiPOS Cuba · un solo archivo HTML · offline · CUP · Transfermóvil / EnZona · ticket 58mm · inspirado en OpenSourcePOS (ventas, inventario, clientes, proveedores, compras, gastos, caja, reportes, vales, empleados)</footer>
+  <footer class="app">MiPOS Cuba · un solo archivo HTML · CUP · Transfermóvil / EnZona · ticket 58mm · inspirado en OpenSourcePOS (ventas, inventario, clientes, proveedores, compras, gastos, caja, reportes, vales, empleados)</footer>
 </main>
 
 <div class="modal" id="modalEl" role="dialog" aria-modal="true"><div class="mbox" id="mboxEl"></div></div>
@@ -434,7 +434,7 @@ function refreshTop(){$("userEl").textContent="👤 "+(currentUser?currentUser.n
  $("cajaEl").textContent=open?"🟢 Caja ABIERTA":"🔴 Caja CERRADA";
  $("rateEl").textContent=`USD ${DB.cfg.usd} · MLC ${DB.cfg.mlc} · EUR ${DB.cfg.eur}`;
  $("rateEl").title="Fuente: "+(DB.cfg.ratesSrc||"manual")+(DB.cfg.ratesAt?" · actualizado "+new Date(DB.cfg.ratesAt).toLocaleString("es-CU"):" · sin actualizar aún");
- $("bizLineEl").textContent=`${DB.cfg.type} · ${DB.cfg.name} · ${DB.cfg.addr} · 100% offline`;
+ $("bizLineEl").textContent=`${DB.cfg.type} · ${DB.cfg.name} · ${DB.cfg.addr}`;
  $("dbInfoEl")&&( $("dbInfoEl").innerHTML=`Productos: <b>${DB.products.length}</b> · Ventas: <b>${DB.sales.length}</b> · Clientes: <b>${DB.customers.length}</b> · Guardado local: <b>${(JSON.stringify(DB).length/1024).toFixed(1)} KB</b>`);
  setInterval(()=>{$("clockEl").textContent="🕒 "+new Date().toLocaleString("es-CU")},1000)}
 
