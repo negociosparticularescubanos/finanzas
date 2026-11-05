@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-104",
-  "publicada": "2026-11-05 06:32",
-  "notas": "Ronda 104: Finanzas se muda a las cuentas nuevas de Leonardo (GitHub y Google «negociosparticularescubanos»): la app y el POS ya consultan el servidor de la cuenta nueva. Sin cambios de funciones ni de datos; el servidor viejo queda de respaldo.",
+  "version": "v2026.10.30-105",
+  "publicada": "2026-11-05 16:58",
+  "notas": "Ronda -105: las fotos de los productos del POS se guardan en la carpeta «Finanzas — Imágenes POS» del Drive del negocio al sincronizar; en el producto queda solo el enlace.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "cbdd594227fb1d3aa2cf031431344a41c2fb89b66b79e9369602902f91894f0c",
-      "bytes": 2049576
+      "sha256": "da488c8fcb1ce63ba1900b4f10921c83f157bf4c42f8f10b7a86b59b457aa564",
+      "bytes": 2050750
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "ASFvmH2ehYzoi3zSC+4fqgVidjNayAwqLCuOzLIxwi8M+0UQIGMlTaC9XKt2Lv3VOYHXck7aVSDM35tH/VEOCw=="
+  "firma": "mlRGK4Q8nRiboKvUgXcB3azBpZBFFPOI205Kxzn542ag24X6Zv3AVJE5OulY/e11zZ8RkhIFLDg/3IpI5aLDDQ=="
 }
