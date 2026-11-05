@@ -115,6 +115,17 @@ tr.over:hover td{background:rgb(220 38 38/.13)}
 @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(6vmax,4vmax) scale(1.15)}}
 .loginbox{position:relative;background:color-mix(in srgb,#fff 88%,transparent);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid #ffffff70;border-radius:22px;padding:24px;max-width:430px;width:100%;box-shadow:0 30px 80px -20px rgb(0 0 0/.55);animation:sheetIn .45s cubic-bezier(.22,1.2,.36,1)}
 [data-theme="dark"] .loginbox{background:color-mix(in srgb:#101c30 88%,transparent);border-color:#ffffff1c}
+/* ===== Login de cristal (ronda -106, estilo de la foto de referencia) ===== */
+#login .loginbox{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.28);color:#eafaf0;backdrop-filter:blur(20px) saturate(1.35);-webkit-backdrop-filter:blur(20px) saturate(1.35);box-shadow:0 30px 80px -20px rgb(0 0 0/.62),inset 0 1px 0 rgba(255,255,255,.22)}
+#login .loginbox .mut{color:rgba(234,250,240,.68)}
+#login label{color:rgba(234,250,240,.9);font-weight:600}
+#login select,#login input{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:10px;padding:10px 12px}
+#login select:focus,#login input:focus{outline:none;border-color:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+#login .btn{text-transform:uppercase;letter-spacing:.1em}
+.posavatar{width:92px;height:92px;margin:0 auto 6px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.35),rgba(255,255,255,.08) 62%);border:1.5px solid rgba(255,255,255,.45);animation:posfloat 3.6s ease-in-out infinite,posglow 3.6s ease-in-out infinite}
+.posavatar svg{width:48px;height:48px;stroke:#fff;filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))}
+@keyframes posfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes posglow{0%,100%{box-shadow:0 10px 26px rgba(0,0,0,.35)}50%{box-shadow:0 0 26px 4px rgba(34,197,94,.4),0 10px 26px rgba(0,0,0,.35)}}
 /* ---------- modal ---------- */
 .modal{position:fixed;inset:0;background:rgb(4 10 20/.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:80;padding:14px}
 .modal.open{display:flex}
@@ -186,6 +197,7 @@ img[loading="lazy"]{background:var(--bg2)}
 
 <div id="login">
   <div class="loginbox">
+    <div class="posavatar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/><path d="M3 3h2l2.5 11.5h9.8L20 7H6"/></svg></div>
     <div style="font-size:40px;text-align:center"><svg viewBox="0 0 30 20" width="26" height="18" style="border-radius:3px;vertical-align:-3px"><rect width="30" height="20" fill="#fff"/><rect width="30" height="4" y="0" fill="#002a8f"/><rect width="30" height="4" y="8" fill="#002a8f"/><rect width="30" height="4" y="16" fill="#002a8f"/><polygon points="0,0 13,10 0,20" fill="#cf142b"/><g fill="#fff"><polygon points="5,6.2 5.9,8.9 8.8,8.9 6.4,10.6 7.3,13.3 5,11.6 2.7,13.3 3.6,10.6 1.2,8.9 4.1,8.9"/></g></svg></div>
     <h2 style="margin:4px 0;text-align:center">MiPOS Cuba — Punto de Venta</h2>
     <p class="mut" style="text-align:center">Todo OpenSourcePOS en un solo archivo · adaptado a Cuba · funciona sin internet</p>
@@ -195,7 +207,7 @@ img[loading="lazy"]{background:var(--bg2)}
     <input id="loginPinInput" type="password" inputmode="numeric" placeholder="PIN (admin: 1234)" style="width:100%"></div>
     <button class="btn" style="width:100%;margin-top:12px" onclick="doLogin()">Entrar a la caja</button>
     <p class="small mut">Demo: <b>Administrador / 1234</b> · <b>Cajera / 1111</b> · <b>Almacén / 2222</b>. Los datos se guardan en este equipo (localStorage). Para otro equipo use Ajustes → Respaldo.</p>
-    <div class="card mt" style="background:#f0fdf4"><b>Módulos incluidos:</b><br><span class="small">Ventas POS · Inventario · Clientes + fiados/libreta · Proveedores · Compras/Entradas · Gastos · Caja (apertura/cierre/arqueo) · Reportes · Vales · Empleados · Ajustes CUP + tasas USD/MLC/EUR + ticket 58mm</span></div>
+    <div class="card mt" style="background:rgba(34,197,94,.14);border:1px solid rgba(255,255,255,.18)"><b>Módulos incluidos:</b><br><span class="small">Ventas POS · Inventario · Clientes + fiados/libreta · Proveedores · Compras/Entradas · Gastos · Caja (apertura/cierre/arqueo) · Reportes · Vales · Empleados · Ajustes CUP + tasas USD/MLC/EUR + ticket 58mm</span></div>
   </div>
 </div>
 
