@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-99",
-  "publicada": "2026-11-05 01:25",
-  "notas": "Ronda 99: menú «Usuarios POS» en el menú del negocio (módulo activo y pagado) y acceso al Punto de Venta sin PIN: desde el acceso de Finanzas se entra directo, con el usuario ya puesto.",
+  "version": "v2026.10.30-100",
+  "publicada": "2026-11-05 02:26",
+  "notas": "Ronda 100: botón «Editar» en los usuarios del POS (cambiar rol y contraseña desde el menú del negocio) y nombres de usuario saneados al crear (sin @ inicial).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "622f734a4887d13bfafa1b6360ecae6da5063e5180ce71bd0c8135b5ea3f8643",
-      "bytes": 2046402
+      "sha256": "684b514264161cd3e5b5d6808610e23aba921ee036655cac2b7ed56ec6503dd0",
+      "bytes": 2049131
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "CwSe/0DGzn7S0HY1HfMP60nhdZ1kbSsTXjh6TZc6HXrD80GIGjKqZhwiR3NJMdeUYG/wEO/Y4TpCNTqozWkXCQ=="
+  "firma": "rKTN0IaGy6dsthGZ/kxJe+XfN1PyOgmS7EpZRcqxAyqyb4CPTbSPwJqOb9XfyXzReEiU0BuBsdj5QXuHjQlwAg=="
 }
