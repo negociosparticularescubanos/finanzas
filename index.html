@@ -3589,6 +3589,10 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
            localStorage, no en sessionStorage, para que actualizar la página,
            cerrar la pestaña o reabrir el navegador NO bote al login. La sesión
            del servidor dura 30 días; el botón «Salir» la cierra al momento. */
+        /* Ronda -102: volver del POS con ?salir=1 cierra la sesión de
+           Finanzas y deja la pantalla de acceso (lo pide el «Salir» del
+           Punto de Venta). Se limpia ANTES de leer el token. */
+        try { if (new URLSearchParams(location.search).get('salir') === '1') { localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); history.replaceState(null, '', location.pathname); } } catch (e) {}
         let TOKEN = localStorage.getItem('finanzas_token') || sessionStorage.getItem('finanzas_token') || '';
         function setConn(ok){
             [['connDot','connText','connBadge'],['connDotLogin','connTextLogin','connBadgeLogin']].forEach(function(ids){
@@ -19029,7 +19033,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-101';
+        var MANUAL_VERSION = 'v2026.10.30-102';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},

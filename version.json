@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-101",
-  "publicada": "2026-11-05 02:46",
-  "notas": "Ronda 101: eliminada la frase «100% offline» de la página del Punto de Venta (pantalla de acceso, encabezado y pie): no es cierta, el POS sincroniza con Finanzas.",
+  "version": "v2026.10.30-102",
+  "publicada": "2026-11-05 02:56",
+  "notas": "Ronda 102: al salir del Punto de Venta se vuelve al acceso de Finanzas y se cierra la sesión (ya no sale el acceso propio del POS); la página del POS estrena icono en la pestaña del navegador.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "e8f20bc77fdfc7d4f51c02b8d468cd65b0819ffab4b935a0ddad182ab0b1ee07",
-      "bytes": 2049131
+      "sha256": "7ac93f91ff25780c178ad7aef17ff26a9f32215e54cf2f089b3456f2e01f9451",
+      "bytes": 2049578
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "5N9GRMgJ7KFsLwurzrbUQvF/AnOD3WQ7TM2dYamyGIspy9EqPxvRhTBPauzGyR3o9e6i8vwbre8H+HcKUvDLBQ=="
+  "firma": "16dVbJE2RwWSTfY606KaO3S7aHVji1JSv6HynOq1X7RnpJEmsEtdCSMQ369e/4TBSQHdPwQJB1Od/78IpgQIDg=="
 }
