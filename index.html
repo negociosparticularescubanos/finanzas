@@ -19011,7 +19011,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-97';
+        var MANUAL_VERSION = 'v2026.10.30-98';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19658,7 +19658,17 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         window.__djTest = { DJ_PARAMS_DEF: DJ_PARAMS_DEF, DJ_FUENTES_DEF: DJ_FUENTES_DEF, djAplicarEscala: djAplicarEscala, djCore08: djCore08, djCore01: djCore01, djCoreDiv: djCoreDiv, djCoreGrat: djCoreGrat, djCategoriaOnat: djCategoriaOnat, djParseEscala: djParseEscala, DJ_COD_MAP: DJ_COD_MAP, djEscalaIIPDefecto: djEscalaIIPDefecto, DJ_ESCALA_IIP_2024: DJ_ESCALA_IIP_2024 };
         window.__djImportTest = { parseDjGrids: parseDjGrids, parseDj08Grids: parseDj08Grids, parseDjDividendosGrids: parseDjDividendosGrids, parseDjPdfLines: parseDjPdfLines, validarActorDoc: validarActorDoc, djRecalcular08: djRecalcular08, djNombreCoincide: djNombreCoincide, djNum: djNum };
         api('me').then(async r => { if (r.ok && await cargar(r) !== false) { handleLogin({preventDefault(){}}); } });
-        
+        /* Puente POS (ronda -98): el bloque del Punto de Venta vive en
+           otro <script> y necesita estas piezas del núcleo. ME, USERS
+           y SLOT_VER se reasignan dentro: se exponen con lector y
+           escritor para que el puente lea siempre el valor vigente. */
+        window.__finPOS = {
+            get ME(){ return ME; }, set ME(v){ ME = v; },
+            get USERS(){ return USERS; }, set USERS(v){ USERS = v; },
+            get SLOT_VER(){ return SLOT_VER; }, set SLOT_VER(v){ SLOT_VER = v; },
+            api: api, subsDeNeg: subsDeNeg, subsMesActual: subsMesActual,
+            saveUsuarios: saveUsuarios
+        };
     })();
 </script>
 <script>
@@ -19905,35 +19915,40 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
      nombre único garantizado por el servidor) y los datos del POS en
      el documento «pos» del negocio. Este puente baja el documento a
      localStorage antes de abrir y lo sube al volver. ===== */
+  /* Puente con el núcleo (ronda -98): F() devuelve las piezas del
+     bloque principal expuestas en window.__finPOS; posEsc es el
+     escapador local de este bloque. */
+  function F(){ return window.__finPOS||{}; }
+  function posEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   var POS_LS='miposcuba_v1';
   var POS_ROLES=['pos_admin','pos_cajero','pos_almacen'];
   var POS_ROLMAP={pos_admin:'admin',pos_cajero:'ventas',pos_almacen:'almacen',editor:'admin',admin:'admin'};
   var POS_ROLTXT={pos_admin:'Administrador POS',pos_cajero:'Cajero POS',pos_almacen:'Almacén POS',editor:'Editor',admin:'Administrador'};
-  function posEsRol(){ return !!(typeof ME!=='undefined'&&ME&&ME.user&&POS_ROLES.indexOf(ME.user.role)>=0); }
+  function posEsRol(){ return !!(typeof F().ME!=='undefined'&&F().ME&&F().ME.user&&POS_ROLES.indexOf(F().ME.user.role)>=0); }
   function posLocal(){ try{ var d=JSON.parse(localStorage.getItem(POS_LS)); return (d&&typeof d==='object')?d:null; }catch(e){ return null; } }
   function posSinMarcas(db){ var c={}; Object.keys(db||{}).forEach(function(k){ if(k.indexOf('__fin')!==0) c[k]=db[k]; }); return c; }
   function posHash(o){ try{ var s=JSON.stringify(o); var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return String(h); }catch(e){ return ''; } }
   function posGuardarLocal(db){ try{ localStorage.setItem(POS_LS, JSON.stringify(db)); }catch(e){} }
   function posDbInicial(){
-    var neg=(ME&&ME.user&&ME.user.negocio)||'Mi Negocio';
-    var et=(ME&&ME.user&&ME.user.entityType)||'tcp';
+    var neg=(F().ME&&F().ME.user&&F().ME.user.negocio)||'Mi Negocio';
+    var et=(F().ME&&F().ME.user&&F().ME.user.entityType)||'tcp';
     var tipo=et==='mipyme'?'MIPYME':(et==='pdl'?'PDL':'TCP / Autónomo');
     var tasa=0; try{ tasa=Number(tasaVista())||0; }catch(e){}
     return { cfg:{name:neg,type:tipo,phone:'',addr:'',foot:'¡Gracias por su compra!',usd:tasa,mlc:0,eur:0,seq:1001,marginPct:45,autoRates:false,ratesAt:null,ratesSrc:'manual',ratesDate:null},
       employees:[],products:[],customers:[],suppliers:[],sales:[],receivings:[],expenses:[],cashups:[],cashMoves:[],giftcards:[],holds:[] };
   }
   async function posVigente(){
-    try{ var s=subsDeNeg(ME.user.negocio); var mp=(s.modulos||{}).pos||{}; if(mp.activo&&mp.pagos[subsMesActual()]) return true; if(mp.activo&&/^prueba/i.test(String(ME.user.negocio||''))) return true; if(mp.activo||Object.keys(mp.pagos||{}).length) return false; }catch(e){}
-    try{ var r=await api('validar_suscripcion',{negocio:ME.user.negocio}); if(r&&r.ok&&r.modulos&&r.modulos.pos) return !!r.modulos.pos.vigente; }catch(e){}
+    try{ var s=F().subsDeNeg(F().ME.user.negocio); var mp=(s.modulos||{}).pos||{}; if(mp.activo&&mp.pagos[F().subsMesActual()]) return true; if(mp.activo&&/^prueba/i.test(String(F().ME.user.negocio||''))) return true; if(mp.activo||Object.keys(mp.pagos||{}).length) return false; }catch(e){}
+    try{ var r=await F().api('validar_suscripcion',{negocio:F().ME.user.negocio}); if(r&&r.ok&&r.modulos&&r.modulos.pos) return !!r.modulos.pos.vigente; }catch(e){}
     return false;
   }
   async function posPull(){
-    var d=null; try{ d=await api('data'); }catch(e){}
+    var d=null; try{ d=await F().api('data'); }catch(e){}
     if(d&&d.ok){
-      if(d.vers&&typeof SLOT_VER!=='undefined') SLOT_VER=d.vers;
+      if(d.vers&&typeof F().SLOT_VER!=='undefined') F().SLOT_VER=d.vers;
       var sd=d.data&&d.data.pos;
       if(sd&&sd.db&&typeof sd.db==='object'){
-        var loc=posLocal(), mio=(ME&&ME.user&&ME.user.negocio)||'';
+        var loc=posLocal(), mio=(F().ME&&F().ME.user&&F().ME.user.negocio)||'';
         var ajeno=loc&&loc.__finNegocio&&loc.__finNegocio!==mio;
         var sucio=loc&&!ajeno&&loc.__finHash&&posHash(posSinMarcas(loc))!==loc.__finHash;
         if(!ajeno&&!sucio){ var db=sd.db; db.__finSync=sd.updatedAt||Date.now(); db.__finHash=posHash(posSinMarcas(db)); posGuardarLocal(db); return db; }
@@ -19942,23 +19957,23 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     return posLocal();
   }
   async function posPush(){
-    var loc=posLocal(); if(!loc||loc.__finNegocio!==(ME.user.negocio)) return {ok:false};
-    var r; try{ r=await api('data_set',{k:'pos',v:{db:loc,updatedAt:Date.now(),by:ME.username},ver:(typeof SLOT_VER!=='undefined'&&SLOT_VER.pos)||0}); }catch(e){ return {ok:false}; }
-    if(r&&r.ok){ if(r.ver!=null&&typeof SLOT_VER!=='undefined') SLOT_VER.pos=r.ver; loc.__finSync=Date.now(); loc.__finHash=posHash(posSinMarcas(loc)); posGuardarLocal(loc); return {ok:true}; }
-    if(r&&r.conflicto){ if(r.ver!=null&&typeof SLOT_VER!=='undefined') SLOT_VER.pos=r.ver; return {ok:false,conflicto:true}; }
+    var loc=posLocal(); if(!loc||loc.__finNegocio!==(F().ME.user.negocio)) return {ok:false};
+    var r; try{ r=await F().api('data_set',{k:'pos',v:{db:loc,updatedAt:Date.now(),by:F().ME.username},ver:(typeof F().SLOT_VER!=='undefined'&&F().SLOT_VER.pos)||0}); }catch(e){ return {ok:false}; }
+    if(r&&r.ok){ if(r.ver!=null&&typeof F().SLOT_VER!=='undefined') F().SLOT_VER.pos=r.ver; loc.__finSync=Date.now(); loc.__finHash=posHash(posSinMarcas(loc)); posGuardarLocal(loc); return {ok:true}; }
+    if(r&&r.conflicto){ if(r.ver!=null&&typeof F().SLOT_VER!=='undefined') F().SLOT_VER.pos=r.ver; return {ok:false,conflicto:true}; }
     return {ok:false,error:r&&r.error};
   }
   function posEstadoTxt(){
-    var el=document.getElementById('posHomeEstado'); if(!el||!ME||!ME.user) return;
+    var el=document.getElementById('posHomeEstado'); if(!el||!F().ME||!F().ME.user) return;
     var loc=posLocal();
-    if(!loc||loc.__finNegocio!==ME.user.negocio){ el.textContent='Este equipo aún no tiene los datos del POS de tu negocio: pulsa «Abrir Punto de Venta» para prepararlo.'; return; }
+    if(!loc||loc.__finNegocio!==F().ME.user.negocio){ el.textContent='Este equipo aún no tiene los datos del POS de tu negocio: pulsa «Abrir Punto de Venta» para prepararlo.'; return; }
     el.textContent='Datos en este equipo: '+((loc.products||[]).length)+' productos · '+((loc.sales||[]).length)+' ventas · '+((loc.employees||[]).length)+' empleado(s). Última sincronización: '+(loc.__finSync?new Date(loc.__finSync).toLocaleString('es-CU'):'sin registrar')+'.';
   }
   async function mostrarPosHome(){
     var lc=document.getElementById('loginContainer'); if(lc) lc.classList.add('hidden');
     var dc=document.getElementById('dashboardContainer'); if(dc) dc.classList.remove('visible');
-    var ov=document.getElementById('posHome'); if(!ov||!ME||!ME.user) return; ov.style.display='flex';
-    var t=document.getElementById('posHomeNegocio'); if(t) t.textContent=(ME.user.negocio||'')+' · '+ME.username+' ('+(POS_ROLTXT[ME.user.role]||ME.user.role)+')';
+    var ov=document.getElementById('posHome'); if(!ov||!F().ME||!F().ME.user) return; ov.style.display='flex';
+    var t=document.getElementById('posHomeNegocio'); if(t) t.textContent=(F().ME.user.negocio||'')+' · '+F().ME.username+' ('+(POS_ROLTXT[F().ME.user.role]||F().ME.user.role)+')';
     var vig=await posVigente();
     var btn=document.getElementById('posHomeAbrir'); if(btn) btn.disabled=!vig;
     var av=document.getElementById('posHomeAviso'); if(av) av.style.display=vig?'none':'';
@@ -19967,8 +19982,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
        del negocio y solo si la administradora le activó el módulo. */
     var wrap=document.getElementById('posCardWrap');
     if(wrap){
-      var mgr=(ME.user.role==='editor')||(ME.user.role==='admin'&&!!ME.user.negocio);
-      var act=false; try{ var vv=await api('validar_suscripcion',{negocio:ME.user.negocio}); act=!!(vv&&vv.ok&&vv.modulos&&vv.modulos.pos&&vv.modulos.pos.activo); }catch(e){}
+      var mgr=(F().ME.user.role==='editor')||(F().ME.user.role==='admin'&&!!F().ME.user.negocio);
+      var act=false; try{ var vv=await F().api('validar_suscripcion',{negocio:F().ME.user.negocio}); act=!!(vv&&vv.ok&&vv.modulos&&vv.modulos.pos&&vv.modulos.pos.activo); }catch(e){}
       wrap.style.display=(mgr&&act)?'':'none';
       if(mgr&&act){
         if(!vig){ var inf=document.getElementById('posCardInfo'); if(inf&&!inf.dataset.pend){ inf.dataset.pend='1'; inf.innerHTML+=' <b style="color:#fbbf24">⚠️ El pago de este mes está pendiente: no podrás crear usuarios hasta regularizarlo.</b>'; } }
@@ -19980,11 +19995,11 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
   async function posAbrir(){
     if(!(await posVigente())){ alert('El módulo POS no está activo y pagado este mes para tu negocio.'); return; }
     var loc=await posPull();
-    if(!loc||loc.__finNegocio!==ME.user.negocio){
-      if(loc&&loc.__finNegocio&&!confirm('Este equipo guarda datos del POS de otro negocio ('+loc.__finNegocio+'). Se reemplazarán por los de '+ME.user.negocio+'. ¿Continuar?')) return;
+    if(!loc||loc.__finNegocio!==F().ME.user.negocio){
+      if(loc&&loc.__finNegocio&&!confirm('Este equipo guarda datos del POS de otro negocio ('+loc.__finNegocio+'). Se reemplazarán por los de '+F().ME.user.negocio+'. ¿Continuar?')) return;
       loc=posDbInicial();
     }
-    var id='fin_'+ME.username;
+    var id='fin_'+F().ME.username;
     var emp=(loc.employees||[]).find(function(e){ return e.id===id; });
     if(!emp){
       var pin=prompt('Crea tu PIN de 4 dígitos para entrar al Punto de Venta en este equipo:');
@@ -19992,9 +20007,9 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
       pin=String(pin).trim();
       if(!/^\d{4}$/.test(pin)){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
       loc.employees=loc.employees||[];
-      loc.employees.push({id:id,name:ME.username,pin:pin,role:POS_ROLMAP[ME.user.role]||'ventas',active:true});
-    } else { emp.role=POS_ROLMAP[ME.user.role]||emp.role; emp.active=true; }
-    loc.__finNegocio=ME.user.negocio;
+      loc.employees.push({id:id,name:F().ME.username,pin:pin,role:POS_ROLMAP[F().ME.user.role]||'ventas',active:true});
+    } else { emp.role=POS_ROLMAP[F().ME.user.role]||emp.role; emp.active=true; }
+    loc.__finNegocio=F().ME.user.negocio;
     posGuardarLocal(loc);
     var p=await posPush();
     if(!p.ok&&p.conflicto){ await posPull(); }
@@ -20002,13 +20017,13 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
   }
   async function posSincronizar(){
     var loc=posLocal();
-    if(loc&&loc.__finNegocio===(ME.user.negocio)&&loc.__finHash&&posHash(posSinMarcas(loc))!==loc.__finHash){
+    if(loc&&loc.__finNegocio===(F().ME.user.negocio)&&loc.__finHash&&posHash(posSinMarcas(loc))!==loc.__finHash){
       var p=await posPush();
       if(!p.ok){ alert('⚠️ No se pudo subir: '+((p&&p.error)||'conflicto de versión. Vuelve a intentarlo.')); return; }
     }
     await posPull(); posEstadoTxt(); alert('✅ Datos del POS sincronizados con Finanzas.');
   }
-  function posSalir(){ api('logout').finally(function(){ try{ localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); }catch(e){} location.reload(); }); }
+  function posSalir(){ F().api('logout').finally(function(){ try{ localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); }catch(e){} location.reload(); }); }
   window.mostrarPosHome=mostrarPosHome; window.posAbrir=posAbrir; window.posSincronizar=posSincronizar; window.posCerrarHome=posCerrarHome; window.posSalir=posSalir; window.posEsRol=posEsRol;
   /* --- Tarjeta del POS del propio negocio (ronda -95) ---
      La administradora general activa el módulo y entonces, en la
@@ -20017,10 +20032,10 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
      del POS (un administrador, un cajero y un almacén). */
   var _posCardInit=false;
   var POS_ROLES_CARD={pos_admin:'🛒 Administrador POS',pos_cajero:'🧾 Cajero POS',pos_almacen:'📦 Almacén POS'};
-  function posMiNegocio(){ return (typeof ME!=='undefined'&&ME&&ME.user&&ME.user.negocio)||''; }
+  function posMiNegocio(){ return (typeof F().ME!=='undefined'&&F().ME&&F().ME.user&&F().ME.user.negocio)||''; }
   function posUsuariosDeMiNegocio(){
     var neg=posMiNegocio(), out={};
-    Object.keys(USERS||{}).forEach(function(u){ var x=USERS[u]; if(x&&x.negocio===neg&&POS_ROLES_CARD[x.role]) out[u]=x; });
+    Object.keys(F().USERS||{}).forEach(function(u){ var x=F().USERS[u]; if(x&&x.negocio===neg&&POS_ROLES_CARD[x.role]) out[u]=x; });
     return out;
   }
   function posCardMsg(t,ok){ var m=document.getElementById('posCardMsg'); if(m){ m.textContent=t||''; m.className='small mt-2 '+(ok?'text-success':'text-danger'); } }
@@ -20028,23 +20043,23 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     var box=document.getElementById('posCardLista'); if(!box) return;
     var mios=posUsuariosDeMiNegocio(), uns=Object.keys(mios);
     if(!uns.length){ box.innerHTML='<p class="text-muted small mb-0">Todavía no hay usuarios del POS: crea el primero abajo.</p>'; return; }
-    box.innerHTML=uns.map(function(u){ var x=mios[u]; return '<div class="d-flex justify-content-between align-items-center border rounded px-2 py-1 mb-1"><span>'+POS_ROLES_CARD[x.role]+' · <b>@'+escapeHtml(u)+'</b>'+(x.disabled?' <span class="badge text-bg-secondary">Inhabilitado</span>':' <span class="badge text-bg-success">Activo</span>')+'</span><span><button class="btn btn-outline-secondary btn-sm me-1" onclick="posCardToggle(\''+u+'\')">'+(x.disabled?'Activar':'Desactivar')+'</button><button class="btn btn-outline-danger btn-sm" onclick="posCardEliminar(\''+u+'\')">Eliminar</button></span></div>'; }).join('');
+    box.innerHTML=uns.map(function(u){ var x=mios[u]; return '<div class="d-flex justify-content-between align-items-center border rounded px-2 py-1 mb-1"><span>'+POS_ROLES_CARD[x.role]+' · <b>@'+posEsc(u)+'</b>'+(x.disabled?' <span class="badge text-bg-secondary">Inhabilitado</span>':' <span class="badge text-bg-success">Activo</span>')+'</span><span><button class="btn btn-outline-secondary btn-sm me-1" onclick="posCardToggle(\''+u+'\')">'+(x.disabled?'Activar':'Desactivar')+'</button><button class="btn btn-outline-danger btn-sm" onclick="posCardEliminar(\''+u+'\')">Eliminar</button></span></div>'; }).join('');
   }
   async function posCardGuardar(mapaPos, okTxt){
     var neg=posMiNegocio();
-    if(ME.user.role==='admin'){
-      var clon=JSON.parse(JSON.stringify(USERS));
+    if(F().ME.user.role==='admin'){
+      var clon=JSON.parse(JSON.stringify(F().USERS));
       Object.keys(clon).forEach(function(u){ if(clon[u].negocio===neg&&POS_ROLES_CARD[clon[u].role]&&!mapaPos[u]) delete clon[u]; });
       Object.keys(mapaPos).forEach(function(u){ clon[u]=mapaPos[u]; });
-      var ok=await saveUsuarios(clon);
-      if(ok){ USERS=clon; posCardRender(); posCardMsg(okTxt,true); }
+      var ok=await F().saveUsuarios(clon);
+      if(ok){ F().USERS=clon; posCardRender(); posCardMsg(okTxt,true); }
       else posCardMsg('No se pudo guardar (revisa la conexión o el aviso anterior).',false);
       return;
     }
-    var r=await api('users_save',{users:mapaPos});
+    var r=await F().api('users_save',{users:mapaPos});
     if(r&&r.ok){
-      Object.keys(USERS).forEach(function(u){ if(USERS[u].negocio===neg&&POS_ROLES_CARD[USERS[u].role]&&!mapaPos[u]) delete USERS[u]; });
-      Object.keys(mapaPos).forEach(function(u){ var e=Object.assign({},mapaPos[u]); delete e.password; USERS[u]=Object.assign({},USERS[u]||{},e); });
+      Object.keys(F().USERS).forEach(function(u){ if(F().USERS[u].negocio===neg&&POS_ROLES_CARD[F().USERS[u].role]&&!mapaPos[u]) delete F().USERS[u]; });
+      Object.keys(mapaPos).forEach(function(u){ var e=Object.assign({},mapaPos[u]); delete e.password; F().USERS[u]=Object.assign({},F().USERS[u]||{},e); });
       posCardRender(); posCardMsg(okTxt,true);
     } else posCardMsg((r&&r.error)||'No se pudo guardar.',false);
   }
@@ -20060,11 +20075,11 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
     var rol=document.getElementById('posNewRole').value;
     if(!/^[a-z0-9_.@-]{3,30}$/.test(un)){ posCardMsg('El usuario debe tener 3-30 caracteres: letras, números, punto, guión o @.',false); return; }
     if(pw.length<4){ posCardMsg('La contraseña debe tener al menos 4 caracteres.',false); return; }
-    if(USERS[un]){ posCardMsg('Ese nombre de usuario ya existe en Finanzas: los nombres no se repiten.',false); return; }
+    if(F().USERS[un]){ posCardMsg('Ese nombre de usuario ya existe en Finanzas: los nombres no se repiten.',false); return; }
     var mios=posUsuariosDeMiNegocio();
     if(Object.keys(mios).some(function(u){ return mios[u].role===rol; })){ posCardMsg('Ya tienes el usuario de '+POS_ROLES_CARD[rol]+': es uno solo por negocio.',false); return; }
     var mapa=posCardMapaSin(null);
-    mapa[un]={password:pw, role:rol, entityType:ME.user.entityType||'tcp', socios:ME.user.socios||0, negocio:neg};
+    mapa[un]={password:pw, role:rol, entityType:F().ME.user.entityType||'tcp', socios:F().ME.user.socios||0, negocio:neg};
     posCardMsg('Guardando…',true);
     posCardGuardar(mapa,'Usuario del POS creado: @'+un+'. Entra por el acceso de Finanzas y cae directo en el Punto de Venta.');
   }
@@ -20082,7 +20097,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
      el POS: botón flotante que lleva a la misma pantalla. */
   var __posBtnTimer=setInterval(function(){
     var dc=document.getElementById('dashboardContainer');
-    if(dc&&dc.classList.contains('visible')&&typeof ME!=='undefined'&&ME&&ME.user&&(ME.user.role==='editor'||(ME.user.role==='admin'&&ME.user.negocio))){
+    if(dc&&dc.classList.contains('visible')&&typeof F().ME!=='undefined'&&F().ME&&F().ME.user&&(F().ME.user.role==='editor'||(F().ME.user.role==='admin'&&F().ME.user.negocio))){
       clearInterval(__posBtnTimer);
       posVigente().then(function(v){
         if(v&&!document.getElementById('btnPosFlotante')){

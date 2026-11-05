@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-97",
-  "publicada": "2026-11-04 22:44",
-  "notas": "Ronda 97: la tarjeta «Usuarios del POS de tu negocio» se mueve a la pantalla de entrada al Punto de Venta (botón flotante): el dueño del negocio (editor) no tiene pestaña de Configuración y no la alcanzaba; la ven el dueño y el administrador del negocio con el módulo activo",
+  "version": "v2026.10.30-98",
+  "publicada": "2026-11-05 00:22",
+  "notas": "Ronda 98: puente del bloque del Punto de Venta con el núcleo de la app (el botón flotante y la pantalla del POS ya funcionan para el dueño y los usuarios del POS) y chequeo permanente del flujo completo del POS.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "2f494943f030af1b233d1ffe1de35b688e0745136e8479b348d210b78711a15b",
-      "bytes": 2044127
+      "sha256": "d8a06996793ebbf7a7ec9d689b30ddd23522058f72db87e547ab2ee1f136efb8",
+      "bytes": 2045438
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "b07hs0kT+HS0+R/JcKmg+74fsbcsU14DMeyXAsqhSucRa0d2KHEbblGpu5OcPIbSgL6QrP4HvWXx41cQtt1aCg=="
+  "firma": "PZBfC5NPEKQfUfD8FA9DqT3EC7rkbXkq0Udj7eBllCoIr6sw2qAIVj3Jaj0524XpWOSXxNhyjyDmZRG+xLIbDQ=="
 }
