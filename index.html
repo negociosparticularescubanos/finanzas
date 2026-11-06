@@ -2229,6 +2229,18 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         </div>
                     </div>
                 </div>
+                <!-- Mi acceso (solo administración general) -->
+                <div class="col-12" id="cardMiAcceso" style="display:none">
+                    <div class="card p-3 p-md-4">
+                        <h6 class="fw-semibold mb-1">🔑 Mi acceso de administración general</h6>
+                        <p class="small text-secondary mb-3">Cambia tu propio usuario y tu contraseña de administración general. Si cambias el usuario, la sesión se cierra y vuelves a entrar con tus datos nuevos.</p>
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label">Usuario nuevo (vacío = mantener <b id="miAccesoActual"></b>)</label><input type="text" class="form-control" id="cfgMiUser" autocomplete="off"></div>
+                            <div class="col-md-4"><label class="form-label">Contraseña nueva (vacío = mantener)</label><input type="password" class="form-control" id="cfgMiPass" autocomplete="new-password"></div>
+                            <div class="col-md-4 d-flex align-items-end"><button type="button" class="btn btn-primary-custom text-white px-4" id="btnMiAcceso">Guardar mi acceso</button></div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Identidad del negocio -->
                 <div class="col-12">
                     <div class="card p-3 p-md-4" id="cardIdentidad">
@@ -3212,6 +3224,10 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         <li>La cuenta administradora nunca se bloquea: siempre puedes entrar a marcar el pago.</li>
                     </ul>
                     <p class="small mb-0">Debajo, plegado, queda el bloqueo global de meses (legado): cada botón bloquea o desbloquea ese mes en el servidor para impedir cambios en todos los negocios.</p>
+                </div>
+                <div class="ayuda-sec" id="ayuda-admin-4" data-ayuda-titulo="Mi acceso de administración general">
+                    <div class="ayuda-sec-tit">Mi acceso</div>
+                    <p class="small mb-0">Solo la administración general: cambiar tu propio usuario y tu contraseña desde la tarjeta «Mi acceso de administración general» de Configuración. Si cambias el usuario, la sesión se cierra y vuelves a entrar con el nuevo.</p>
                 </div>
             </div>
         </div>
@@ -6731,8 +6747,39 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         }
 
         // ===== RENDER: ADMIN (LISTA DE USUARIOS) =====
+        function miAccesoRefrescar() {
+            const card = document.getElementById('cardMiAcceso');
+            if (!card) return;
+            const general = !!(typeof ME !== 'undefined' && ME && ME.user && ME.user.role === 'admin' && !ME.user.negocio);
+            card.style.display = general ? '' : 'none';
+            if (general) {
+                const a = document.getElementById('miAccesoActual'); if (a) a.textContent = ME.username;
+                const b = document.getElementById('btnMiAcceso');
+                if (b && !b.dataset.listo) { b.dataset.listo = '1'; b.addEventListener('click', miAccesoGuardar); }
+            }
+        }
+        async function miAccesoGuardar() {
+            const nu = (document.getElementById('cfgMiUser').value || '').trim();
+            const np = document.getElementById('cfgMiPass').value || '';
+            if (!nu && !np) { alert('Escribe el usuario nuevo o la contraseña nueva (o los dos).'); return; }
+            const cambiaUser = !!(nu && typeof ME !== 'undefined' && ME && nu !== ME.username);
+            if (cambiaUser && !confirm('Vas a cambiar tu usuario de administración general a «' + nu + '». La sesión se cerrará y tendrás que entrar con el usuario nuevo. ¿Seguir?')) return;
+            const payload = {};
+            if (cambiaUser) payload.nuevo_usuario = nu;
+            if (np) payload.password = np;
+            const r = await api('change_password', payload);
+            if (!r || !r.ok) { alert('No se pudo guardar: ' + ((r && r.error) || 'error')); return; }
+            if (r.renombrado) {
+                alert('✅ Acceso actualizado. Entra con tus datos nuevos.');
+                api('logout').finally(() => { try { localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); } catch (e) {} location.reload(); });
+            } else {
+                document.getElementById('cfgMiPass').value = '';
+                alert('✅ Contraseña actualizada.');
+            }
+        }
         function renderAdminPanel() {
             const users = getUsuarios();
+            try { miAccesoRefrescar(); } catch (e) {}
             const currentUser = getCurrentUser();
             
             let html = '';
@@ -19049,7 +19096,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.10.30-106';
+        var MANUAL_VERSION = 'v2026.11.05-107';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19078,7 +19125,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             '<p><b>Desde el 30 de octubre de 2026 la versión en línea está cerrada para los negocios:</b> la versión oficial es la <b>copia sin conexión</b> instalada en tu computadora. La página en línea queda solo para el panel de la administradora general y para las pruebas internas; si tu usuario es de un negocio, la propia pantalla de entrada te lo avisa y el servidor no te deja entrar (tus datos en línea quedan guardados para el respaldo y el puente).</p>' +
             '<ol><li>Escribe tu usuario y tu contraseña y pulsa <b>Ingresar</b>.</li>' +
             '<li>Arriba verás el indicador de conexión: en verde, la app está hablando con el servidor; si sale en rojo, trabaja igualmente y sincroniza al volver la conexión.</li>' +
-            '<li>Tras publicar una actualización de la app, <b>cierra la pestaña por completo y vuelve a abrirla con conexión</b>: si solo recargas, el teléfono puede seguir mostrándote la versión anterior.</li></ol>'},
+            '<li>Tras publicar una actualización de la app, <b>cierra la pestaña por completo y vuelve a abrirla con conexión</b>: si solo recargas, el teléfono puede seguir mostrándote la versión anterior.</li></ol>' +
+            '<p><b>Administración general:</b> tu propio usuario y contraseña se cambian dentro de la app, en <b>Configuración → «Mi acceso de administración general»</b>: escribe el usuario nuevo, la contraseña nueva, o los dos, y guarda. Si cambias el usuario, la sesión se cierra al momento y vuelves a entrar con tus datos nuevos; nadie más puede cambiar el acceso de la administración general.</p>'},
         {id:'instalacion-offline', modulo:'empezar', titulo:'Primera vez sin conexión: instalar tu copia', html:
             '<p>Solo en la <b>versión sin conexión</b>: la primera vez que abres el programa en una máquina, en vez de la pantalla de entrada sale el <b>formulario de instalación</b>. Se hace una sola vez:</p>' +
             '<ol><li>Primero lo primero: <b>¿qué vas a llevar con esta copia?</b> Si es <b>un negocio</b> (TCP, MIPYME o PDL), la copia queda fijada a ese único negocio y no podrás crear otros: para eso hace falta la licencia de tenedor. Si eres <b>tenedor de libros</b>, elige esa opción: la copia nace sin negocio y los creas dentro de la app; cada negocio paga su propia licencia y la tuya suma el 10 % de lo que declares cobrar a cada uno. <b>Todo negocio nace bloqueado</b>: se activa cuando su mes está pagado y tu proveedor lo valida en línea.</li>' +

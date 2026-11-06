@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.10.30-106",
-  "publicada": "2026-11-05 18:04",
-  "notas": "Ronda -106: pantalla de entrada de cristal (icono animado en círculo, campos translúcidos y fondo verde a pantalla completa) en Finanzas y en el Punto de Venta, como el resto de las apps.",
+  "version": "v2026.11.05-107",
+  "publicada": "2026-11-06 04:30",
+  "notas": "Ronda 107: la administración general cambia su propio usuario y contraseña desde Configuración → «Mi acceso de administración general» (el servidor amplía change_password con nuevo_usuario, solo para la administración general).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "7a20b15c799d8fd51c074b86a81411745dd8f61364d34552f374db274e74fa86",
-      "bytes": 2052474
+      "sha256": "3e377867f7bef9a0931d309dd3d6a914ab6fd9349cb2d3871d07fb41e84d6bde",
+      "bytes": 2056700
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "Frabbx3kGxCDbtNqo0gt+DborQPn0OclrAp5WwaVPpSnVweayUm7JXiHXaVLhiu5Y2t1Z8a6nhH4FmM/4YnZCw=="
+  "firma": "O9D0ARSAYyvNw7Ua9MvrMz+dqp79+HZ/pAI4KD/LkYqzDHj6qZemvOX5QVp292Hhithe+B5fPYaP+7EFk5+0CA=="
 }
