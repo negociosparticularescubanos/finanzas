@@ -1,5 +1,5 @@
 /* ============================================================================
-   Importar estado de cuenta en PDF (BANDEC) — Finanzas FRANWE
+   Importar estado de cuenta en PDF (BANDEC) — Finanzas
    ----------------------------------------------------------------------------
    - Botón "PDF" en cada pestaña de cuenta (Chequera / Tarjeta CUP / Tarjeta USD).
    - Lee uno o varios PDF de estado de cuenta y extrae de cada operación:
