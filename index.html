@@ -3149,6 +3149,8 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         <li><b>Evaluación semestral obligatoria</b>: el CAM evalúa cada PDL al menos una vez por semestre (Decreto 174/2026, art. 40.1); el panel y el calendario avisan con 30 días y marcan rojo si la evaluación venció.</li>
                         <li><b>Tope de 100 contratados</b>: aviso al llegar a 90; si se supera el tope, el proyecto debe transformarse en empresa.</li>
                         <li><b>Fuentes por separado</b>: presupuesto local, donaciones, cooperación y otras, cada una con su monto aprobado y su ejecución; el informe mensual del cliente PDL incluye el bloque de fuentes con su ejecución.</li>
+                        <li><b>Fideicomiso resaltado</b>: en el panel «Control del PDL» y en el informe para el CAM, la fila del <b>Fondo de Fideicomiso</b> va resaltada con su comisión bancaria del <b>4 %</b> ya calculada (la paga el beneficiario íntegra al banco, Res. 118/2026 del BCC) y el total reembolsable del proyecto.</li>
+                        <li><b>Aviso fuerte al distribuir</b>: si alguna fuente tiene monto aprobado y su ejecución está en cero, al guardar la distribución anual la app muestra un aviso fuerte con esas fuentes. El aviso <b>no bloquea</b> el cierre: puedes continuar si ese dinero aún no ha entrado; si ya entró, registra primero su ejecución en la ficha.</li>
                         <li><b>Cautela contable</b>: el PDL no tiene Declaración Jurada propia en la app ni Vector Fiscal RC-04A. Su contabilidad se lleva con el <b>plan general de cuentas</b>; el tratamiento contable y bancario específico está <b>pendiente de verificar</b> contra las Resoluciones 202/2026 del MFP y 118/2026 del BCC, así que la app no aplica cuentas especiales ni reglas bancarias al PDL hasta confirmarlo en la Gaceta.</li>
                     </ul>
                 </div>
@@ -7134,7 +7136,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             if(!r.ok){ alert('⚠️ '+(r.error||'No se pudo restablecer la contraseña.')); return; }
             document.getElementById('prUser').textContent=username;
             document.getElementById('prPass').textContent=r.password;
-            document.getElementById('btnShareTg').href='https://t.me/share/url?url='+encodeURIComponent(`Acceso a Finanzas FRANWE\nUsuario: ${username}\nContraseña temporal: ${r.password}\nDebes cambiarla al entrar.`);
+            document.getElementById('btnShareTg').href='https://t.me/share/url?url='+encodeURIComponent(`Acceso a Finanzas\nUsuario: ${username}\nContraseña temporal: ${r.password}\nDebes cambiarla al entrar.`);
             passResetModal.show();
         }
 
@@ -8291,8 +8293,9 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             }
             const filas = (fuentes && fuentes.hayDatos)
                 ? '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fuente</th><th class="text-end">Monto</th><th class="text-end">Ejecutado</th><th class="text-end">% ejecución</th></tr></thead><tbody>'
-                  + fuentes.filas.map(f => '<tr><td>' + esc(f.tipo) + '</td><td class="text-end">' + moneda(f.monto) + '</td><td class="text-end">' + moneda(f.ejecutado) + '</td><td class="text-end">' + (f.pct === null ? '—' : f.pct + ' %') + '</td></tr>').join('')
+                  + fuentes.filas.map(f => '<tr' + (f.esFideicomiso ? ' class="table-warning"' : '') + '><td>' + esc(f.tipo) + (f.esFideicomiso ? ' <span class="badge bg-warning text-dark">Fideicomiso · comisión 4 %</span>' : '') + '</td><td class="text-end">' + moneda(f.monto) + '</td><td class="text-end">' + moneda(f.ejecutado) + '</td><td class="text-end">' + (f.pct === null ? '—' : f.pct + ' %') + '</td></tr>').join('')
                   + '<tr class="fw-semibold"><td>Total</td><td class="text-end">' + moneda(fuentes.totalMonto) + '</td><td class="text-end">' + moneda(fuentes.totalEjecutado) + '</td><td class="text-end">' + (fuentes.pctTotal === null ? '—' : fuentes.pctTotal + ' %') + '</td></tr></tbody></table></div>'
+                  + (fuentes.comisionFideicomiso > 0 ? '<p class="small mt-2 mb-0"><b>Fondo de Fideicomiso:</b> comisión bancaria del 4 % = <b>' + moneda(fuentes.comisionFideicomiso) + '</b> (la paga el beneficiario íntegra al banco, Res. 118/2026 del BCC). Total reembolsable: <b>' + moneda(fuentes.totalReembolsable) + '</b>.</p>' : '')
                 : '<p class="small text-secondary mb-0">Sin fuentes de financiamiento registradas todavía: el gestor las completa en la ficha del PDL.</p>';
             const alertas = (al && al.motivos && al.motivos.length)
                 ? '<div class="alert ' + (al.nivel === 'rojo' ? 'alert-danger' : 'alert-warning') + ' py-2 px-3 small">' + al.motivos.map(esc).join('<br>') + '</div>'
@@ -8391,7 +8394,8 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 + '<p style="font-size:13px"><b>Proyecto:</b> ' + esc(meta.razon || ficha.entidadEjecutora || '—') + ' · <b>Entidad ejecutora:</b> ' + esc(ficha.entidadEjecutora || '—') + ' · <b>Acuerdo:</b> ' + esc(ficha.acuerdo || '—') + ' (' + esc(ficha.organo || 'CAM') + ')<br>'
                 + '<b>Período del informe (semestre):</b> ' + esc(ini || '—') + ' a ' + esc(fin || '—') + ' · <b>Estado:</b> ' + esc(ficha.estado) + ' · <b>Contratados:</b> ' + ficha.contratados + ' / 100</p>'
                 + '<h6>Ejecución por fuentes de financiamiento</h6>'
-                + (fuentes.hayDatos ? '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-size:12px;width:100%"><tr><th align="left">Fuente</th><th align="right">Monto</th><th align="right">Ejecutado</th><th align="right">% ejecución</th></tr>' + fuentes.filas.map(f => '<tr><td>' + esc(f.tipo) + (f.reembolsable ? ' (reembolsable)' : '') + '</td><td align="right">' + moneda(f.monto) + '</td><td align="right">' + moneda(f.ejecutado) + '</td><td align="right">' + (f.pct === null ? '—' : f.pct + ' %') + '</td></tr>').join('') + '<tr><td><b>Total</b></td><td align="right"><b>' + moneda(fuentes.totalMonto) + '</b></td><td align="right"><b>' + moneda(fuentes.totalEjecutado) + '</b></td><td align="right"><b>' + (fuentes.pctTotal === null ? '—' : fuentes.pctTotal + ' %') + '</b></td></tr></table>' : '<p style="font-size:13px">Sin fuentes registradas.</p>')
+                + (fuentes.hayDatos ? '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-size:12px;width:100%"><tr><th align="left">Fuente</th><th align="right">Monto</th><th align="right">Ejecutado</th><th align="right">% ejecución</th></tr>' + fuentes.filas.map(f => '<tr><td>' + esc(f.tipo) + (f.esFideicomiso ? ' <b>(fideicomiso: comisión del 4 %)</b>' : (f.reembolsable ? ' (reembolsable)' : '')) + '</td><td align="right">' + moneda(f.monto) + '</td><td align="right">' + moneda(f.ejecutado) + '</td><td align="right">' + (f.pct === null ? '—' : f.pct + ' %') + '</td></tr>').join('') + '<tr><td><b>Total</b></td><td align="right"><b>' + moneda(fuentes.totalMonto) + '</b></td><td align="right"><b>' + moneda(fuentes.totalEjecutado) + '</b></td><td align="right"><b>' + (fuentes.pctTotal === null ? '—' : fuentes.pctTotal + ' %') + '</b></td></tr></table>' : '<p style="font-size:13px">Sin fuentes registradas.</p>')
+                + (fuentes.comisionFideicomiso > 0 ? '<p style="font-size:13px"><b>Comisión del Fondo de Fideicomiso (4 %, Res. 118/2026 del BCC):</b> ' + moneda(fuentes.comisionFideicomiso) + ' — la paga el beneficiario íntegra al banco.</p>' : '')
                 + '<h6 style="margin-top:14px">Resultados del semestre (desde los movimientos)</h6>'
                 + '<p style="font-size:13px">Ingresos: <b>' + moneda(+ing.toFixed(2)) + '</b> · Gastos: <b>' + moneda(+gas.toFixed(2)) + '</b> · Tributos pagados: <b>' + moneda(+trib.toFixed(2)) + '</b> · Resultado: <b>' + moneda(+(ing - gas).toFixed(2)) + '</b></p>'
                 + (ficha.indicadores ? '<h6 style="margin-top:14px">Indicadores y metas aprobados</h6><p style="font-size:13px;white-space:pre-wrap">' + esc(ficha.indicadores) + '</p>' : '')
@@ -15539,7 +15543,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         function gPdlFuentes(ficha){
             const fs=(ficha&&Array.isArray(ficha.fuentes))?ficha.fuentes:[];
             const filas=fs.map(f=>{ const monto=Number(f.monto)||0, ejecutado=Number(f.ejecutado)||0;
-                return {tipo:f.tipo, monto:+monto.toFixed(2), ejecutado:+ejecutado.toFixed(2), reembolsable:f.reembolsable===true, pct:monto>0?+(ejecutado/monto*100).toFixed(1):null}; });
+                return {tipo:f.tipo, monto:+monto.toFixed(2), ejecutado:+ejecutado.toFixed(2), reembolsable:f.reembolsable===true, esFideicomiso:f.tipo===PDL_FUENTE_FIDEICOMISO, pct:monto>0?+(ejecutado/monto*100).toFixed(1):null}; });
             const totalMonto=+filas.reduce((a,f)=>a+f.monto,0).toFixed(2);
             const totalEjecutado=+filas.reduce((a,f)=>a+f.ejecutado,0).toFixed(2);
             const montoFideicomiso=+filas.filter(f=>f.tipo===PDL_FUENTE_FIDEICOMISO).reduce((a,f)=>a+f.monto,0).toFixed(2);
@@ -15602,6 +15606,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             const c=ficha.contratados||0;
             if(c>100){ rojo=true; out.sobreTope=true; out.motivos.push('Contratados: '+c+' — SUPERA el tope de 100 del PDL (superarlo implica transformarse en empresa)'); }
             else if(c>=90){ ambar=true; out.cercaTope=true; out.motivos.push('Contratados: '+c+' de 100 (cerca del tope del PDL)'); }
+            const fsSinEjec=(ficha.fuentes||[]).filter(f=>(Number(f.monto)||0)>0&&(Number(f.ejecutado)||0)<=0);
+            if(fsSinEjec.length){ ambar=true; out.motivos.push('⚠ AVISO: hay fuentes con monto aprobado y ejecución en cero ('+fsSinEjec.map(f=>f.tipo).join(', ')+'). Si ese dinero ya entró, registra su ejecución antes del cierre anual: la distribución de la utilidad se apoya en esta ejecución.'); }
             out.nivel=rojo?'rojo':(ambar?'ambar':null);
             return out;
         }
@@ -16216,6 +16222,8 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             const prev=data.pdlFichas[n]||{};
             const ficha=gPdlFicha(GDOCS&&GDOCS[n], prev);
             const calc=gPdlDistribucionCalc(utilidad, ficha?ficha.camPct:0, retPct);
+            const sinEjec=gPdlFuentes(ficha).filas.filter(f=>f.monto>0&&f.ejecutado<=0);
+            if(sinEjec.length && !confirm('⚠ AVISO FUERTE — el cierre no se bloquea, pero revisa esto:\n\nEstas fuentes tienen monto aprobado y ejecución en CERO:\n· '+sinEjec.map(f=>f.tipo+' ('+moneda(f.monto)+')').join('\n· ')+'\n\nSi ese dinero ya entró al proyecto, primero registra su ejecución en la ficha. Si aún no ha entrado, puedes continuar.\n\n¿Guardar la distribución de '+anio+' de todos modos?')) return;
             prev.distribuciones=(prev.distribuciones||[]).filter(d=>d.anio!==anio);
             prev.distribuciones.push(Object.assign({anio}, calc));
             data.pdlFichas[n]=prev; saveCobrosGestor(data);
@@ -19096,7 +19104,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.05-107';
+        var MANUAL_VERSION = 'v2026.11.19-108';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},

@@ -1,20 +1,20 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.05-107",
-  "publicada": "2026-11-06 04:30",
-  "notas": "Ronda 107: la administración general cambia su propio usuario y contraseña desde Configuración → «Mi acceso de administración general» (el servidor amplía change_password con nuevo_usuario, solo para la administración general).",
+  "version": "v2026.11.19-108",
+  "publicada": "2026-11-20 02:41",
+  "notas": "Ronda 108 (Bloque A del cruce PDL): el Fondo de Fideicomiso va resaltado con su comisión del 4 % en el panel «Control del PDL» y en el informe para el CAM; aviso fuerte sin bloquear al guardar la distribución anual si hay fuentes con monto aprobado y ejecución en cero; el mensaje de acceso compartido por Telegram ya dice solo «Finanzas».",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "3e377867f7bef9a0931d309dd3d6a914ab6fd9349cb2d3871d07fb41e84d6bde",
-      "bytes": 2056700
+      "sha256": "a5c4e70d5a96cc7a67d92881db6cfaab7a77614c823af16aa104d77af33a4915",
+      "bytes": 2059208
     },
     {
       "ruta": "pdf-import.js",
-      "sha256": "fddc35c5ef40787e85587647ace708312b952a2477f49b8f11b0c7dea845c4ae",
-      "bytes": 112556
+      "sha256": "cb2e8df4e5644b3a057ac18a84a8377439641ec96e97857e8660214a5f40b8f1",
+      "bytes": 112549
     },
     {
       "ruta": "iconos.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "O9D0ARSAYyvNw7Ua9MvrMz+dqp79+HZ/pAI4KD/LkYqzDHj6qZemvOX5QVp292Hhithe+B5fPYaP+7EFk5+0CA=="
+  "firma": "WgXzauUxtELW26Ti0D2qytofILCpabASzyF/1f9u7f5FA80dTwP7rrvczQUPsgxD1/gYnUUFWXA/e5i9P2C6Dg=="
 }
