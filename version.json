@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.20-111",
-  "publicada": "2026-11-20 11:15",
-  "notas": "Ronda -111 (Bloque E PDL): pantalla aparte de cada PDL en el Panel del Gestor (tarjeta «Proyectos de Desarrollo Local» con «Abrir pantalla del PDL»: el panel se concentra en ese proyecto con su ficha e informe; «Volver» restaura la vista completa). La ficha sigue siendo la misma, sin copias.",
+  "version": "v2026.11.20-112",
+  "publicada": "2026-11-20 19:56",
+  "notas": "Ronda -112 (2026-11-20): la versión en línea pasa a Supabase (proyecto apps-leonardo); la copia sin conexión no cambia. Arranque de cero: el primer administrador se crea con fin_setup en el panel de Supabase.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "d33461414dbee7b1c909ec98d14777483f1ad06bea99e985861d54663cbb7d40",
-      "bytes": 2083959
+      "sha256": "b7c3f4e968a60ef8ef92d698a467273126ae34fe2bdc8bc87364e282168aee4f",
+      "bytes": 2089366
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "NL9CRGK3zBKu24o9Sg3j1MvBvy1uruHSHZWreNrrlpg4CuGDFPdvlXo+A7OWXYK9CEXZVgTz5cGKVGs4CxXWCw=="
+  "firma": "dSFUIxKUL0IWywSbQ2MxP+idXLp3jLrclkK7c01ZFMkjcFeAm+PNePnksew3NH71mEI4sPwB7rRap9l48jQfCg=="
 }

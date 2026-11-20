@@ -931,7 +931,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
     <div class="login-card card p-4 p-md-5">
         <button type="button" class="btn btn-sm btn-light theme-toggle theme-toggle-login" aria-label="Cambiar tema" title="Cambiar tema"><i class="bi bi-moon-stars theme-icon"></i><span class="theme-label">Oscuro</span></button>
-        <span id="connBadgeLogin" class="conn-badge conn-badge-login" title="Estado de la conexión con Google Sheets"><span id="connDotLogin" class="conn-dot conn-red"></span><span id="connTextLogin">Sin conexión</span></span>
+        <span id="connBadgeLogin" class="conn-badge conn-badge-login" title="Estado de la conexión con el servidor"><span id="connDotLogin" class="conn-dot conn-red"></span><span id="connTextLogin">Sin conexión</span></span>
         <div class="text-center mb-4">
             <div class="house-wrap"><span class="house-ring"></span><span class="house-ring r2"></span><span class="icono-anim bucle bi-shop" data-icono="tienda" title="Finanzas"></span></div>
             <h4 class="mt-2 fw-bold" style="color: #0b1e3a;">Finanzas</h4>
@@ -1005,7 +1005,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         <div>
             <h4 class="fw-bold d-flex align-items-center gap-2" style="color: #0b1e3a;">
                 <span class="icono-anim bucle" data-icono="tendencia" style="color: #1f3a6b;"></span> Panel Financiero
-                <span id="connBadge" class="conn-badge" title="Estado de la conexión con Google Sheets"><span id="connDot" class="conn-dot conn-red"></span><span id="connText">Sin conexión</span></span>
+                <span id="connBadge" class="conn-badge" title="Estado de la conexión con el servidor"><span id="connDot" class="conn-dot conn-red"></span><span id="connText">Sin conexión</span></span>
                 <span id="lluviaControl" class="lluvia-control" title="Lluvia de fondo para concentrarte">
                     <button type="button" id="lluviaBtn" class="btn btn-sm btn-outline-custom" onclick="lluviaToggle()" aria-label="Encender o apagar la lluvia de fondo" title="Lluvia de fondo: clic para encender o apagar">🔇</button>
                     <input type="range" id="lluviaVol" min="0" max="100" step="1" value="40" oninput="lluviaVolumen(this.value)" aria-label="Volumen de la lluvia" title="Volumen de la lluvia">
@@ -3626,7 +3626,13 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
         }
         const alert = toast;
         // ===== CAPA SERVIDOR =====
-        const API_URL = window.FINANZAS_API_URL || 'https://script.google.com/macros/s/AKfycbyAXYgIY-x8kyibJT3GFK9Bu93J3kNSo4Mu-PJERmo2j_8ztaz9kXO4idk9Zl0ubmuV/exec';
+        /* Ronda -112 (2026-11-20): la versión EN LÍNEA habla con Supabase
+           (funciones fin_* del proyecto apps-leonardo). La copia SIN
+           conexión no cambia: su servidor local inyecta FINANZAS_API_URL
+           al servir la página y se usa el transporte de siempre. */
+        const SUPA_URL = 'https://uczlkdzvzbqgzzlhcmro.supabase.co';
+        const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjemxrZHp2emJxZ3p6bGhjbXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMzU2ODAsImV4cCI6MjExMDcxMTY4MH0.3xwFjVbL-Usa9hohxU0u__alXH8ZsdsJhH5CWllkH1M';
+        const API_URL = window.FINANZAS_API_URL || '';
         let ME = null, USERS = {}, BLOQ = {}, CACHE = {}, Q = Promise.resolve();
         /* Sesión persistente (pedido de Leonardo 2026-10-24): el token vive en
            localStorage, no en sessionStorage, para que actualizar la página,
@@ -3643,15 +3649,70 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 if(!d||!t||!b) return;
                 d.className='conn-dot '+(ok?'conn-green':'conn-red');
                 t.textContent=ok?'Conectado':'Sin conexión';
-                b.title=ok?'Conexión con Google Sheets establecida':'Sin conexión con Google Sheets';
+                b.title=ok?('Conexión con '+(API_URL?'el servidor local':'Supabase')+' establecida'):('Sin conexión con '+(API_URL?'el servidor local':'Supabase'));
             });
+        }
+        function finRpcArgs(a, b) {
+            const t = TOKEN || null;
+            switch (a) {
+                case 'ping': case 'tasas': return {};
+                case 'login': return {p_username: b.username, p_password: b.password};
+                case 'setup': return null;
+                case 'logout': case 'me': case 'check_sesion': case 'llaves_list':
+                case 'data': case 'gestor_data': case 'data_restore_backup': case 'auto_rate':
+                    return {p_token: t};
+                case 'theme_set': return {p_token: t, p_theme: b.theme};
+                case 'change_password': return {p_token: t, p_password: b.password || null, p_nuevo_usuario: b.nuevo_usuario || null};
+                case 'pass_reset': return {p_token: t, p_username: b.username};
+                case 'data_set': return {p_token: t, p_k: b.k, p_v: b.v, p_ver: (b.ver == null ? null : b.ver)};
+                case 'negocio_save': return {p_token: t, p_nombre: b.nombre, p_tipo: b.tipo || null, p_anterior: b.anterior || null, p_tenedor: b.tenedor || null, p_propio: b.propio || null, p_semilla: b.semilla || null};
+                case 'negocio_delete': return {p_token: t, p_negocio: b.negocio};
+                case 'subs_set': return {p_token: t, p_negocio: b.negocio, p_activo: (b.activo == null ? null : !!b.activo), p_cortesia: (b.cortesia == null ? null : !!b.cortesia), p_nota: b.nota || null, p_pagos: b.pagos || null, p_modulo: b.modulo || null, p_modulo_activo: (b.moduloActivo == null ? null : !!b.moduloActivo), p_modulo_pagos: b.moduloPagos || null};
+                case 'extras_set': return {p_token: t, p_negocio: b.negocio, p_extras: b.extras};
+                case 'tenedor_set': return {p_token: t, p_username: b.username, p_activo: (b.activo == null ? null : !!b.activo), p_pagos: b.pagos || null};
+                case 'config_set': return {p_token: t, p_config: b.config};
+                case 'bloq_set': return {p_token: t, p_mes: b.mes, p_val: !!b.val, p_negocio: b.negocio || null};
+                case 'users_save': return {p_token: t, p_users: b.users};
+                case 'llave_generar': return {p_token: t, p_pedido: b.pedido || null, p_titular_tipo: b.titularTipo || null, p_titular: b.titular || null, p_mes: b.mes || null};
+                case 'llave_revocar': case 'llave_desvincular': return {p_token: t, p_llave: b.llave};
+                case 'validar_llave': return {p_llave: b.llave, p_instalacion: b.instalacion || null, p_huella: b.huella || null, p_usuario: b.usuario || null};
+                case 'validar_suscripcion': return {p_negocio: b.negocio};
+                case 'registrar_instalacion': return {p_pedido: b.pedido || null, p_negocio: b.negocio || null, p_tipo: b.tipo || null, p_modo: b.modo || null, p_huella: b.huella || null, p_rescate: !!b.rescate, p_resumen: b.resumen || null, p_firma: b.firma || null};
+                case 'bcc_rates': return {p_token: t, p_fecha: b.fecha || null, p_moneda: b.moneda || null};
+                default: return undefined;
+            }
+        }
+        async function apiSupa(a, body) {
+            const b = body || {};
+            const H = {'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + SUPA_ANON, 'Content-Type': 'application/json'};
+            if (a === 'pos_img_upload') {
+                const r1 = await fetch(SUPA_URL + '/rest/v1/rpc/fin_pos_img_upload', {method: 'POST', headers: H, body: JSON.stringify({p_token: TOKEN || null, p_data: b.data})});
+                const j1 = await r1.json();
+                if (!j1 || j1.ok !== true) return (j1 && j1.message) ? {ok: false, error: j1.message} : (j1 || {ok: false, error: 'Error del servidor'});
+                const blob = await (await fetch(b.data)).blob();
+                const r2 = await fetch(SUPA_URL + '/storage/v1/object/fin-pos/' + j1.ruta, {method: 'PUT', headers: {'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + SUPA_ANON, 'Content-Type': blob.type || 'image/jpeg'}, body: blob});
+                if (!r2.ok) return {ok: false, error: 'No se pudo subir la imagen'};
+                return j1;
+            }
+            const args = finRpcArgs(a, b);
+            if (args === null) return {ok: false, error: 'La instalación en línea se hace desde el panel de Supabase'};
+            if (args === undefined) return {ok: false, error: 'Acción no disponible en el servidor nuevo: ' + a};
+            const r = await fetch(SUPA_URL + '/rest/v1/rpc/fin_' + a, {method: 'POST', headers: H, body: JSON.stringify(args)});
+            const j = await r.json();
+            if (j && j.ok === undefined && (j.message || j.code)) return {ok: false, error: j.message || 'Error del servidor'};
+            return j;
         }
         async function api(a, body) {
             try {
-                const payload = Object.assign({}, body || {}, {a: a});
-                if (TOKEN) payload.token = TOKEN;
-                const r = await fetch(API_URL, {method: 'POST', body: JSON.stringify(payload), redirect: 'follow'});
-                const j = await r.json();
+                let j;
+                if (API_URL) {
+                    const payload = Object.assign({}, body || {}, {a: a});
+                    if (TOKEN) payload.token = TOKEN;
+                    const r = await fetch(API_URL, {method: 'POST', body: JSON.stringify(payload), redirect: 'follow'});
+                    j = await r.json();
+                } else {
+                    j = await apiSupa(a, body);
+                }
                 setConn(true);
                 if (j && j.error === 'Sesión expirada') { TOKEN=''; localStorage.removeItem('finanzas_token'); sessionStorage.removeItem('finanzas_token'); }
                 return j;
@@ -19291,7 +19352,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.20-111';
+        var MANUAL_VERSION = 'v2026.11.20-112';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
