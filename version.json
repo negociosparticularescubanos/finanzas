@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.20-109",
-  "publicada": "2026-11-20 10:45",
-  "notas": "Ronda 109 (Bloque C del cruce PDL): cuadro «Estudio contra realidad» — la ficha del PDL guarda lo que el estudio de FactiCuba-Datos declaró por fuente y el panel «Control del PDL» y el informe para el CAM lo comparan contra lo aprobado y lo ejecutado, con el total del estudio como referencia.",
+  "version": "v2026.11.20-110",
+  "publicada": "2026-11-20 11:00",
+  "notas": "Ronda 110 (Bloque D del cruce PDL): el panel «Control del PDL» propone qué créditos del banco son ejecución de cada fuente y qué salidas son reembolsos del fideicomiso — la persona confirma, cambia o descarta; al confirmar un desembolso del fideicomiso se ofrece crear el gasto de su comisión bancaria del 4 % y el pasivo del fideicomiso se lleva aparte en la ficha.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b65c0c2df3bf1725585a872d4861b5c08832a86adac441b7e686f368174791c8",
-      "bytes": 2067671
+      "sha256": "c32fc18e8e03c7f859c624d70cc0290d7f7653ed63eeea0584be85d36ea9471c",
+      "bytes": 2079898
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "LjLqAmaP4KhuXqSUUY4WsCEmeJp359+QTS54XCdlSP5pv7a+scGywXKQZT1wjTM6MVTAZaPYRNVZYA34cHU9Cw=="
+  "firma": "8BAYF56qFr2LtjbwFlfKF0iOHbpGe4+eeED4fMWFkDTEv4UqwJ2ZHkj4Q2U1RZdQukek5AsYvsTQiwLjX8XzBg=="
 }
