@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.20-110",
-  "publicada": "2026-11-20 11:00",
-  "notas": "Ronda 110 (Bloque D del cruce PDL): el panel «Control del PDL» propone qué créditos del banco son ejecución de cada fuente y qué salidas son reembolsos del fideicomiso — la persona confirma, cambia o descarta; al confirmar un desembolso del fideicomiso se ofrece crear el gasto de su comisión bancaria del 4 % y el pasivo del fideicomiso se lleva aparte en la ficha.",
+  "version": "v2026.11.20-111",
+  "publicada": "2026-11-20 11:15",
+  "notas": "Ronda -111 (Bloque E PDL): pantalla aparte de cada PDL en el Panel del Gestor (tarjeta «Proyectos de Desarrollo Local» con «Abrir pantalla del PDL»: el panel se concentra en ese proyecto con su ficha e informe; «Volver» restaura la vista completa). La ficha sigue siendo la misma, sin copias.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "c32fc18e8e03c7f859c624d70cc0290d7f7653ed63eeea0584be85d36ea9471c",
-      "bytes": 2079898
+      "sha256": "d33461414dbee7b1c909ec98d14777483f1ad06bea99e985861d54663cbb7d40",
+      "bytes": 2083959
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "8BAYF56qFr2LtjbwFlfKF0iOHbpGe4+eeED4fMWFkDTEv4UqwJ2ZHkj4Q2U1RZdQukek5AsYvsTQiwLjX8XzBg=="
+  "firma": "NL9CRGK3zBKu24o9Sg3j1MvBvy1uruHSHZWreNrrlpg4CuGDFPdvlXo+A7OWXYK9CEXZVgTz5cGKVGs4CxXWCw=="
 }

@@ -2139,21 +2139,27 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 <p class="small text-muted mt-3 mb-0" id="panelReglas">Reglas del panel: la <b>cortesía</b> es una licencia regalada por ti — ese negocio nunca se bloquea por falta de pago ni cuenta como deuda, y tampoco suma a la base del 10 % de su tenedor. Cada tenedor paga su <b>base fija mensual</b> por el uso de la aplicación (2 000 si su cartera computable tiene menos de 5 negocios; 1 000 si tiene 5 o más) más su porcentaje, calculado sobre las tarifas de los negocios <b>activos y sin cortesía</b> de su cartera. El historial se calcula con las tarifas de hoy.</p>
             </div></div>
         </div>
+        <style>#pane-gestor.pdl-modo .gestor-ocultar-en-pdl{display:none!important}</style>
         <div class="tab-pane fade" id="pane-gestor">
             <div class="module-hero d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                 <div><h5 class="fw-bold mb-1"><span class="icono-anim me-2" data-icono="maletin" style="color:#7c3aed"></span>Panel del Gestor</h5><div class="small text-secondary">Todos tus clientes (TCP, MIPYME y Proyectos de Desarrollo Local) en una vista: cierres, vencimientos ONAT, justificación de gastos y tu cobro. Los importes salen de los datos reales de cada negocio.</div></div>
                 <div class="d-flex gap-2 flex-wrap"><button type="button" class="btn btn-sm btn-outline-secondary" id="btnGestorRefrescar"><span class="icono-anim me-1" data-icono="sincronizar"></span>Actualizar datos</button><button type="button" class="btn btn-sm btn-primary" id="btnAltaRapida"><span class="icono-anim me-1" data-icono="usuario-mas"></span>Alta rápida de cliente</button></div>
             </div>
             <div id="gestorAlertas" class="mb-3"></div>
-            <h6 class="fw-semibold mb-2"><span class="icono-anim me-2" data-icono="usuarios"></span>Clientes</h6>
-            <div id="gestorClientes" class="row g-3 mb-4"><div class="col-12 text-secondary small">Cargando datos de los negocios…</div></div>
+            <div class="card p-3 p-md-4 mb-4" id="gestorPdlCard">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><h6 class="fw-semibold mb-0"><span class="icono-anim me-2" data-icono="doc"></span>Proyectos de Desarrollo Local</h6><button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btnPdlVolver">← Volver al panel del gestor</button></div>
+                <div class="small text-secondary mb-2">La pantalla de trabajo de cada PDL: su ficha completa, la ejecución por fuentes y su informe, sin mezclar con el resto de clientes. Al abrirla se ocultan las demás secciones del panel; con «Volver» regresas a la vista completa.</div>
+                <div id="gestorPdlLista"><div class="text-secondary small">Sin datos todavía.</div></div>
+            </div>
+            <h6 class="fw-semibold mb-2 gestor-ocultar-en-pdl"><span class="icono-anim me-2" data-icono="usuarios"></span>Clientes</h6>
+            <div id="gestorClientes" class="row g-3 mb-4 gestor-ocultar-en-pdl"><div class="col-12 text-secondary small">Cargando datos de los negocios…</div></div>
             <div id="gestorDetalle" class="mb-4"></div>
-            <div class="card p-3 p-md-4 mb-4">
+            <div class="card p-3 p-md-4 mb-4 gestor-ocultar-en-pdl">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h6 class="fw-semibold mb-0"><span class="icono-anim me-2" data-icono="calendario"></span>Calendario de vencimientos ONAT</h6>
                 <div class="d-flex gap-2 flex-wrap align-items-center"><input type="month" id="gestorCalMes" class="form-control form-control-sm" style="width:auto"><select id="gestorCalNeg" class="form-select form-select-sm" style="width:auto"><option value="">Todos los negocios</option></select><select id="gestorCalEstado" class="form-select form-select-sm" style="width:auto"><option value="">Todos los estados</option><option value="paid">Pagadas</option><option value="pending">Pendientes</option><option value="vencida">Vencidas</option></select></div></div>
                 <div id="gestorCalendario"><div class="text-secondary small">Sin datos todavía.</div></div>
             </div>
-            <div class="card p-3 p-md-4 mb-3">
+            <div class="card p-3 p-md-4 mb-3 gestor-ocultar-en-pdl">
                 <h6 class="fw-semibold mb-3"><span class="icono-anim me-2" data-icono="monedas"></span>Cobro de mis servicios como gestor</h6>
                 <div class="small text-secondary mb-3">Esto es TU control interno como gestor: no forma parte de los libros de ningún cliente.</div>
                 <div id="gestorCobros"><div class="text-secondary small">Sin datos todavía.</div></div>
@@ -3150,7 +3156,8 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         <li><b>Tope de 100 contratados</b>: aviso al llegar a 90; si se supera el tope, el proyecto debe transformarse en empresa.</li>
                         <li><b>Fuentes por separado</b>: presupuesto local, donaciones, cooperación y otras, cada una con su monto aprobado y su ejecución; el informe mensual del cliente PDL incluye el bloque de fuentes con su ejecución.</li>
                         <li><b>Fideicomiso resaltado</b>: en el panel «Control del PDL» y en el informe para el CAM, la fila del <b>Fondo de Fideicomiso</b> va resaltada con su comisión bancaria del <b>4 %</b> ya calculada (la paga el beneficiario íntegra al banco, Res. 118/2026 del BCC) y el total reembolsable del proyecto.</li>
-                        <li><b>Del banco a las fuentes</b>: el panel del PDL propone qué créditos del banco parecen ejecución de cada fuente (por el monto pendiente y el concepto) y qué salidas parecen reembolsos del fideicomiso; nada se aplica solo: la persona confirma, cambia la fuente o lo descarta. Al confirmar un desembolso del Fondo de Fideicomiso, la app ofrece crear el gasto de su comisión bancaria del 4 % y el pasivo del fideicomiso (desembolsado − reembolsado) se lleva aparte en la ficha, visible en el panel y corregible en esta ficha.</li>
+                        <li><b>Pantalla aparte del PDL</b>: en el Panel del Gestor, la tarjeta «Proyectos de Desarrollo Local» lista cada PDL con su resumen y el botón «Abrir pantalla del PDL»: el panel se concentra en ese proyecto (su ficha completa y su informe quedan como única sección visible) y con «Volver al panel del gestor» regresas a la vista de todos los clientes. La ficha es la misma de siempre: no hay dos copias.</li>
+<li><b>Del banco a las fuentes</b>: el panel del PDL propone qué créditos del banco parecen ejecución de cada fuente (por el monto pendiente y el concepto) y qué salidas parecen reembolsos del fideicomiso; nada se aplica solo: la persona confirma, cambia la fuente o lo descarta. Al confirmar un desembolso del Fondo de Fideicomiso, la app ofrece crear el gasto de su comisión bancaria del 4 % y el pasivo del fideicomiso (desembolsado − reembolsado) se lleva aparte en la ficha, visible en el panel y corregible en esta ficha.</li>
 <li><b>Estudio contra realidad</b>: si en la ficha del gestor se copia lo que el estudio de FactiCuba-Datos declaró por fuente (recursos propios, préstamo, fideicomiso, presupuesto territorial y cooperación, con su total), el panel «Control del PDL» y el informe para el CAM comparan lo declarado contra lo aprobado y lo ejecutado, fuente por fuente. El total del estudio es la <b>referencia</b>, no un objetivo: las diferencias se explican en la evaluación semestral.</li>
                         <li><b>Aviso fuerte al distribuir</b>: si alguna fuente tiene monto aprobado y su ejecución está en cero, al guardar la distribución anual la app muestra un aviso fuerte con esas fuentes. El aviso <b>no bloquea</b> el cierre: puedes continuar si ese dinero aún no ha entrado; si ya entró, registra primero su ejecución en la ficha.</li>
                         <li><b>Cautela contable</b>: el PDL no tiene Declaración Jurada propia en la app ni Vector Fiscal RC-04A. Su contabilidad se lleva con el <b>plan general de cuentas</b>; el tratamiento contable y bancario específico está <b>pendiente de verificar</b> contra las Resoluciones 202/2026 del MFP y 118/2026 del BCC, así que la app no aplica cuentas especiales ni reglas bancarias al PDL hasta confirmarlo en la Gaceta.</li>
@@ -16250,6 +16257,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             document.querySelectorAll('[data-gestor-ver]').forEach(b=>b.onclick=()=>{ gestorNegSel=b.getAttribute('data-gestor-ver'); gestorInformePeriodo=''; pdlDraft=null; renderGestorDetalle(); const d=document.getElementById('gestorDetalle'); if(d) d.scrollIntoView({behavior:'smooth',block:'start'}); });
             renderGestorCalendario(items);
             renderGestorCobros();
+            try { renderGestorPdlLista(); } catch(e) {}
             if(gestorNegSel&&GDOCS[gestorNegSel]) renderGestorDetalle();
         }
         function renderGestorCalendario(items){
@@ -16277,6 +16285,34 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             <div class="small">Evaluación semestral: <b>${esc(al.proximaEvaluacion||'—')}</b></div>
             <div class="small">Contratados: ${badgeC}</div>
             <div class="small">Fuentes: ${fu.hayDatos? moneda(fu.totalEjecutado)+' ejecutados de '+moneda(fu.totalMonto)+' ('+(fu.pctTotal===null?'—':fu.pctTotal+' %')+')' : '<span class="text-secondary">sin montos cargados</span>'}</div>`;
+        }
+        /* --- PDL: pantalla aparte en el Gestor (Bloque E, P5) ---
+           Reúne el trabajo de cada PDL en una vista propia: la lista
+           de proyectos con su resumen y, al abrir uno, el detalle de
+           siempre (ficha + informe) queda como única sección visible
+           del panel. No crea datos ni editores nuevos: la ficha sigue
+           existiendo una sola vez, en el detalle. */
+        function gestorPdlNombres(){ try { return Object.keys(GDOCS||{}).filter(n=>gTipoCliente(GDOCS[n])==='pdl'); } catch(e){ return []; } }
+        function renderGestorPdlLista(){
+            const box=document.getElementById('gestorPdlLista'); if(!box) return;
+            const bv=document.getElementById('btnPdlVolver'); if(bv) bv.onclick=()=>gestorCerrarPdl();
+            const nombres=gestorPdlNombres(), hoy=gHoyISOFecha(), overlays=(getCobrosGestor().pdlFichas)||{};
+            if(!nombres.length){ box.innerHTML='<div class="text-secondary small">Todavía no hay clientes de tipo PDL. Se crean con «Alta rápida de cliente» eligiendo el tipo PDL.</div>'; return; }
+            box.innerHTML=nombres.map(n=>'<div class="border rounded p-2 mb-2"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><b>'+esc(n)+'</b><button type="button" class="btn btn-sm btn-primary" data-pdl-abrir="'+esc(n)+'">Abrir pantalla del PDL</button></div>'+gestorPdlCardHTML(GDOCS[n], overlays[n], hoy)+'</div>').join('');
+            box.querySelectorAll('[data-pdl-abrir]').forEach(b=>b.onclick=()=>gestorAbrirPdl(b.getAttribute('data-pdl-abrir')));
+        }
+        function gestorAbrirPdl(n){
+            gestorNegSel=n; gestorInformePeriodo=''; pdlDraft=null;
+            const pane=document.getElementById('pane-gestor'); if(pane) pane.classList.add('pdl-modo');
+            const bv=document.getElementById('btnPdlVolver'); if(bv) bv.classList.remove('d-none');
+            renderGestorDetalle();
+            const d=document.getElementById('gestorDetalle'); if(d) d.scrollIntoView({behavior:'smooth',block:'start'});
+        }
+        function gestorCerrarPdl(){
+            const pane=document.getElementById('pane-gestor'); if(pane) pane.classList.remove('pdl-modo');
+            const bv=document.getElementById('btnPdlVolver'); if(bv) bv.classList.add('d-none');
+            gestorNegSel=''; pdlDraft=null;
+            const box=document.getElementById('gestorDetalle'); if(box) box.innerHTML='';
         }
         /* --- PDL: ficha editable del expediente (detalle del Gestor) --- */
         function gestorPdlFichaHTML(n,doc){
@@ -16446,7 +16482,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
             const bp=document.getElementById('btnGestorInformePrint'); if(bp) bp.onclick=()=>printPane('gestorInformeBox');
             const bw=document.getElementById('btnGestorInformeWA'); if(bw) bw.onclick=()=>copiarInformeWhatsApp(n);
             const br=document.getElementById('btnGestorRespaldo'); if(br) br.onclick=()=>descargarRespaldoNegocio(n);
-            const bc=document.getElementById('btnGestorCerrarDetalle'); if(bc) bc.onclick=()=>{ gestorNegSel=''; pdlDraft=null; box.innerHTML=''; };
+            const bc=document.getElementById('btnGestorCerrarDetalle'); if(bc) bc.onclick=()=>{ const pane=document.getElementById('pane-gestor'); if(pane&&pane.classList.contains('pdl-modo')) gestorCerrarPdl(); else { gestorNegSel=''; pdlDraft=null; box.innerHTML=''; } };
             const bpg=document.getElementById('btnPdlGuardarFicha'); if(bpg) bpg.onclick=()=>gestorGuardarPdlFicha(n);
             const bpa=document.getElementById('btnPdlAddFuente'); if(bpa) bpa.onclick=()=>pdlAddFuente(n);
             box.querySelectorAll('[data-pdl-del-fuente]').forEach(b=>b.onclick=()=>pdlDelFuente(n,Number(b.getAttribute('data-pdl-del-fuente'))));
@@ -19255,7 +19291,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.20-110';
+        var MANUAL_VERSION = 'v2026.11.20-111';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
