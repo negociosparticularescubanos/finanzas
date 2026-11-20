@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.19-108",
-  "publicada": "2026-11-20 02:41",
-  "notas": "Ronda 108 (Bloque A del cruce PDL): el Fondo de Fideicomiso va resaltado con su comisión del 4 % en el panel «Control del PDL» y en el informe para el CAM; aviso fuerte sin bloquear al guardar la distribución anual si hay fuentes con monto aprobado y ejecución en cero; el mensaje de acceso compartido por Telegram ya dice solo «Finanzas».",
+  "version": "v2026.11.20-109",
+  "publicada": "2026-11-20 10:45",
+  "notas": "Ronda 109 (Bloque C del cruce PDL): cuadro «Estudio contra realidad» — la ficha del PDL guarda lo que el estudio de FactiCuba-Datos declaró por fuente y el panel «Control del PDL» y el informe para el CAM lo comparan contra lo aprobado y lo ejecutado, con el total del estudio como referencia.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "a5c4e70d5a96cc7a67d92881db6cfaab7a77614c823af16aa104d77af33a4915",
-      "bytes": 2059208
+      "sha256": "b65c0c2df3bf1725585a872d4861b5c08832a86adac441b7e686f368174791c8",
+      "bytes": 2067671
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "WgXzauUxtELW26Ti0D2qytofILCpabASzyF/1f9u7f5FA80dTwP7rrvczQUPsgxD1/gYnUUFWXA/e5i9P2C6Dg=="
+  "firma": "LjLqAmaP4KhuXqSUUY4WsCEmeJp359+QTS54XCdlSP5pv7a+scGywXKQZT1wjTM6MVTAZaPYRNVZYA34cHU9Cw=="
 }

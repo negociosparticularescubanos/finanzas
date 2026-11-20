@@ -3150,6 +3150,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                         <li><b>Tope de 100 contratados</b>: aviso al llegar a 90; si se supera el tope, el proyecto debe transformarse en empresa.</li>
                         <li><b>Fuentes por separado</b>: presupuesto local, donaciones, cooperación y otras, cada una con su monto aprobado y su ejecución; el informe mensual del cliente PDL incluye el bloque de fuentes con su ejecución.</li>
                         <li><b>Fideicomiso resaltado</b>: en el panel «Control del PDL» y en el informe para el CAM, la fila del <b>Fondo de Fideicomiso</b> va resaltada con su comisión bancaria del <b>4 %</b> ya calculada (la paga el beneficiario íntegra al banco, Res. 118/2026 del BCC) y el total reembolsable del proyecto.</li>
+                        <li><b>Estudio contra realidad</b>: si en la ficha del gestor se copia lo que el estudio de FactiCuba-Datos declaró por fuente (recursos propios, préstamo, fideicomiso, presupuesto territorial y cooperación, con su total), el panel «Control del PDL» y el informe para el CAM comparan lo declarado contra lo aprobado y lo ejecutado, fuente por fuente. El total del estudio es la <b>referencia</b>, no un objetivo: las diferencias se explican en la evaluación semestral.</li>
                         <li><b>Aviso fuerte al distribuir</b>: si alguna fuente tiene monto aprobado y su ejecución está en cero, al guardar la distribución anual la app muestra un aviso fuerte con esas fuentes. El aviso <b>no bloquea</b> el cierre: puedes continuar si ese dinero aún no ha entrado; si ya entró, registra primero su ejecución en la ficha.</li>
                         <li><b>Cautela contable</b>: el PDL no tiene Declaración Jurada propia en la app ni Vector Fiscal RC-04A. Su contabilidad se lleva con el <b>plan general de cuentas</b>; el tratamiento contable y bancario específico está <b>pendiente de verificar</b> contra las Resoluciones 202/2026 del MFP y 118/2026 del BCC, así que la app no aplica cuentas especiales ni reglas bancarias al PDL hasta confirmarlo en la Gaceta.</li>
                     </ul>
@@ -8313,6 +8314,12 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             const liqHtml = ficha.estado === 'liquidacion' ? '<h6 class="fw-semibold mb-2">Modo liquidación — procedimiento (Resolución 202/2026)</h6>'
                 + '<p class="small text-secondary">Al extinguirse, el proyecto se liquida por el procedimiento normado: marca cada paso al completarlo. El informe de la Comisión Liquidadora es <b>mensual</b> y el sobrante se ingresa al Presupuesto en los 10 días hábiles siguientes a la aprobación del balance final.</p>'
                 + '<div class="mb-3">' + PDL_LIQ_PASOS.map(p => { const on = !!(ficha.liquidacion && ficha.liquidacion[p[0]]); return '<button type="button" class="btn btn-sm ' + (on ? 'btn-success' : 'btn-outline-danger') + ' me-1 mb-1" data-pdl-liq="' + p[0] + '">' + (on ? '✔' : '✘') + ' ' + esc(p[1]) + '</button>'; }).join('') + '</div>' : '';
+            const er = gPdlEstudioRealidad(ficha);
+            const estudioHtml = er.hay ? '<h6 class="fw-semibold mt-3 mb-2">Estudio contra realidad <span class="fw-normal text-secondary">(lo declarado en el estudio de FactiCuba-Datos es la referencia, no un objetivo)</span></h6>'
+                + '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fuente</th><th class="text-end">Declarado en el estudio</th><th class="text-end">Aprobado</th><th class="text-end">Ejecutado</th><th class="text-end">Diferencia</th></tr></thead><tbody>'
+                + er.filas.map(f => '<tr><td>' + esc(f.etiqueta) + '</td><td class="text-end">' + (f.otras ? '—' : moneda(f.declarado)) + '</td><td class="text-end">' + moneda(f.aprobado) + '</td><td class="text-end">' + moneda(f.ejecutado) + '</td><td class="text-end">' + (f.otras ? '—' : moneda(f.diferencia)) + '</td></tr>').join('')
+                + '<tr class="fw-semibold"><td>Total</td><td class="text-end">' + moneda(er.totalEstudio) + '</td><td class="text-end">' + moneda(er.totalAprobado) + '</td><td class="text-end">' + moneda(er.totalEjecutado) + '</td><td class="text-end">' + moneda(er.totalEjecutado - er.totalEstudio) + '</td></tr></tbody></table></div>'
+                + '<p class="small text-secondary mt-2 mb-0">Si lo ejecutado se aleja de lo declarado en el estudio, la diferencia se explica en la evaluación semestral ante el CAM.</p>' : '';
             const informeHtml = '<div class="d-flex flex-wrap gap-2 align-items-center mb-1"><button type="button" class="btn btn-sm btn-outline-primary" id="btnPdlInformeCam"><i class="bi bi-file-earmark-text me-1"></i>Informe para la evaluación del CAM</button><span class="small text-secondary">Documento de apoyo del semestre (no es un modelo oficial).</span></div><div id="pdlInformePrintBox" style="display:none"></div>';
             panel.innerHTML = '<div class="card p-3 p-md-4 mb-3">'
                 + '<h6 class="fw-semibold mb-3">Ficha del proyecto (Decreto 174/2026)</h6>'
@@ -8335,6 +8342,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 + filaExtra
                 + alertas
                 + '<h6 class="fw-semibold mb-2">Ejecución por fuentes de financiamiento</h6>' + filas
+                + estudioHtml
                 + distHtml
                 + liqHtml
                 + informeHtml
@@ -8396,6 +8404,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 + '<h6>Ejecución por fuentes de financiamiento</h6>'
                 + (fuentes.hayDatos ? '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-size:12px;width:100%"><tr><th align="left">Fuente</th><th align="right">Monto</th><th align="right">Ejecutado</th><th align="right">% ejecución</th></tr>' + fuentes.filas.map(f => '<tr><td>' + esc(f.tipo) + (f.esFideicomiso ? ' <b>(fideicomiso: comisión del 4 %)</b>' : (f.reembolsable ? ' (reembolsable)' : '')) + '</td><td align="right">' + moneda(f.monto) + '</td><td align="right">' + moneda(f.ejecutado) + '</td><td align="right">' + (f.pct === null ? '—' : f.pct + ' %') + '</td></tr>').join('') + '<tr><td><b>Total</b></td><td align="right"><b>' + moneda(fuentes.totalMonto) + '</b></td><td align="right"><b>' + moneda(fuentes.totalEjecutado) + '</b></td><td align="right"><b>' + (fuentes.pctTotal === null ? '—' : fuentes.pctTotal + ' %') + '</b></td></tr></table>' : '<p style="font-size:13px">Sin fuentes registradas.</p>')
                 + (fuentes.comisionFideicomiso > 0 ? '<p style="font-size:13px"><b>Comisión del Fondo de Fideicomiso (4 %, Res. 118/2026 del BCC):</b> ' + moneda(fuentes.comisionFideicomiso) + ' — la paga el beneficiario íntegra al banco.</p>' : '')
+                + (()=>{ const er=gPdlEstudioRealidad(ficha); return er.hay? '<h6 style="margin-top:14px">Estudio contra realidad</h6><table><tr><th align="left">Fuente</th><th align="right">Declarado en el estudio</th><th align="right">Aprobado</th><th align="right">Ejecutado</th><th align="right">Diferencia</th></tr>' + er.filas.map(f=>'<tr><td>'+esc(f.etiqueta)+'</td><td align="right">'+(f.otras?'—':moneda(f.declarado))+'</td><td align="right">'+moneda(f.aprobado)+'</td><td align="right">'+moneda(f.ejecutado)+'</td><td align="right">'+(f.otras?'—':moneda(f.diferencia))+'</td></tr>').join('') + '<tr><td><b>Total</b></td><td align="right"><b>'+moneda(er.totalEstudio)+'</b></td><td align="right"><b>'+moneda(er.totalAprobado)+'</b></td><td align="right"><b>'+moneda(er.totalEjecutado)+'</b></td><td align="right"><b>'+moneda(er.totalEjecutado-er.totalEstudio)+'</b></td></tr></table><p style="font-size:12px">Lo declarado en el estudio (FactiCuba-Datos) es la referencia, no un objetivo: las diferencias se explican en la evaluación semestral.</p>' : ''; })()
                 + '<h6 style="margin-top:14px">Resultados del semestre (desde los movimientos)</h6>'
                 + '<p style="font-size:13px">Ingresos: <b>' + moneda(+ing.toFixed(2)) + '</b> · Gastos: <b>' + moneda(+gas.toFixed(2)) + '</b> · Tributos pagados: <b>' + moneda(+trib.toFixed(2)) + '</b> · Resultado: <b>' + moneda(+(ing - gas).toFixed(2)) + '</b></p>'
                 + (ficha.indicadores ? '<h6 style="margin-top:14px">Indicadores y metas aprobados</h6><p style="font-size:13px;white-space:pre-wrap">' + esc(ficha.indicadores) + '</p>' : '')
@@ -15537,6 +15546,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
                 camPct:Math.min(100,Math.max(0,Number(F.camPct)||0)),
                 distribuciones:(Array.isArray(F.distribuciones)?F.distribuciones:[]).filter(x=>x&&typeof x==='object').map(x=>({anio:Math.floor(Number(x.anio)||0), utilidad:+(Number(x.utilidad)||0).toFixed(2), impuesto:+(Number(x.impuesto)||0).toFixed(2), utilidadNeta:+(Number(x.utilidadNeta)||0).toFixed(2), reserva:+(Number(x.reserva)||0).toFixed(2), retenido:+(Number(x.retenido)||0).toFixed(2), aDistribuir:+(Number(x.aDistribuir)||0).toFixed(2), cam:+(Number(x.cam)||0).toFixed(2), aTitulares:+(Number(x.aTitulares)||0).toFixed(2)})),
                 liquidacion:(F.liquidacion&&typeof F.liquidacion==='object')?F.liquidacion:{},
+                estudio:(F.estudio&&typeof F.estudio==='object')?{recPropios:Math.max(0,Number(F.estudio.recPropios)||0), prestamo:Math.max(0,Number(F.estudio.prestamo)||0), fideicomiso:Math.max(0,Number(F.estudio.fideicomiso)||0), presupuesto:Math.max(0,Number(F.estudio.presupuesto)||0), cooperacion:Math.max(0,Number(F.estudio.cooperacion)||0), total:Math.max(0,Number(F.estudio.total)||0)}:{},
                 fuentes
             };
         }
@@ -15566,6 +15576,29 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            distribución se hace sobre la utilidad DESPUÉS de impuestos
            (Decreto 174/2026, art. 48): Reserva (10 % de la utilidad
            neta, Res. 202/2026 art. 17) → retenido → CAM → titulares. */
+        function gPdlEstudioRealidad(ficha){
+            const e=(ficha&&ficha.estudio&&typeof ficha.estudio==='object')?ficha.estudio:{};
+            const declarado={recPropios:Math.max(0,Number(e.recPropios)||0), prestamo:Math.max(0,Number(e.prestamo)||0), fideicomiso:Math.max(0,Number(e.fideicomiso)||0), presupuesto:Math.max(0,Number(e.presupuesto)||0), cooperacion:Math.max(0,Number(e.cooperacion)||0)};
+            const totalEstudio=Math.max(0,Number(e.total)||0);
+            const hay=totalEstudio>0||Object.keys(declarado).some(k=>declarado[k]>0);
+            if(!hay) return {hay:false, filas:[], totalEstudio:0, totalAprobado:0, totalEjecutado:0};
+            const fu=gPdlFuentes(ficha);
+            const porTipo={}; fu.filas.forEach(f=>{ porTipo[f.tipo]=porTipo[f.tipo]||{monto:0, ejecutado:0}; porTipo[f.tipo].monto+=f.monto; porTipo[f.tipo].ejecutado+=f.ejecutado; });
+            const suma=(tipos,k)=>tipos.reduce((a,t)=>a+((porTipo[t]&&porTipo[t][k])||0),0);
+            const T={fid:PDL_FUENTE_FIDEICOMISO, rec:'Recursos financieros propios de los actores locales', pre:'Créditos bancarios', coo:'Fondo de la cooperación internacional', fdl:'Fondo para el Desarrollo Local', pe:'Presupuesto del Estado'};
+            const filas=[
+                {etiqueta:'Fondo de Fideicomiso', declarado:declarado.fideicomiso, aprobado:suma([T.fid],'monto'), ejecutado:suma([T.fid],'ejecutado')},
+                {etiqueta:'Recursos propios de los actores locales', declarado:declarado.recPropios, aprobado:suma([T.rec],'monto'), ejecutado:suma([T.rec],'ejecutado')},
+                {etiqueta:'Créditos bancarios', declarado:declarado.prestamo, aprobado:suma([T.pre],'monto'), ejecutado:suma([T.pre],'ejecutado')},
+                {etiqueta:'Cooperación internacional', declarado:declarado.cooperacion, aprobado:suma([T.coo],'monto'), ejecutado:suma([T.coo],'ejecutado')},
+                {etiqueta:'Presupuesto territorial / Fondo de Desarrollo Local', declarado:declarado.presupuesto, aprobado:suma([T.fdl,T.pe],'monto'), ejecutado:suma([T.fdl,T.pe],'ejecutado')}
+            ];
+            const cubiertos=[T.fid,T.rec,T.pre,T.coo,T.fdl,T.pe];
+            let oM=0, oE=0; fu.filas.forEach(f=>{ if(cubiertos.indexOf(f.tipo)<0){ oM+=f.monto; oE+=f.ejecutado; } });
+            if(oM>0||oE>0) filas.push({etiqueta:'Otras fuentes (sin equivalente en el estudio)', declarado:0, aprobado:oM, ejecutado:oE, otras:true});
+            filas.forEach(f=>{ f.aprobado=+f.aprobado.toFixed(2); f.ejecutado=+f.ejecutado.toFixed(2); f.diferencia=+(f.ejecutado-f.declarado).toFixed(2); });
+            return {hay:true, filas, totalEstudio, totalAprobado:fu.totalMonto, totalEjecutado:fu.totalEjecutado};
+        }
         function gPdlDistribucionCalc(utilidad, camPct, retenidoPct){
             const u=Math.max(0,+(Number(utilidad)||0).toFixed(2));
             const impuesto=+(u*0.35).toFixed(2);
@@ -16179,6 +16212,15 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
               <datalist id="pdlFuentesTipos">${PDL_FUENTES_TIPOS.map(t=>`<option value="${esc(t)}"></option>`).join('')}</datalist>
               <button type="button" class="btn btn-sm btn-outline-secondary" id="btnPdlAddFuente">+ Añadir fuente</button>
               ${fu.comisionFideicomiso>0?`<div class="small text-secondary mt-1">Crédito del <b>Fondo de Fideicomiso</b> (último guardado): comisión bancaria del 4 % = <b>${moneda(fu.comisionFideicomiso)}</b>, que paga el beneficiario íntegra al banco (Res. 118/2026 del BCC). Total reembolsable: <b>${moneda(fu.totalReembolsable)}</b>.</div>`:''}
+              <div class="fw-semibold small mt-3 mb-1">Lo que declaró el estudio (FactiCuba-Datos) <span class="text-secondary fw-normal">— cópialo del estudio aprobado: es la REFERENCIA contra la que se compara la ejecución, no un objetivo</span></div>
+              <div class="row g-2">
+                <div class="col-md-4"><label class="form-label small mb-1">Recursos propios declarados</label><input id="pdlE_recPropios" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.recPropios)||''}"></div>
+                <div class="col-md-4"><label class="form-label small mb-1">Préstamo bancario declarado</label><input id="pdlE_prestamo" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.prestamo)||''}"></div>
+                <div class="col-md-4"><label class="form-label small mb-1">Fondo de Fideicomiso declarado</label><input id="pdlE_fideicomiso" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.fideicomiso)||''}"></div>
+                <div class="col-md-4"><label class="form-label small mb-1">Presupuesto territorial / Fondo de Desarrollo Local declarado</label><input id="pdlE_presupuesto" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.presupuesto)||''}"></div>
+                <div class="col-md-4"><label class="form-label small mb-1">Cooperación internacional declarada</label><input id="pdlE_cooperacion" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.cooperacion)||''}"></div>
+                <div class="col-md-4"><label class="form-label small mb-1">TOTAL declarado en el estudio</label><input id="pdlE_total" type="number" min="0" step="0.01" class="form-control form-control-sm" value="${(f.estudio&&f.estudio.total)||''}"></div>
+              </div>
               <div class="fw-semibold small mt-3 mb-1">Distribución anual de la utilidad <span class="text-secondary fw-normal">(utilidad → Reserva 10 % → retenido → a distribuir → aporte al CAM según su % del acuerdo → titulares, que tributan su IIP tras la distribución)</span></div>
               <div class="row g-2 align-items-end">
                 <div class="col-md-2"><label class="form-label small mb-1">Año</label><input id="pdlD_anio" type="number" min="2020" max="2100" class="form-control form-control-sm" value="${new Date().getFullYear()}"></div>
@@ -16208,7 +16250,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
                 modalidad:v('pdlF_modalidad'), titulares:v('pdlF_titulares').split('\n').map(s=>s.trim()).filter(Boolean),
                 indicadores:v('pdlF_indicadores'), terminosFin:v('pdlF_terminosFin'),
                 camPct:Math.min(100,Math.max(0,Number(v('pdlF_camPct'))||0)),
-                distribuciones:prevFicha.distribuciones||[], fuentes };
+                distribuciones:prevFicha.distribuciones||[], estudio:{recPropios:Math.max(0,Number(v('pdlE_recPropios'))||0), prestamo:Math.max(0,Number(v('pdlE_prestamo'))||0), fideicomiso:Math.max(0,Number(v('pdlE_fideicomiso'))||0), presupuesto:Math.max(0,Number(v('pdlE_presupuesto'))||0), cooperacion:Math.max(0,Number(v('pdlE_cooperacion'))||0), total:Math.max(0,Number(v('pdlE_total'))||0)}, fuentes };
             const data=getCobrosGestor(); if(!data.pdlFichas) data.pdlFichas={};
             data.pdlFichas[n]=ficha; saveCobrosGestor(data); pdlDraft=null;
             renderGestor();
@@ -19104,7 +19146,7 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.19-108';
+        var MANUAL_VERSION = 'v2026.11.20-109';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
