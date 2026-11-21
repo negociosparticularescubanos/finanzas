@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-128",
-  "publicada": "2026-11-21 07:37",
-  "notas": "Ronda -128: cobertura y propuesta de automatizacion (48-49), huecos de talonario (53), aviso de cuadre banco-contabilidad (54) y arrastrar y soltar el estado (57).",
+  "version": "v2026.11.21-129",
+  "publicada": "2026-11-21 07:46",
+  "notas": "Ronda -129: facturas recurrentes mensuales (punto 63).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "bebf728a7e07fbd5bbff2f7d26354d86aeda4bfeb1bb0680a84a071aeb45e886",
-      "bytes": 2200998
+      "sha256": "8847d8672e9b1ae0c2696208f7992a085897762584b84cfa18d6d81a07814664",
+      "bytes": 2204709
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "MIQh8rLmajiAcVZEWXrc6GwkCxe4SxavvAmA1Bu55PwU9tL6517XC+4kGKeqwNHM/IAldzpXwBVqvLfuPBIbDg=="
+  "firma": "pqj0f5farGl2Y+iL4jVn7lf428BgeVVYpslJZZ1VivTQwxUIIV5ibAkRCTN3h9j1+pxzsSuHMr0fbroGYrfHAA=="
 }
