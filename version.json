@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-121",
-  "publicada": "2026-11-21 06:59",
-  "notas": "Ronda -121: operaciones automaticas y agregacion del periodo (punto 25).",
+  "version": "v2026.11.21-122",
+  "publicada": "2026-11-21 07:04",
+  "notas": "Ronda -122: tesoreria por areas (punto 26) — seis areas con saldo y neto del mes que filtran la tabla de movimientos.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "ae60aa54ae2c7d469b41e2b691d5ae9b050f1ddb485fdb801d60491450f40cea",
-      "bytes": 2180906
+      "sha256": "d056580c4e83fa71c1a6b53c2a8afd4897ccd19425e9c557ee0d9ba201e0c5e2",
+      "bytes": 2185651
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "Ju39Fk2/sb03abHpgEqRwIq/vgIxlkUJ6XNcaytcjiwPr8lDiXEYuM6IPJKtgvFhb1BS/bEgbtivHagORzLeAQ=="
+  "firma": "j6EG4te309Jf1guL58YE28StKss4APbJDdrmuCAOWT+X2bgdeNrL++wd1LzwULeSZXtdom6QFLqoEuDhfI8zDw=="
 }
