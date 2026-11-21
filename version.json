@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-132",
-  "publicada": "2026-11-21 07:57",
-  "notas": "Ronda -132: multi-almacen con traspasos y saldo por almacen (punto 67).",
+  "version": "v2026.11.21-133",
+  "publicada": "2026-11-21 08:01",
+  "notas": "Ronda -133: formula del producto enlazada a la orden de produccion (punto 69).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "3a14e435af98f7aebe0aeebb2947a8ebb03194795a34bde73f1fe617e720425c",
-      "bytes": 2216906
+      "sha256": "c1df04e7f990f3ff371779836c27e5a20ace3e4c0bfdd097f422367d87a57c3d",
+      "bytes": 2221251
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "F9tR1qFatmdABBeNY+x4vr4BDREfIgmZ2UvHf2rZjnst9TatznHjXX2uj7A0zkkuQy2l8ka/IDii47s7jKYaDw=="
+  "firma": "XHVXHoo5FfMcYCJ/9l+D7UAMnyKMSuRApS5Z1o8IrHFjkH2gMdznfaKwrGhbiFaArmcwNKnjR7iqCDeAWb8/Cw=="
 }
