@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-120",
-  "publicada": "2026-11-21 06:23",
-  "notas": "Ronda -120: analisis de cuentas por dimensiones (punto 22) — el mayor agrupado por auxiliar (clientes, proveedores, custodios, trabajadores) o por centro de costo, acotable a una cuenta.",
+  "version": "v2026.11.21-121",
+  "publicada": "2026-11-21 06:59",
+  "notas": "Ronda -121: operaciones automaticas y agregacion del periodo (punto 25).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "07ba0f71affcccb738bdfd52ee35796442ad8585b8c9ceddf26709dc0eadaef6",
-      "bytes": 2177131
+      "sha256": "ae60aa54ae2c7d469b41e2b691d5ae9b050f1ddb485fdb801d60491450f40cea",
+      "bytes": 2180906
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "QhgsvhVbPd2+pgdZ3UcHzQsso1J9CCNxoyeLqrdE9RcnHkQkGQ79PNsV4Pt+C7rNmWf8xZyPDJIc2BGD4nr3Cg=="
+  "firma": "Ju39Fk2/sb03abHpgEqRwIq/vgIxlkUJ6XNcaytcjiwPr8lDiXEYuM6IPJKtgvFhb1BS/bEgbtivHagORzLeAQ=="
 }
