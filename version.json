@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-118",
-  "publicada": "2026-11-21 06:11",
-  "notas": "Ronda -118: detalle del trabajador de nómina en pestañas (punto 18) — Cálculo, Ajustes y adelantos y Datos desde el botón Detalle de cada fila.",
+  "version": "v2026.11.21-119",
+  "publicada": "2026-11-21 06:17",
+  "notas": "Ronda -119: vista de documentos bloqueados por seccion (punto 19) — meses bloqueados y cuantos documentos caen en Movimientos, Contabilidad y Facturas.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "c3e6bb38c7395671030dcfe4ff0cc23c739b5e618283a31a9fcf94488c786471",
-      "bytes": 2169904
+      "sha256": "0d7bba13680d94bd22e9760a324ffb283322d2d49384c7985947739e78dd1f3b",
+      "bytes": 2172656
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "pzUzvF5yl4uOWJfOagNNC5sos5YmEVkNTyRQUFTqELxZTIsFby3Cr6ykzZRPc752bP6VgmVnrVETB7d6TO+5BQ=="
+  "firma": "sMMoRFWk5/YR22XUgW4XACslMn2Aj1YgR5rcGfJUJazfb0i54BoYaoZ2Tp+Kbi7WWgu7WpX9pUXdkM6fbS0jCA=="
 }

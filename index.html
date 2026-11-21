@@ -2417,6 +2417,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                             <div id="bloqueoMesesList">
                                 <!-- Se llena con JS -->
                             </div>
+                            <div id="bloqueadosDocsBox" class="mt-3"></div>
                             <hr>
                             <div class="mt-2">
                                 <span class="badge bg-success">✅ Libre</span>
@@ -9215,6 +9216,28 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             }
             html += '</div>';
             document.getElementById('bloqueoMesesList').innerHTML = html;
+            const box = document.getElementById('bloqueadosDocsBox');
+            if (box) {
+                const mesesBloq = Object.keys(bloqueos).filter(k => bloqueos[k] === true);
+                if (!mesesBloq.length) { box.innerHTML = '<p class="small text-muted mb-0">🔓 No hay meses bloqueados: ningún documento está bloqueado por mes.</p>'; }
+                else {
+                    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                    const mesDe = f => { const mm = String(f || '').match(/^(\d{4})-(\d{2})-/); return mm ? MESES[Number(mm[2]) - 1] + ' ' + mm[1] : ''; };
+                    let nMov = 0; (typeof getHistorial === 'function' ? getHistorial() : []).forEach(h => { if (bloqueos[h.mes]) nMov += (h.movimientos || []).length; });
+                    const md = (typeof getMesActual === 'function') ? getMesActual() : null;
+                    if (md && bloqueos[md.mesSeleccionado]) nMov += (typeof movimientos !== 'undefined' && Array.isArray(movimientos)) ? movimientos.length : 0;
+                    let nAsi = 0, listaAsi = '';
+                    try { const c = getConta(); (c.asientos || []).forEach(a => { if (a.estado !== 'anulado' && bloqueos[mesDe(a.fecha)]) { nAsi++; if (nAsi <= 10) listaAsi += '<li>Nº ' + esc(a.numero || '') + ' · ' + esc(a.fecha || '') + ' · ' + esc(a.concepto || '') + '</li>'; } }); } catch (e) {}
+                    let nFac = 0;
+                    try { const g = mjGestionDe(getConta()); (g.facturas || []).forEach(f => { if (f.estado !== 'anulada' && bloqueos[mesDe(f.fecha)]) nFac++; }); } catch (e) {}
+                    box.innerHTML = '<h6 class="fw-semibold mb-2">🔒 Documentos bloqueados por sección</h6>'
+                        + '<p class="small mb-1">Meses bloqueados: <b>' + mesesBloq.map(esc).join(', ') + '</b></p>'
+                        + '<ul class="small mb-1"><li><b>Movimientos</b> (historial y mes en curso): ' + nMov + '</li>'
+                        + '<li><b>Contabilidad</b> (comprobantes asentados en esos meses): ' + nAsi + (listaAsi ? '<ul>' + listaAsi + '</ul>' : '') + '</li>'
+                        + '<li><b>Facturas</b> emitidas en esos meses: ' + nFac + '</li></ul>'
+                        + '<p class="small text-muted mb-0">Un mes bloqueado no admite guardar cambios en sus documentos; el administrador lo desbloquea en esta misma rejilla.</p>';
+                }
+            }
         }
 
         // ===== TOGGLE BLOQUEO MES =====
@@ -19892,7 +19915,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.21-118';
+        var MANUAL_VERSION = 'v2026.11.21-119';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20354,7 +20377,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
         {id:'historial-cierre', modulo:'respaldo', titulo:'Historial y bloqueo de meses', html:
             '<p>El menú <b>Historial</b> es el cierre: desde ahí cierras el mes (pasando antes por el <b>Cierre con candados</b> de Contabilidad) y consultas los meses cerrados.</p>' +
             '<ul><li>Un mes cerrado no se edita: para corregirlo se desbloquea desde Configuración (bloqueo de meses, en el servidor) y cualquier cambio vuelve a disparar el encadenado de saldos.</li>' +
-            '<li>El <b>cierre anual</b> y el Balance de Apertura viven en Contabilidad (ver su sección).</li></ul>'},
+            '<li>El <b>cierre anual</b> y el Balance de Apertura viven en Contabilidad (ver su sección).</li></ul> Bajo la rejilla de meses, la vista <b>«Documentos bloqueados por sección»</b> lista los meses bloqueados y cuántos documentos caen en ellos en Movimientos, Contabilidad y Facturas.'},
         {id:'suscripciones', modulo:'respaldo', titulo:'Suscripciones de los negocios y bloqueo por falta de pago', html:
             '<p>En <b>Configuración</b> (solo la cuenta administradora) la tarjeta <b>Suscripciones</b> controla el pago de cada negocio: una lista plegable con todos los negocios y la insignia de su mes en curso (<b>Pagado</b>, <b>Sin pagar</b> o <b>Desactivado</b>).</p>' +
             '<ul><li>Al desplegar un negocio se elige el <b>año</b> y se marcan con botones los meses <b>pagados</b>; el guardado es inmediato, mes a mes.</li>' +
