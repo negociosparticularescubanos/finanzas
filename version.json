@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-131",
-  "publicada": "2026-11-21 07:52",
-  "notas": "Ronda -131: lotes y fechas de vencimiento con aviso de caducidad (punto 66).",
+  "version": "v2026.11.21-132",
+  "publicada": "2026-11-21 07:57",
+  "notas": "Ronda -132: multi-almacen con traspasos y saldo por almacen (punto 67).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "7b88e206ee07e6f41f97fee8d5b22ac88b1e1ae686d37aac5f9876eba8386d90",
-      "bytes": 2212136
+      "sha256": "3a14e435af98f7aebe0aeebb2947a8ebb03194795a34bde73f1fe617e720425c",
+      "bytes": 2216906
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "bxPycRk+f9TzXQhFXGj5U7SbDmUBgtahvG1ezdwijBV5a0wsiiiR6Y6DDkksNooZb5nIQxQzNy+gGkH3IGdPBw=="
+  "firma": "F9tR1qFatmdABBeNY+x4vr4BDREfIgmZ2UvHf2rZjnst9TatznHjXX2uj7A0zkkuQy2l8ka/IDii47s7jKYaDw=="
 }
