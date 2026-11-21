@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-130",
-  "publicada": "2026-11-21 07:49",
-  "notas": "Ronda -130: propuesta de compra y alerta de stock minimo (puntos 64-65).",
+  "version": "v2026.11.21-131",
+  "publicada": "2026-11-21 07:52",
+  "notas": "Ronda -131: lotes y fechas de vencimiento con aviso de caducidad (punto 66).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "fb9134213770dd218fcddae75cda56b1753bfc45ee9a5ae157cca3e07e3f5f5b",
-      "bytes": 2209379
+      "sha256": "7b88e206ee07e6f41f97fee8d5b22ac88b1e1ae686d37aac5f9876eba8386d90",
+      "bytes": 2212136
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "68TMQwO5kbDqxhTSqisse0ppDl3gB/b7m9aYoQMNEmdFd56egeOASJFtyfLFUxqzSQVW5u1x4tYp9sUZxFPrDw=="
+  "firma": "bxPycRk+f9TzXQhFXGj5U7SbDmUBgtahvG1ezdwijBV5a0wsiiiR6Y6DDkksNooZb5nIQxQzNy+gGkH3IGdPBw=="
 }
