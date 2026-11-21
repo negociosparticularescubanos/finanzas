@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-137",
-  "publicada": "2026-11-21 08:20",
-  "notas": "Ronda -137: CRM sencillo por etapas en El dia a dia (punto 73).",
+  "version": "v2026.11.21-138",
+  "publicada": "2026-11-21 08:28",
+  "notas": "Ronda -138: informe programado del mes e buscador de documentos de contratos (puntos 74 y 75).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "e5f4af17a29688f0ec6e75c8d201810b5f6e76a7d2442a39dbed5a269460f29a",
-      "bytes": 2229988
+      "sha256": "95b7816697a025a10dae115e195fa95e28506e254eba690877c74de0f955f4a3",
+      "bytes": 2236172
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "GYNcM1zk2jnVGznEdzJAPPU/iKcuKydfUAY65fcH/tjH1OOFQGoDJmVUyRW/daxy0K4COX3i8sMopmcAbFuCBQ=="
+  "firma": "JFeamrNHijIX9GErgn9cXhPWH4+ia8C6I7TFHfk8ztwzclt3ks09RN/XUWVbZSgBevyJXTbjrpGPIaDqT83QBA=="
 }
