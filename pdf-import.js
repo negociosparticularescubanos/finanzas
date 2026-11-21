@@ -1836,3 +1836,30 @@ window.__pdfImportTest = {
 };
 
 })();
+
+/* ---------------- Arrastrar y soltar el estado de cuenta (punto 57) ---------------- */
+(function () {
+    var ov = null, cuentaDrag = 0;
+    function aseguraOverlay() {
+        if (ov) return ov;
+        ov = document.createElement('div');
+        ov.id = 'pdfDropOverlay';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(21,66,139,.88);color:#fff;font-size:1.35rem;font-weight:600;text-align:center;padding:2rem';
+        ov.textContent = '📄 Suelta el estado de cuenta (PDF, CSV o Excel) para importarlo a la Chequera';
+        document.body.appendChild(ov);
+        return ov;
+    }
+    document.addEventListener('dragenter', function (e) {
+        if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) { cuentaDrag++; aseguraOverlay().style.display = 'flex'; }
+    });
+    document.addEventListener('dragleave', function () { cuentaDrag--; if (cuentaDrag <= 0) { cuentaDrag = 0; if (ov) ov.style.display = 'none'; } });
+    document.addEventListener('dragover', function (e) { e.preventDefault(); });
+    document.addEventListener('drop', function (e) {
+        e.preventDefault(); cuentaDrag = 0; if (ov) ov.style.display = 'none';
+        var files = Array.prototype.slice.call((e.dataTransfer && e.dataTransfer.files) || []).filter(function (f) { return /\.(pdf|csv|xlsx)$/i.test(f.name); });
+        if (!files.length) return;
+        try { if (!API().puedeEditar()) { alert('No tienes permiso de edición.'); return; } } catch (err) { alert(err.message); return; }
+        cuentaPreseleccionada = 'chequera';
+        procesarArchivos({ target: { files: files, value: '' } });
+    });
+})();
