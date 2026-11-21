@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-124",
-  "publicada": "2026-11-21 07:14",
-  "notas": "Ronda -124: nomina agrupada por areas con subtotales (punto 32).",
+  "version": "v2026.11.21-125",
+  "publicada": "2026-11-21 07:18",
+  "notas": "Ronda -125: aviso de lento movimiento en Inventario (punto 34) y listas de precios formales en el POS (punto 38).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "f7cb17f9e4d796abb12147bc9a19551c5b0889b0ac5f15d9ea1450610e6ebe40",
-      "bytes": 2188050
+      "sha256": "9812a5d53b3226e03276f534ef6d5665baaa7e147506e6ac29c63cca3806f7d8",
+      "bytes": 2191357
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "fAMQreJtPvOigzp0oWdi2URZ93pSgC2c6PWsI/Cu/t9U5VcnmRjqWh6vntCy/DFDpMS9snOzIgomVjtlps9GBQ=="
+  "firma": "XbwERww+B/QcIBofdfq6bwrlvkqazS6Pqx+tfzfehkXUNgUXtuLsYurMtk9/awQqyU/vubhkNze6wAa3jZnEDg=="
 }
