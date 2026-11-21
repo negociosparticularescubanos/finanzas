@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-138",
-  "publicada": "2026-11-21 08:28",
-  "notas": "Ronda -138: informe programado del mes e buscador de documentos de contratos (puntos 74 y 75).",
+  "version": "v2026.11.21-139",
+  "publicada": "2026-11-21 08:36",
+  "notas": "Ronda -139: patrones con porcentaje e importar asientos desde CSV (puntos 76 y 77).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "95b7816697a025a10dae115e195fa95e28506e254eba690877c74de0f955f4a3",
-      "bytes": 2236172
+      "sha256": "c2140916ba06cde6294300c5fbb35f055453955449fe0d5285a4de85c920f16e",
+      "bytes": 2243589
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "JFeamrNHijIX9GErgn9cXhPWH4+ia8C6I7TFHfk8ztwzclt3ks09RN/XUWVbZSgBevyJXTbjrpGPIaDqT83QBA=="
+  "firma": "lAwwFJHEKDrbzU6MyJQUNGb6y7rWB2uQcWi7SyH2Vm8cMTwEC4DzpPVonm2Ef/viTW1ZFOLjqc0CRONt/ANhBg=="
 }
