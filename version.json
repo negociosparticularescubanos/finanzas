@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-129",
-  "publicada": "2026-11-21 07:46",
-  "notas": "Ronda -129: facturas recurrentes mensuales (punto 63).",
+  "version": "v2026.11.21-130",
+  "publicada": "2026-11-21 07:49",
+  "notas": "Ronda -130: propuesta de compra y alerta de stock minimo (puntos 64-65).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "8847d8672e9b1ae0c2696208f7992a085897762584b84cfa18d6d81a07814664",
-      "bytes": 2204709
+      "sha256": "fb9134213770dd218fcddae75cda56b1753bfc45ee9a5ae157cca3e07e3f5f5b",
+      "bytes": 2209379
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "pqj0f5farGl2Y+iL4jVn7lf428BgeVVYpslJZZ1VivTQwxUIIV5ibAkRCTN3h9j1+pxzsSuHMr0fbroGYrfHAA=="
+  "firma": "68TMQwO5kbDqxhTSqisse0ppDl3gB/b7m9aYoQMNEmdFd56egeOASJFtyfLFUxqzSQVW5u1x4tYp9sUZxFPrDw=="
 }
