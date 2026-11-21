@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-134",
-  "publicada": "2026-11-21 08:05",
-  "notas": "Ronda -134: depreciacion fiscal separada de la contable en AFT (punto 70).",
+  "version": "v2026.11.21-135",
+  "publicada": "2026-11-21 08:13",
+  "notas": "Ronda -135: avisos de RRHH y contratos en Que toca hoy (punto 71).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "43c38c2b4150206bd5dab3e4a5c0d9756b90544ca0ee76ca69dea860e93b7042",
-      "bytes": 2224124
+      "sha256": "fc7fab97574af14ccb6b2023cf5adc8646ef51c21b395d263a704d4fe1d254ba",
+      "bytes": 2225033
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "cR0AmMW6z0/YJE5zgOWJxrjtUI1Tx4n3ieNJ8/lWqrEoW1nZ8MP/w4XOJ/xVASQVTWonHkrm4H2G6mRXqhW3DA=="
+  "firma": "EeBeGJE9mWNjEb1LK1Z8YQZ5LQtlRVdp5BUAF3XIAiGvD662EMRz6sGs9fv3pVM6K+TworjRWklvha9355rwCg=="
 }
