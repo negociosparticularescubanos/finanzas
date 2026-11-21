@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.20-112",
-  "publicada": "2026-11-20 19:56",
-  "notas": "Ronda -112 (2026-11-20): la versión en línea pasa a Supabase (proyecto apps-leonardo); la copia sin conexión no cambia. Arranque de cero: el primer administrador se crea con fin_setup en el panel de Supabase.",
+  "version": "v2026.11.20-113",
+  "publicada": "2026-11-21 02:35",
+  "notas": "Ronda -113: Disponibilidad de efectivo y Reportes a medida en Contabilidad; Ofertas (OF) convertibles en Facturas e Inconsistencia de consecutivos en Facturas",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b7c3f4e968a60ef8ef92d698a467273126ae34fe2bdc8bc87364e282168aee4f",
-      "bytes": 2089366
+      "sha256": "fad60eaceb0bac94f75ba3723152d4f0a2728aac5051e51a77d1811833b1dd9c",
+      "bytes": 2096677
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "dSFUIxKUL0IWywSbQ2MxP+idXLp3jLrclkK7c01ZFMkjcFeAm+PNePnksew3NH71mEI4sPwB7rRap9l48jQfCg=="
+  "firma": "AGoLuWWWSTfAbUOX3DtJEYie2ZbI0S1TGZES01+rFfU0wJ4nMohJLDUmtuZNGkUZxzdXu7vl9D9vjc5sW8E7Ag=="
 }
