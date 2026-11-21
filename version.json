@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-117",
-  "publicada": "2026-11-21 06:03",
-  "notas": "Ronda -117: bandas de totales estilo VERSAT (punto 17) — totales de lo mostrado en la tabla general de movimientos y totales sin anuladas (facturado/cobrado/pendiente) al pie del listado de facturas.",
+  "version": "v2026.11.21-118",
+  "publicada": "2026-11-21 06:11",
+  "notas": "Ronda -118: detalle del trabajador de nómina en pestañas (punto 18) — Cálculo, Ajustes y adelantos y Datos desde el botón Detalle de cada fila.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b3e2969942d365cb174e3a0befa7dbde53824c729c30f25c73916fd3c68a6ab4",
-      "bytes": 2164959
+      "sha256": "c3e6bb38c7395671030dcfe4ff0cc23c739b5e618283a31a9fcf94488c786471",
+      "bytes": 2169904
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "aGyuDr6c+UmWAGn/tT/X5XD9G9skjNODdZmavJe1exFi0wp2WylVww4ZA/tKk33hd2l3qroJJH3pB0dGXA20DA=="
+  "firma": "pzUzvF5yl4uOWJfOagNNC5sos5YmEVkNTyRQUFTqELxZTIsFby3Cr6ykzZRPc752bP6VgmVnrVETB7d6TO+5BQ=="
 }
