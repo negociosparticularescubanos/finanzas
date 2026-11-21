@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-135",
-  "publicada": "2026-11-21 08:13",
-  "notas": "Ronda -135: avisos de RRHH y contratos en Que toca hoy (punto 71).",
+  "version": "v2026.11.21-136",
+  "publicada": "2026-11-21 08:17",
+  "notas": "Ronda -136: presupuesto contra real para todo el negocio en el Resumen (punto 72).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "fc7fab97574af14ccb6b2023cf5adc8646ef51c21b395d263a704d4fe1d254ba",
-      "bytes": 2225033
+      "sha256": "376fe82f295e83a9ae78070d85cb27a44b6afd63167fddbbe1f3bf400946a6ba",
+      "bytes": 2227148
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "EeBeGJE9mWNjEb1LK1Z8YQZ5LQtlRVdp5BUAF3XIAiGvD662EMRz6sGs9fv3pVM6K+TworjRWklvha9355rwCg=="
+  "firma": "WsTsZqgBsG3EII+YypnHNwtS+wrYyCzMh7+MaWG0JOHLs4d5FQzJBRfL1qm0yReGvwVjmfBybIzr2qHIZF62BQ=="
 }

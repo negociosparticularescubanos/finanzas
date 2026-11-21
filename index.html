@@ -1116,7 +1116,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             <div id="alertaSalarioNomina" class="mt-3"></div>
             <div id="avisosInicioBox" class="mt-3"></div>
             <div class="row g-3 mb-4" id="resumenCuentas"></div>
-            <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2"><i class="bi bi-bank me-2"></i>Tesorería por áreas <span class="small text-secondary">(toca un área y la tabla de abajo se filtra por ella)</span></h6><div id="tesAreasBox" class="row g-2"></div><div id="tesFiltroAviso" class="mt-2"></div><div id="cuadreBancoBox" class="mt-2" style="display:none"></div></div>
+            <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2"><i class="bi bi-bank me-2"></i>Tesorería por áreas <span class="small text-secondary">(toca un área y la tabla de abajo se filtra por ella)</span></h6><div id="tesAreasBox" class="row g-2"></div><div id="tesFiltroAviso" class="mt-2"></div><div id="cuadreBancoBox" class="mt-2" style="display:none"></div><div id="presNegBox"></div></div>
             <div id="docResumenBox" class="d-none"></div>
             <div id="docOnatBox" class="d-none"></div>
             <div class="card p-3 p-md-4">
@@ -9395,7 +9395,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                 trT.innerHTML = '<td colspan="4">Totales de lo mostrado (en CUP)</td><td class="text-end"><span class="text-success">+ ' + moneda(ing) + '</span><br><span class="text-danger">\u2212 ' + moneda(gas) + '</span><br>Neto: ' + moneda(ing - gas) + '</td><td></td>';
                 tbody.appendChild(trT);
             }
-            try{ tesRender(); }catch(e){} try{ cuadreBancoRender(); }catch(e){}
+            try{ tesRender(); }catch(e){} try{ cuadreBancoRender(); }catch(e){} try{ presNegRender(); }catch(e){}
         }
 
         // ===== RENDER: TABLA POR CUENTA =====
@@ -20103,7 +20103,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.21-135';
+        var MANUAL_VERSION = 'v2026.11.21-136';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20528,7 +20528,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
             '<ul><li><b>Presupuesto vs. real:</b> compara lo planificado con lo ejecutado por cuenta o partida.</li>' +
             '<li><b>Flujo de efectivo proyectado:</b> anticipa entradas y salidas con los vencimientos conocidos.</li>' +
             '<li><b>Indicadores:</b> las razones financieras del negocio calculadas desde los estados.</li>' +
-            '<li><b>Crédito bancario:</b> alta de créditos con tabla francesa (ver el módulo «Créditos e intereses»).</li></ul> Con <b>«Plan por período»</b> eliges un mes y comparas el plan de ESE mes contra el real del mes: si una línea no tiene plan mensual propio, se toma su anual ÷ 12 (marcado con *); el botón «Plan mensual» de cada línea fija el importe de un mes concreto.'},
+            '<li><b>Crédito bancario:</b> alta de créditos con tabla francesa (ver el módulo «Créditos e intereses»).</li></ul> Con <b>«Plan por período»</b> eliges un mes y comparas el plan de ESE mes contra el real del mes: si una línea no tiene plan mensual propio, se toma su anual ÷ 12 (marcado con *); el botón «Plan mensual» de cada línea fija el importe de un mes concreto. El Resumen trae además la tarjeta <b>«Presupuesto del negocio»</b>: ingresos y gastos del año, plan a la fecha contra real, con su desviación.'},
         {id:'cumplimiento', modulo:'gestion', titulo:'Cumplimiento: bancarización, Registro y reservas', html:
             '<ul><li><b>Registro Control de operaciones:</b> la app vigila el umbral de 500 000 CUP del registro.</li>' +
             '<li><b>Bancarización:</b> las operaciones en efectivo por encima de 5 000 CUP quedan bloqueadas con su aviso, según la norma de bancarización.</li>' +
@@ -20858,7 +20858,17 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
                 else box.innerHTML = '<div class="alert alert-success py-2 mb-0">✔ Banco y Contabilidad cuadran en CUP: ' + moneda(saldoApp) + '.</div>';
             } catch (err) { box.style.display = 'none'; }
         }
-        function tesFiltroDe() { return { cuenta: (document.getElementById('movFiltroCuenta')||{}).value || '', tipo: (document.getElementById('movFiltroTipo')||{}).value || '' }; }
+        function presNegRender(){ const box=document.getElementById('presNegBox'); if(!box) return; const c=getConta(); const g=mjGestionDe(c); const pres=g.presupuestos||[];
+            if(!pres.length){ box.innerHTML=''; return; }
+            const anio=String(hoy()).slice(0,4); const vs=mjPresupuestoVsReal(c, pres, anio);
+            const mesesT=Math.max(1, Math.min(12, Number(String(hoy()).slice(5,7))||1));
+            let pI=0, rI=0, pG=0, rG=0;
+            for(const f of vs.filas){ const planMes=(f.mensual!=null&&Number(f.mensual)>0)?Number(f.mensual):(Number(f.plan)||0)/12; const planYTD=mjR2(planMes*mesesT); const esIng=/^[89]/.test(String(f.cuenta));
+                if(esIng){ pI+=planYTD; rI+=Number(f.real)||0; } else { pG+=planYTD; rG+=Number(f.real)||0; } }
+            const barra=(plan, real, esGasto)=>{ const pct=plan>0?Math.min(100, Math.round(real/plan*100)):0; const desv=plan>0?mjR2((real-plan)/plan*100):0; const malo=esGasto?(real>plan):(real<plan);
+                return '<div class="progress" style="height:14px"><div class="progress-bar '+(malo?'bg-danger':'bg-success')+'" style="width:'+pct+'%"></div></div><div class="small">Real <b>'+moneda(real)+'</b> de '+moneda(plan)+' planificado ('+pct+' %) · desviación '+(desv>0?'+':'')+desv+' %</div>'; };
+            box.innerHTML='<div class="card p-3 mb-4"><h6 class="fw-semibold mb-2">📊 Presupuesto del negocio · '+anio+' (plan a la fecha contra real del año)</h6><div class="row g-3"><div class="col-md-6"><div class="small fw-semibold mb-1">Ingresos</div>'+barra(pI, rI, false)+'</div><div class="col-md-6"><div class="small fw-semibold mb-1">Gastos</div>'+barra(pG, rG, true)+'</div></div><p class="small text-secondary mb-0 mt-2">El plan sale de tus presupuestos por cuenta (Gestión): cuentas 8xx/9xx = ingresos, el resto = gastos; el plan a la fecha prorratea el anual entre los meses transcurridos.</p></div>'; }
+function tesFiltroDe() { return { cuenta: (document.getElementById('movFiltroCuenta')||{}).value || '', tipo: (document.getElementById('movFiltroTipo')||{}).value || '' }; }
         function tesAplicarFiltro(movs) { const f = tesFiltroDe(); return (movs || []).filter(m => (!f.cuenta || m.cuenta === f.cuenta) && (!f.tipo || (f.tipo === 'gasto' ? (m.tipo === 'gasto' || m.tipo === 'onat') : f.tipo === 'transferencia' ? (m.clasificacion || '') === 'transferencia' : m.tipo === f.tipo))); }
         function tesFiltroUI() { renderTablaGeneral(); }
         function tesAreaClick(cuenta, tipo) { const sc = document.getElementById('movFiltroCuenta'); if (sc) sc.value = cuenta || ''; const st = document.getElementById('movFiltroTipo'); if (st) st.value = tipo || ''; renderTablaGeneral(); const t = document.getElementById('movimientosTable'); if (t && t.scrollIntoView) try{ t.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){} }
