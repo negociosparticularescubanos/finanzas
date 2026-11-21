@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.20-114",
-  "publicada": "2026-11-21 03:06",
-  "notas": "Ronda -114: Recordatorios de cobro automáticos en Facturas (3 días antes, el día del vencimiento y cada semana de atraso, con aviso listo por WhatsApp o correo) y corrección del botón Convertir en factura de las Ofertas",
+  "version": "v2026.11.21-115",
+  "publicada": "2026-11-21 05:18",
+  "notas": "Ronda -115: plan oficial Res. 494/2016 cargable (híbrido) con equivalencias por concepto y vuelta al plan de la casa",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "7afafecafe59b2f258c549d6a495794c5eb3ae1eb9650458976f4a50e102d144",
-      "bytes": 2101531
+      "sha256": "9db963c4546c5b8d7fb4b202fbbc65ed80b224533fa0f6d864f4e498e26fbdbc",
+      "bytes": 2158097
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "xFbwovSJSvdE/xnUSIQjtwGMHssNTvjV/nTfjI/v3MswreR85uNP9AktxdPO80Sx6S+8cmkYz0ZV1EXW2z4+AQ=="
+  "firma": "5dmNha8BlQ3x/Pfo3Md4qGmtDfSCF4aylBeoLvXUFJwVZdM/pJ7XPdwUl65j5QV+Hx4E6nr4pJFQux6T0tOlDQ=="
 }

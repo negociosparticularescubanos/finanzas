@@ -1741,6 +1741,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2"><i class="bi bi-file-earmark-diff me-2"></i>Notas de crédito y débito (CxC / CxP)</h6><p class="small text-secondary">Ajustan el saldo del documento elegido y el de su cuenta control con asiento automático, y se reflejan en la antigüedad del submayor. Una nota de crédito nunca deja el documento en negativo.</p><div class="row g-2 align-items-end"><div class="col-md-4"><label class="form-label mb-1 small">Documento del submayor</label><select id="contaNotaDoc" class="form-select form-select-sm"></select></div><div class="col-md-2"><label class="form-label mb-1 small">Tipo de nota</label><select id="contaNotaTipo" class="form-select form-select-sm"><option value="credito">Nota de crédito</option><option value="debito">Nota de débito</option></select></div><div class="col-md-2"><label class="form-label mb-1 small">Importe</label><input id="contaNotaImporte" type="number" step="0.01" min="0" class="form-control form-control-sm"></div><div class="col-md-2"><label class="form-label mb-1 small">Fecha</label><input id="contaNotaFecha" type="date" class="form-control form-control-sm"></div><div class="col-md-2"><label class="form-label mb-1 small">Motivo</label><input id="contaNotaMotivo" class="form-control form-control-sm" placeholder="Devolución, rebaja…"></div><div class="col-md-2"><button type="button" class="btn btn-sm btn-primary" onclick="contaEmitirNotaBtn()">Emitir nota</button></div></div><div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Nº</th><th>Tipo</th><th>Documento</th><th>Motivo</th><th>Fecha</th><th class="text-end">Importe</th></tr></thead><tbody id="contaNotasBox"></tbody></table></div></div>
             <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2"><i class="bi bi-cash-stack me-2"></i>Arqueo de caja y cuentas de efectivo</h6><p class="small text-secondary">El saldo según libros sale solo del mayor contable; el único dato manual es el conteo físico. Si hay diferencia se genera el asiento de ajuste (faltante a gasto/pérdida, sobrante a otros ingresos) y queda el documento con sus firmas.</p><div class="row g-2 align-items-end"><div class="col-md-3"><label class="form-label mb-1 small">Cuenta a arquear</label><select id="contaArqCuenta" class="form-select form-select-sm"></select></div><div class="col-md-2"><label class="form-label mb-1 small">Fecha</label><input id="contaArqFecha" type="date" class="form-control form-control-sm"></div><div class="col-md-2"><label class="form-label mb-1 small">Conteo físico</label><input id="contaArqConteo" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00"></div><div class="col-md-2"><label class="form-label mb-1 small">Contó</label><input id="contaArqConto" class="form-control form-control-sm" placeholder="Nombre"></div><div class="col-md-2"><label class="form-label mb-1 small">Revisó</label><input id="contaArqReviso" class="form-control form-control-sm" placeholder="Nombre"></div><div class="col-md-1"><button type="button" class="btn btn-sm btn-primary" onclick="contaArqueoBtn()">Arquear</button></div></div><div class="d-flex justify-content-end mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" onclick="printPane('contaArqueoDocBox','Documento de arqueo')"><i class="bi bi-printer me-1"></i>PDF del documento</button></div><div id="contaArqueoDocBox" class="border rounded p-3 mt-2"></div><div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Cuenta</th><th class="text-end">Según libros</th><th class="text-end">Conteo</th><th class="text-end">Diferencia</th><th>Contó</th><th>Revisó</th></tr></thead><tbody id="contaArqueosBox"></tbody></table></div></div>
             <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2">Inventario integrado (costo promedio ponderado)</h6><div class="table-responsive"><table class="table table-sm align-middle mb-3"><thead><tr><th>Código</th><th>Producto</th><th class="text-end">Existencia</th><th class="text-end">Costo promedio</th><th class="text-end">Valoración</th></tr></thead><tbody id="contaInvBody"></tbody></table></div>
+            <div class="mb-3"><button type="button" class="btn btn-sm btn-outline-secondary" onclick="contaPlanOficialUI()">Usar el plan oficial (Nomenclador Res. 494/2016)</button> <button class="btn btn-sm" onclick="contaPlanDuenoUI()">Volver al plan de la casa</button> <span class="small text-secondary">Sustituye el plan por el oficial y recodifica las cuentas automáticas (solo en negocios sin asientos).</span></div>
             <div class="row g-2 align-items-end"><div class="col-md-2"><label class="form-label mb-1 small">Código</label><input id="contaProdCodigo" class="form-control form-control-sm"></div><div class="col-md-3"><label class="form-label mb-1 small">Nuevo producto</label><input id="contaProdNombre" class="form-control form-control-sm"></div><div class="col-md-1"><label class="form-label mb-1 small">Unidad</label><input id="contaProdUnidad" class="form-control form-control-sm" value="u"></div><div class="col-md-2"><button type="button" class="btn btn-sm btn-outline-primary" onclick="contaAddProducto()">Crear producto</button></div></div>
             <div class="row g-2 align-items-end mt-2"><div class="col-md-3"><label class="form-label mb-1 small">Producto</label><select id="contaInvProd" class="form-select form-select-sm"></select></div><div class="col-md-1"><label class="form-label mb-1 small">Cantidad</label><input id="contaInvCant" type="number" step="0.01" class="form-control form-control-sm"></div><div class="col-md-2"><label class="form-label mb-1 small">Costo unitario (entradas)</label><input id="contaInvCosto" type="number" step="0.01" class="form-control form-control-sm"></div><div class="col-md-2"><label class="form-label mb-1 small">Contrapartida entrada</label><select id="contaInvContra" class="form-select form-select-sm"><option value="chequera">Chequera</option><option value="tarjeta_cup">Tarjeta CUP</option><option value="tarjeta_usd">Tarjeta USD</option><option value="cxp">A crédito (CxP)</option></select></div><div class="col-md-2"><label class="form-label mb-1 small">Proveedor (si es a crédito)</label><select id="contaInvCp" class="form-select form-select-sm"></select></div><div class="col-md-1"><button type="button" class="btn btn-sm btn-success" onclick="contaInvEntrada()">Entrada</button></div><div class="col-md-1"><button type="button" class="btn btn-sm btn-warning" onclick="contaInvSalida()">Salida</button></div></div></div>
             <div class="card p-3 p-md-4 mb-3"><h6 class="fw-semibold mb-2">Asientos (comprobantes)</h6><div class="table-responsive"><table class="table table-sm align-middle mb-3"><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto</th><th>Origen</th><th class="text-end">Debe</th><th class="text-end">Haber</th><th></th></tr></thead><tbody id="contaAsientosBody"></tbody></table></div>
@@ -9814,13 +9815,13 @@ function ctaPlanSemilla(){return [
  {codigo:'138-000',nombre:'Anticipos a Suministradores / Proveedores',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'proveedor',requiereAuxiliar:true},
  {codigo:'139-000',nombre:'Adelantos y Préstamos a Trabajadores',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'trabajador',requiereAuxiliar:true},
  {codigo:'180',nombre:'Inventarios',naturaleza:'deudora',nivel:2,admite:false,grupo:'activo'},
- {codigo:'181-000',nombre:'Materias Primas y Materiales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
- {codigo:'182-000',nombre:'Combustibles y Lubricantes',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
- {codigo:'183-000',nombre:'Repuestos, Partes y Accesorios',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
- {codigo:'184-000',nombre:'Útiles, Herramientas y Ropa de Trabajo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
- {codigo:'186-000',nombre:'Producción en Proceso',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'centro',requiereAuxiliar:false},
- {codigo:'187-000',nombre:'Producción Terminada / Productos Terminados',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
- {codigo:'188-000',nombre:'Mercancías para la Venta (Comercializadoras)',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'181-000',auto:'materias_primas',nombre:'Materias Primas y Materiales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'182-000',auto:'combustible',nombre:'Combustibles y Lubricantes',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'183-000',auto:'repuestos',nombre:'Repuestos, Partes y Accesorios',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'184-000',auto:'utiles',nombre:'Útiles, Herramientas y Ropa de Trabajo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'186-000',auto:'prod_proceso',nombre:'Producción en Proceso',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'centro',requiereAuxiliar:false},
+ {codigo:'187-000',auto:'prod_terminada',nombre:'Producción Terminada / Productos Terminados',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
+ {codigo:'188-000',auto:'mercancias',nombre:'Mercancías para la Venta (Comercializadoras)',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo',auxiliar:'almacen',requiereAuxiliar:false},
  {codigo:'200',nombre:'ACTIVO NO CORRIENTE',naturaleza:'deudora',nivel:1,admite:false,grupo:'activo'},
  {codigo:'240',nombre:'Activos Fijos Tangibles (AFT)',naturaleza:'deudora',nivel:2,admite:false,grupo:'activo'},
  {codigo:'241-000',nombre:'Edificios y Construcciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
@@ -9871,17 +9872,17 @@ function ctaPlanSemilla(){return [
  {codigo:'614-000',nombre:'Gastos de Salarios y Remuneraciones (Nómina Bruta)',naturaleza:'deudora',nivel:3,admite:true,grupo:'gasto',auxiliar:'centro',requiereAuxiliar:false},
  {codigo:'615-000',nombre:'Gastos de Seguridad Social (Patronal)',naturaleza:'deudora',nivel:3,admite:true,grupo:'gasto',auxiliar:'centro',requiereAuxiliar:false},
  {codigo:'616-000',nombre:'Gastos de Servicios Comprados a Terceros',naturaleza:'deudora',nivel:3,admite:true,grupo:'gasto',auxiliar:'centro',requiereAuxiliar:false},
- {codigo:'695-000',nombre:'Costo de Ventas',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'695-000',auto:'costo_ventas',nombre:'Costo de Ventas',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
  {codigo:'700',nombre:'GASTOS DE PERÍODO (Comerciales, Administración y Financieros)',naturaleza:'deudora',nivel:1,admite:false,grupo:'gasto'},
  {codigo:'701-000',nombre:'Gastos de Distribución y Ventas',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto',auxiliar:'centro',requiereAuxiliar:false},
  {codigo:'705-000',nombre:'Gastos de Administración y Gestión',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto',auxiliar:'centro',requiereAuxiliar:false},
- {codigo:'710-000',nombre:'Gastos Financieros (Comisiones Bancarias, Intereses, Pérdidas Cambiarias)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'710-000',auto:'gastos_financieros',nombre:'Gastos Financieros (Comisiones Bancarias, Intereses, Pérdidas Cambiarias)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
  {codigo:'720-000',nombre:'Gastos No Operativos / Pérdidas Extraordinarias',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
  {codigo:'800',nombre:'INGRESOS',naturaleza:'acreedora',nivel:1,admite:false,grupo:'ingreso'},
- {codigo:'801-000',nombre:'Ingresos por Venta de Mercancías y Productos',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso',auxiliar:'cliente',requiereAuxiliar:false},
- {codigo:'802-000',nombre:'Ingresos por Prestación de Servicios y Gastronomía',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso',auxiliar:'cliente',requiereAuxiliar:false},
- {codigo:'805-000',nombre:'Ingresos Financieros (Intereses ganados, Utilidades cambiarias)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
- {codigo:'810-000',nombre:'Otros Ingresos Diversos / Ganancias Extraordinarias',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'801-000',auto:'ventas',nombre:'Ingresos por Venta de Mercancías y Productos',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso',auxiliar:'cliente',requiereAuxiliar:false},
+ {codigo:'802-000',auto:'ventas_servicios',nombre:'Ingresos por Prestación de Servicios y Gastronomía',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso',auxiliar:'cliente',requiereAuxiliar:false},
+ {codigo:'805-000',auto:'ingresos_financieros',nombre:'Ingresos Financieros (Intereses ganados, Utilidades cambiarias)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'810-000',auto:'otros_ingresos',nombre:'Otros Ingresos Diversos / Ganancias Extraordinarias',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
  {codigo:'900',nombre:'CUENTAS DE CIERRE Y REGULACIÓN',naturaleza:'mixta',nivel:1,admite:false,grupo:'cierre'},
  {codigo:'901-000',nombre:'Cuenta de Cierre: Pérdidas y Ganancias (Resumen de Rentas)',naturaleza:'mixta',nivel:2,admite:true,grupo:'cierre'},
  {codigo:'905-000',nombre:'Liquidación del Resultado del Ejercicio Económico',naturaleza:'mixta',nivel:2,admite:true,grupo:'cierre'}
@@ -10372,10 +10373,10 @@ function ctaAsientoDesdeMov(conta,mov,periodo,tasaFallback){
        const intFila=ctaR2(fila.interes);
        const devPend=ctaCuenta(conta,CTA_CREDITO_INT_X_PAGAR)?ctaInteresDevengadoPendiente(conta,cr.id):0;
        const desdeDev=Math.min(intFila,devPend), restoInt=ctaR2(intFila-desdeDev);
-       if(restoInt>0&&falta(CTA_CREDITO_GASTO_INT))return pend('Falta la cuenta de gasto de intereses ('+CTA_CREDITO_GASTO_INT+') en el plan');
+       if(restoInt>0&&falta(ctaCuentaAuto(conta,'gastos_financieros')))return pend('Falta la cuenta de gasto de intereses en el plan');
        const lineasCuota=[{cuenta:ctaCred,debe:ctaR2(fila.principal),haber:0,analisis:anCred,centro}];
        if(desdeDev>0)lineasCuota.push({cuenta:CTA_CREDITO_INT_X_PAGAR,debe:desdeDev,haber:0,analisis:anCred,centro});
-       if(restoInt>0)lineasCuota.push({cuenta:CTA_CREDITO_GASTO_INT,debe:restoInt,haber:0,analisis:anCred,centro});
+       if(restoInt>0)lineasCuota.push({cuenta:ctaCuentaAuto(conta,'gastos_financieros'),debe:restoInt,haber:0,analisis:anCred,centro});
        lineasCuota.push(l);
        return {clave,asientos:[{fecha:mov.fecha,concepto:'Pago de cuota del crédito '+nomCred+' · '+mov.concepto,origen:'auto',fuenteKey:clave,lineas:lineasCuota}]};}
      return {clave,asientos:[{fecha:mov.fecha,concepto:'Pago de crédito '+nomCred+' · '+mov.concepto,origen:'auto',fuenteKey:clave,lineas:[{cuenta:ctaCred,debe:cup,haber:0,analisis:anCred,centro},l]}]};}
@@ -10387,7 +10388,7 @@ function ctaAsientoDesdeMov(conta,mov,periodo,tasaFallback){
       sin ella, la venta por correo electrónico va SIEMPRE a la
       801-000 (regla de Leonardo, ver ctaEsVentaCorreo); si la 801-000
       no existiera en el plan, se cae a la plantilla de ventas. */
-   const ctaAuto801=(!mov.cuentaContable&&ctaEsVentaCorreo(mov)&&!falta(CTA_VENTA_CORREO))?CTA_VENTA_CORREO:null;
+   const _ctaVentaAuto=ctaCuentaAuto(conta,'ventas');const ctaAuto801=(!mov.cuentaContable&&ctaEsVentaCorreo(mov)&&_ctaVentaAuto&&!falta(_ctaVentaAuto))?_ctaVentaAuto:null;
    const ctaIng=mov.cuentaContable||ctaAuto801||P.ventas;if(falta(ctaIng))return pend('Falta la cuenta de ingresos en el plan/plantillas');
    const l=linUSD(banco);l.debe=cup;l.haber=0;return {clave,asientos:[{fecha:mov.fecha,concepto:mov.concepto,origen:'auto',fuenteKey:clave,lineas:[l,{cuenta:ctaIng,debe:0,haber:cup,centro}]}]};}
  if(mov.tipo==='gasto'){
@@ -11167,6 +11168,446 @@ function ctaReporteMedida(conta,def){def=def||{};const f={};if(def.desde)f.desde
  const filas=[...grupos.values()].sort((x,y)=>String(x.clave).localeCompare(String(y.clave)));for(const g of filas)g.saldo=ctaR2(g.debe-g.haber);
  return {filas:filas,totDebe:tD,totHaber:tH,totSaldo:ctaR2(tD-tH),n:lineas.length};}
 
+/* ===== INTEGRACIÓN HÍBRIDA DEL CLASIFICADOR (punto 14) =====
+   Decisión de Leonardo (2026-11-21): su plan manda; el Nomenclador
+   oficial Res. 494/2016 queda como plan cargable. Las cuentas de
+   los asientos automáticos se resuelven por CONCEPTO contra el
+   plan activo: cada cuenta del plan puede llevar `auto` con el
+   concepto que cubre (la semilla del dueño ya los trae; el plan
+   oficial se etiqueta con CTA_AUTO_OFICIAL al cargarlo). Las
+   plantillas solo se recodifican cuando traen el valor por
+   defecto del dueño — lo editado a mano se respeta siempre. */
+const CTA_AUTO_CONCEPTOS={ventas:'801-000',ventas_servicios:'802-000',ingresos_financieros:'805-000',otros_ingresos:'810-000',gastos_financieros:'710-000',costo_ventas:'695-000',prod_proceso:'186-000',prod_terminada:'187-000',mercancias:'188-000',materias_primas:'181-000',combustible:'182-000',repuestos:'183-000',utiles:'184-000'};
+const CTA_AUTO_OFICIAL={'900-000':'ventas,ventas_servicios','920-000':'ingresos_financieros','950-000':'otros_ingresos','835-000':'gastos_financieros','810-000':'costo_ventas','700-000':'prod_proceso','188-000':'prod_terminada','189-000':'mercancias','183-000':'materias_primas','184-000':'combustible','185-000':'repuestos','187-000':'utiles'};
+function ctaEtiquetarAuto(plan,mapa){ if(!Array.isArray(plan))return plan; for(const c of plan){ if(c&&!c.auto&&mapa&&mapa[c.codigo]) c.auto=mapa[c.codigo]; } return plan; }
+function ctaCuentaAuto(conta,concepto){ const plan=(conta&&conta.plan)||[]; for(const c of plan){ if(c&&c.auto&&String(c.auto).split(',').map(x=>x.trim()).includes(concepto)) return c.codigo; } const def=CTA_AUTO_CONCEPTOS[concepto]; if(def&&plan.some(c=>c&&c.codigo===def)) return def; return ''; }
+const CTA_PLANTILLA_CONCEPTO={ventas:'ventas',otrosIngresos:'otros_ingresos',inventarios:'mercancias',costoVentas:'costo_ventas',difPos:'ingresos_financieros',difNeg:'gastos_financieros',redondeoGasto:'gastos_financieros',redondeoIngreso:'otros_ingresos',arqueoSobrante:'otros_ingresos'};
+function ctaPlanOficial(){return ctaEtiquetarAuto([
+ {codigo:'101-000',nombre:'Efectivo en Caja (rango 101 a 108)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'109-000',nombre:'Efectivo en Banco y en Otras Instituciones (rango 109 a 119)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'120-000',nombre:'Inversiones a Corto Plazo o Temporales (rango 120 a 129)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'130-000',nombre:'Efectos por Cobrar a Corto Plazo (rango 130 a 133)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'130-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'130-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'130-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'130-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'130-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'130-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'134-000',nombre:'Cuenta en Participación',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'135-000',nombre:'Cuentas por Cobrar a Corto Plazo (rango 135 a 139)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'135-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'135-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'135-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'135-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'135-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'135-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'140-000',nombre:'Pagos por Cuenta de Terceros Deudora Pendientes Deudora Plazo',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'143-000',nombre:'Suscriptores de Bonos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'144-000',nombre:'Bonos Emitidos en Cartera',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'146-000',nombre:'Pagos Anticipados a Suministradores (rango 146 a 149)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'146-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'146-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'146-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'146-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'146-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'146-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-000',nombre:'Pagos Anticipados del Proceso Inversionista (rango 150 a 152)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'150-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'150-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'153-000',nombre:'Materiales Anticipados del Proceso Inversionista de Seguro) Deudora',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'161-000',nombre:'Anticipos a Justificar (rango 161 a 163)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'164-000',nombre:'Adeudos del Presupuesto del Estado (rango 164 a 166)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'164-001',nombre:'Impuesto sobre Ventas',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-002',nombre:'Impuesto sobre los Servicios Públicos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-003',nombre:'Aranceles de Aduana',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-004',nombre:'Impuesto sobre Utilidades',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-005',nombre:'Impuesto sobre Ingresos Personales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-006',nombre:'Impuesto sobre los Recursos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-007',nombre:'Otros Impuestos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-008',nombre:'Contribuciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-009',nombre:'Tasas',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-010',nombre:'Ingresos No tributarios',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-011',nombre:'Rentas de la Propiedad',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-012',nombre:'Transferencias Corrientes',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-013',nombre:'Ingresos de Operaciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-014',nombre:'Recursos Propios de Capital',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-015',nombre:'Transferencias de Capital',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-016',nombre:'Otros Recursos Financieros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-020',nombre:'Invalidez Parcial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-030',nombre:'Licencias de Maternidad',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-040',nombre:'Reintegro Aporte de Microbrigada',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'164-090',nombre:'Otros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'167-000',nombre:'Adeudos del Órgano u Organismo (rango 167 a 170)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'173-000',nombre:'Ingresos Acumulados por Cobrar (rango 173 a 180)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'181-000',nombre:'Dividendos y Participaciones por Cobrar',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'182-000',nombre:'Ingresos Acumulados por Cobrar – Reaseguros Aceptados',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'183-000',auto:'materias_primas',nombre:'Materias Primas y Materiales',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'184-000',auto:'combustible',nombre:'Combustibles y Lubricantes',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'185-000',auto:'repuestos',nombre:'Partes y Piezas de Repuesto',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'186-000',nombre:'Envases y Embalajes',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'187-000',auto:'utiles',nombre:'Útiles, Herramientas y Otros',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'188-000',auto:'prod_terminada',nombre:'Producción Terminada',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'188-020',nombre:'Producción y Ventas',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'188-040',nombre:'Otros Aumentos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'188-050',nombre:'Otras Disminuciones',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'188-099',nombre:'Contrapartida (Opcional)',naturaleza:'mixta',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'189-000',auto:'mercancias',nombre:'Mercancías para la Venta',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'190-000',nombre:'Medicamentos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'191-000',nombre:'Base Material de Estudio',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'192-000',nombre:'Vestuario y Lencería',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'193-000',nombre:'Alimentos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'194-000',nombre:'Inventarios de Mercancías de Importación',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'195-000',nombre:'Inventarios de Mercancías de Exportación',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'196-000',nombre:'Producción para Insumo o Autoconsumo',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'196-020',nombre:'Producción',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'196-030',nombre:'Traspaso a Producciones en Proceso',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'196-040',nombre:'Otros Aumentos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'196-050',nombre:'Otras Disminuciones',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'196-099',nombre:'Contrapartida (Opcional)',naturaleza:'mixta',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'205-000',nombre:'Otros Inventarios (rango 205 a 207)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'208-000',nombre:'Inventarios Ociosos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'209-000',nombre:'Inventarios de Lento Movimiento',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'211-000',nombre:'Créditos Documentarios',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'215-000',nombre:'Efectos por Cobrar a Largo Plazo (rango 215 a 217)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'215-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'215-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'215-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'215-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'215-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'215-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-000',nombre:'Cuentas por Cobrar a Largo Plazo (rango 218 a 220)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'218-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'218-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'221-000',nombre:'Préstamos Concedidos a Cobrar a Largo Plazo (rango 221 a 224)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'221-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'221-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'221-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'221-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'225-000',nombre:'Inversiones a Largo Plazo o Permanentes (rango 225 a 234)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'240-000',nombre:'Activos Fijos Tangibles (rango 240 a 251)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'252-000',nombre:'Fondos Bibliotecarios',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'253-000',nombre:'Medios y Equipos para Alquilar',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'254-000',nombre:'Monumentos y Obras de Arte',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'255-000',nombre:'Activos Fijos Intangibles (rango 255 a 263)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'264-000',nombre:'Activos Fijos Intangibles en Proceso',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'264-001',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'264-010',nombre:'Operaciones del Año Acreedora Diferidos ` 0999 Traspaso a Activos Fijos Intangibles Acreedora',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-000',nombre:'Inversiones en Proceso (rango 265 a 278)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'265-001',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-010',nombre:'Construcción y Montaje',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-020',nombre:'Equipos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-030',nombre:'Otros Gastos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-050',nombre:'Fomentos Agrícolas',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-060',nombre:'Fomentos y Desarrollo Mineros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-070',nombre:'Fomentos y Desarrollo Forestales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-100',nombre:'Otros no Especificados',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-200',nombre:'Fondo de Fomento Desarrollo Ganadero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'265-999',nombre:'Traspaso a Activos Fijos Tangibles',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'279-000',nombre:'Plan de Preparación de Inversiones',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'279-001',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'279-010',nombre:'Construcción y Montaje',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'279-020',nombre:'Equipos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'279-030',nombre:'Otros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'279-998',nombre:'Traspaso a Gastos del Proceso Inversionista Deudora Inversionista',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'290-000',nombre:'Adquisición de Activos Fijos Tangibles Nuevos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'290-100',nombre:'Compras del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'290-300',nombre:'Adquisición del Período por Donaciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'290-999',nombre:'Traspaso a Activos Fijos Tangibles',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'291-000',nombre:'Compra de Activos Fijos Tangibles de Uso',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'291-100',nombre:'Compras del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'291-300',nombre:'Adquisición del Período por Donaciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'291-999',nombre:'Traspaso a Activos Fijos Tangibles',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'292-000',nombre:'Compra de Activos Fijos Intangibles',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'292-100',nombre:'Compras del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'292-300',nombre:'Adquisición del Período por Donaciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'292-999',nombre:'Traspaso a Activos Fijos Intangibles',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'300-000',nombre:'Gastos de Producción y Servicios Diferidos (rango 300 a 305)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'300-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'300-020',nombre:'Gastos por Elementos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'300-030',nombre:'Amortización de Gastos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'306-000',nombre:'Gastos Financieros Diferidos (rango 306 a 307)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'306-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'306-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'306-030',nombre:'Amortización de Gastos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'310-000',nombre:'Gastos del Proceso Inversionista Diferidos (rango 310 a 311)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'310-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'310-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'310-030',nombre:'Amortización de Gastos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'312-000',nombre:'Gastos por Faltantes y Pérdidas Diferidos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'312-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'312-020',nombre:'Gastos del Período Acreedora por Faltantes y Pérdidas',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'330-000',nombre:'Pérdidas en Investigación (rango 330 a 331)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'330-010',nombre:'Pérdidas por Deterioro',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'330-020',nombre:'Pérdidas Cosecha',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'330-030',nombre:'Pérdidas Cuentas por Cobrar',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'330-040',nombre:'Pérdidas por Siniestros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'330-050',nombre:'Otros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'332-000',nombre:'Faltantes de Bienes en Investigación (rango 332 a 333)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'332-010',nombre:'Medios Monetarios',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'332-020',nombre:'Medios Materiales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'332-030',nombre:'Activos Fijos',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'332-040',nombre:'Equipos por Instalar y Materiales de Construcción',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'332-050',nombre:'Otros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-000',nombre:'Cuentas por Cobrar Diversas - Operaciones Corrientes (rango 334 a 341)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'334-010',nombre:'Ventas a Entidades',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-020',nombre:'Deudas a Trabajadores',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-030',nombre:'Reclamaciones',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-040',nombre:'Responsabilidad Material',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'334-099',nombre:'Otros',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'342-000',nombre:'Cuentas por Cobrar - Compra de Monedas',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'343-000',nombre:'Cuentas por Cobrar del Proceso Inversionista (rango 343 a 345)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'343-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'343-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'343-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'343-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'343-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'343-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-000',nombre:'Efectos por Cobrar en Litigio',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'346-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'346-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-000',nombre:'Cuentas por Cobrar en Litigio',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'347-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'347-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-000',nombre:'Efectos por Cobrar Protestados',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'348-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'348-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-000',nombre:'Cuentas por Cobrar en Proceso Judicial',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'349-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-030',nombre:'En el Extranjero',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-050',nombre:'Sector Cooperativo',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'349-060',nombre:'Personas Naturales',naturaleza:'deudora',nivel:3,admite:true,grupo:'activo'},
+ {codigo:'354-000',nombre:'Depósitos y Fianzas (rango 354 a 355)',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'363-000',nombre:'Bonos Redimidos',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'364-000',nombre:'Fondo de Amortización de Bonos – Efectivo y Valores',naturaleza:'deudora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'365-000',nombre:'Efectos por Cobrar Descontados',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'366-000',nombre:'Desgaste de Base Material de Estudio',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'367-000',nombre:'Desgaste de Vestuario y Lencería',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'369-000',nombre:'Provisión para Cuentas Incobrables',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'370-000',nombre:'Descuento Comercial e Impuesto (rango 370 a 372)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'373-000',nombre:'Desgaste de Útiles y Herramientas',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'374-000',nombre:'Otras Provisiones Reguladoras de Activos',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'375-000',nombre:'Depreciación de Activos Fijos Tangibles (rango 375 a 388)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'389-000',nombre:'Desgaste de Medios y Equipos para Alquilar',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'390-000',nombre:'Amortización de Activos Fijos Intangibles (rango 390 a 399)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'activo'},
+ {codigo:'400-000',nombre:'Sobregiro Bancario',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'401-000',nombre:'Efectos por Pagar a Corto Plazo (rango 401 a 404)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'401-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'401-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'401-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'401-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'401-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'401-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-000',nombre:'Cuentas por Pagar a Corto Plazo (rango 405 a 415)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'405-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'405-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'416-000',nombre:'Cobros por Cuenta de Terceros',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'417-000',nombre:'Dividendos y Participaciones por Pagar',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'418-000',nombre:'Cuentas en Participación (rango 418 a 420)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'421-000',nombre:'Cuentas por Pagar - Activos Fijos Tangibles (rango 421 a 424)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'421-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'421-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'421-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'421-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'421-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'421-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-000',nombre:'Cuentas por Pagar del Proceso Inversionista (rango 425 a 429)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'425-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'425-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'430-000',nombre:'Cobros Anticipados (rango 430 a 433)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'434-000',nombre:'Materiales Recibidos de Forma Anticipada',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'435-000',nombre:'Depósitos Recibidos (rango 435 a 439)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'440-000',nombre:'Obligaciones con el Presupuesto del Estado (rango 440 a 449)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'440-001',nombre:'Impuesto sobre Ventas',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-002',nombre:'Impuesto sobre los Servicios Públicos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-003',nombre:'Aranceles de Aduana',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-004',nombre:'Impuesto sobre Utilidades',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-005',nombre:'Impuesto sobre Ingresos Personales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-006',nombre:'Impuesto sobre los Recursos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-007',nombre:'Otros Impuestos',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-008',nombre:'Contribuciones',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-009',nombre:'Tasas',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-010',nombre:'Ingresos No tributarios',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-011',nombre:'Rentas de la Propiedad',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-012',nombre:'Transferencias Corrientes',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-013',nombre:'Ingresos de Operaciones',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-014',nombre:'Recursos Propios de Capital',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-015',nombre:'Transferencias de Capital',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'440-016',nombre:'Otros Recursos Financieros',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'450-000',nombre:'Obligaciones con el Órgano u Organismo (rango 450 a 453)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'455-000',nombre:'Nóminas por Pagar (rango 455 a 459)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'460-000',nombre:'Retenciones por Pagar Acreedora Pagar (rango 460 a 469)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'480-000',nombre:'Gastos Acumulados por Pagar (rango 480 a 489)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'492-000',nombre:'Provisión para Vacaciones',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'493-000',nombre:'Otras Provisiones Operacionales Acreedora a Corto Plazo Acreedora exclusivo de la OSDE) (rango 493 a 499)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'510-000',nombre:'Efectos por Pagar a Largo Plazo (rango 510 a 514)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'510-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'510-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'510-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'510-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'510-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'510-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-000',nombre:'Cuentas por Pagar a Largo Plazo (rango 515 a 518)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'515-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'515-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'520-000',nombre:'Préstamos Recibidos por Pagar a Largo Plazo (rango 520 a 524)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'525-000',nombre:'Obligaciones a Largo Plazo (rango 525 a 532)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'525-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'525-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'525-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'525-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'525-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'525-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'533-000',nombre:'Otras Provisiones a Largo Plazo (rango 533 a 539)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'540-000',nombre:'Bonos por Pagar',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'541-000',nombre:'Bonos Suscritos',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'545-000',nombre:'Ingresos Diferidos (rango 545 a 548)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'549-000',nombre:'Ingresos Diferidos por Donaciones Recibidas',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'555-000',nombre:'Sobrantes en Investigación (rango 555 a 564)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'565-000',nombre:'Cuentas por Pagar Diversas (rango 565 a 568)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'565-010',nombre:'Dentro del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-020',nombre:'Fuera del Órgano u Organismo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-030',nombre:'En el Extranjero',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-040',nombre:'Dentro del Grupo Empresarial',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-050',nombre:'Sector Cooperativo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-060',nombre:'Personas Naturales',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-070',nombre:'A trabajadores',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'565-999',nombre:'Otros',naturaleza:'acreedora',nivel:3,admite:true,grupo:'pasivo'},
+ {codigo:'569-000',nombre:'Cuentas por Pagar - Compra de Monedas',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'570-000',nombre:'Ingresos de Períodos Futuros Acreedora Activada (rango 570 a 574)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'pasivo'},
+ {codigo:'600-000',nombre:'Patrimonio y Fondo Común',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'601-000',nombre:'Capital Social Autorizado (rango 601 a 603)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'604-000',nombre:'Acciones por Emitir (rango 604 a 606)',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'607-000',nombre:'Acciones Suscritas (rango 607 a 609)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'610-000',nombre:'Subscriptores de Acciones',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'611-000',nombre:'Acciones en Tesorería (rango 611 a 612)',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'613-000',nombre:'Revalorización de Activos Fijos Tangibles (rango 613 a 615)',naturaleza:'mixta',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'616-000',nombre:'Otras Operaciones de Capital (rango 616 a 619)',naturaleza:'mixta',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'620-000',nombre:'Donaciones Recibidas-Nacionales',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'621-000',nombre:'Donaciones Recibidas-Exterior',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'626-000',nombre:'Donaciones Entregadas-Nacionales',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'627-000',nombre:'Donaciones Entregadas - Exterior',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'630-000',nombre:'Utilidades Retenidas (rango 630 a 634)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'635-000',nombre:'Subvención por Pérdida (rango 635 a 639)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'640-000',nombre:'Pérdida (rango 640 a 644)',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'645-000',nombre:'Reservas para Contingencias',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'646-000',nombre:'Otras Reservas Patrimoniales (rango 646 a 654)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'688-000',nombre:'Fondo de Contravalor para Proyectos de Inversión',naturaleza:'acreedora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'690-000',nombre:'Pago a Cuentas de las Utilidades Sociedades Mercantiles',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'691-000',nombre:'Pago a Cuenta de los Dividendos',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'693-000',nombre:'Pago a Cuenta de Utilidades Sector Cooperativo',naturaleza:'deudora',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'693-010',nombre:'Anticipo a Cooperativistas',naturaleza:'deudora',nivel:3,admite:true,grupo:'patrimonio'},
+ {codigo:'693-020',nombre:'Pago de Tributos',naturaleza:'deudora',nivel:3,admite:true,grupo:'patrimonio'},
+ {codigo:'693-030',nombre:'Otros Cooperativo) Mixta',naturaleza:'deudora',nivel:3,admite:true,grupo:'patrimonio'},
+ {codigo:'697-000',nombre:'Revaluación de Inventarios',naturaleza:'mixta',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'698-000',nombre:'Ganancia o Pérdida no Realizada',naturaleza:'mixta',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'699-000',nombre:'Transitoria del Sistema Automatizado',naturaleza:'mixta',nivel:2,admite:true,grupo:'patrimonio'},
+ {codigo:'700-000',auto:'prod_proceso',nombre:'Producción en Proceso (rango 700 a 724)',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'700-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'700-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'700-030',nombre:'Aumento',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'700-040',nombre:'Disminución',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'700-050',nombre:'Traspaso a Producción Terminada',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'725-000',nombre:'Producción Propia para Insumos',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'725-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'725-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'725-030',nombre:'Aumento',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'725-040',nombre:'Disminución',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'725-050',nombre:'Traspaso a Producción en Proceso Acreedora insumo',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'726-000',nombre:'Reparaciones Capitales con Medios Propios',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'726-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'726-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'726-050',nombre:'Traspaso a Inversiones en Proceso',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'727-000',nombre:'Inversiones con Medios Propios Activos Fijos Intangibles',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'727-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'727-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'727-050',nombre:'Traspaso a Inversiones en Proceso',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'728-000',nombre:'Inversiones con Medios Propios',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'728-010',nombre:'Saldo al Inicio del Año',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'728-020',nombre:'Gastos del Período',naturaleza:'deudora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'728-050',nombre:'Traspaso a Inversiones en Proceso',naturaleza:'acreedora',nivel:3,admite:true,grupo:'costo'},
+ {codigo:'731-000',nombre:'Gastos Asociados a la Producción (rango 731 a 739)',naturaleza:'deudora',nivel:2,admite:true,grupo:'costo'},
+ {codigo:'800-000',nombre:'Devoluciones y Rebajas en Ventas (rango 800 a 804)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'805-000',nombre:'Impuesto por las Ventas (rango 805 a 809)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'810-000',auto:'costo_ventas',nombre:'Costo de Ventas de la Producción (rango 810 a 813)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'814-000',nombre:'Costo de Ventas de Mercancías (rango 814 a 817)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'818-000',nombre:'Costo por Exportación de Servicios',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'819-000',nombre:'Gastos de Distribución y Ventas (rango 819 a 821)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'822-000',nombre:'Gastos Generales y de Administración (rango 822 a 824)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'825-000',nombre:'Gastos de Proyectos',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'826-000',nombre:'Gastos de Operación (rango 826 a 833)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'834-000',nombre:'Gastos de Administración de la OSDE',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'835-000',auto:'gastos_financieros',nombre:'Gastos Financieros (rango 835 a 838)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'839-000',nombre:'Gastos por Pérdidas en Tasas de Cambio',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'840-000',nombre:'Financiamiento Entregado a la OSDE',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'841-000',nombre:'Gastos por Estadía – Importadores',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'843-000',nombre:'Gastos por Estadía – Otras Entidades',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'845-000',nombre:'Gastos por Pérdidas (rango 845 a 848)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'849-000',nombre:'Gastos por Pérdidas - Desastres',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'850-000',nombre:'Gastos por Faltantes de Bienes (rango 850 a 854)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'855-000',nombre:'Otros Impuestos, Tasas y Contribuciones (rango 855 a 864)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'865-000',nombre:'Otros Gastos (rango 865 a 866)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'867-000',nombre:'Gastos de Eventos',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'873-000',nombre:'Gastos de Recuperación de Desastres',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'900-000',auto:'ventas,ventas_servicios',nombre:'Ventas (rango 900 a 913)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'914-000',nombre:'Ventas de Bienes con destino a la Exportación',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'915-000',nombre:'Ventas por Exportación de Servicios',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'916-000',nombre:'Subvenciones (rango 916 a 919)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'920-000',auto:'ingresos_financieros',nombre:'Ingresos Financieros Acreedora de la OSDE) (rango 920 a 922)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'924-000',nombre:'Ingresos por Variación de Tasas de Cambio',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'925-000',nombre:'Ingresos por Dividendos Ganados',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'926-000',nombre:'Ingresos por Estadía (navieras y operadores) Acreedora entidades) (rango 926 a 927)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'930-000',nombre:'Ingresos por Sobrantes (rango 930 a 939)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'950-000',auto:'otros_ingresos',nombre:'Otros Ingresos (rango 950 a 952)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'953-000',nombre:'Ingresos por Donaciones Recibidas',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'801-000',nombre:'Bonificaciones',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'802-000',nombre:'Gastos por Cesión de Primas',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'803-000',nombre:'Gastos por Comisiones de Agentes y Corredores (rango 803 a 804)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'812-000',nombre:'Gastos de Reaseguros Aceptados',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'813-000',nombre:'Otros Gastos de la Actividad del Seguro (rango 813 a 817)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'830-000',nombre:'Gastos Generales y de Administración (rango 830 a 833)',naturaleza:'deudora',nivel:2,admite:true,grupo:'gasto'},
+ {codigo:'906-000',nombre:'Otros Ingresos de la Actividad de Seguro y Reaseguros (rango 906 a 909)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'910-000',nombre:'Recobro a Terceros (rango 910 a 911)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'912-000',nombre:'Liberación de la Provisión de Riesgos en Curso (rango 912 a 913)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'922-000',nombre:'Ingresos Financieros Acreedora de la OSDE)',naturaleza:'acreedora',nivel:2,admite:true,grupo:'ingreso'},
+ {codigo:'999-000',nombre:'Resultado',naturaleza:'mixta',nivel:2,admite:true,grupo:'cierre'}
+], CTA_AUTO_OFICIAL);}
+function ctaResolverPlantillas(conta){ if(!conta||!conta.plantillas)return conta; const def=ctaPlantillasDef(); for(const k of Object.keys(CTA_PLANTILLA_CONCEPTO)){ const cod=ctaCuentaAuto(conta,CTA_PLANTILLA_CONCEPTO[k]); if(cod&&conta.plantillas[k]===def[k]&&cod!==def[k]) conta.plantillas[k]=cod; } return conta; }
 /* ===== FIN CONTA-CORE ===== */
 /* --- Reportes a medida (punto 41 de la lista del escritorio) ---
    Agrupa las líneas de los comprobantes asentados por cuenta,
@@ -11632,14 +12073,14 @@ function mjFlujoVsReal(proyectado,reales){ const filas=(proyectado||[]).map((s,i
   return filas; }
 function mjIndicadores(conta,doc,periodo){ const m=ctaMayor(conta,{});
   const sal=c=>m[c]?m[c].saldoFirmado:0;
-  const ventas=mjR2(Math.abs(sal('801-000'))+Math.abs(sal('802-000')));
-  const costo=Math.abs(sal('695-000'));
+  const ventas=mjR2(Math.abs(sal(ctaCuentaAuto(conta,'ventas')||'801-000'))+Math.abs(sal(ctaCuentaAuto(conta,'ventas_servicios')||'802-000')));
+  const costo=Math.abs(sal(ctaCuentaAuto(conta,'costo_ventas')||'695-000'));
   const sit=(typeof ctaSituacion==='function')?ctaSituacion(conta,{}):{activo:0,pasivo:0};
   const hoyISO=new Date().toISOString().slice(0,10);
   const cxc=ctaSubmayor(conta,'cxc',hoyISO), cxp=ctaSubmayor(conta,'cxp',hoyISO);
   const venc=(sm)=>mjR2(Object.keys(sm.buckets).filter(k=>k!=='Al día').reduce((s,k)=>s+sm.buckets[k],0));
   const trib=mjR2(['341-000','342-000','343-000','333-000','334-000','345-000'].reduce((s,c)=>s+Math.abs(sal(c)),0));
-  const inv=mjR2(['181-000','188-000'].reduce((s,c)=>s+sal(c),0));
+  const inv=mjR2([ctaCuentaAuto(conta,'materias_primas')||'181-000',ctaCuentaAuto(conta,'mercancias')||'188-000'].reduce((s,c)=>s+sal(c),0));
   const res=(typeof ctaResultados==='function')?ctaResultados(conta,{}):{resultado:0};
   return {ventas:ventas,costoVentas:mjR2(costo),margenBrutoPct:ventas>0?mjR2((ventas-costo)/ventas*100):null,
     margenNetoPct:ventas>0?mjR2(res.resultado/ventas*100):null,resultado:mjR2(res.resultado),
@@ -11784,7 +12225,7 @@ function mjOrdenProduccion(conta,orden){ orden=orden||{}; const g=mjAsegurarGest
   const mod=mjR2(orden.manoObra), otros=mjR2(orden.otrosCostos);
   const costoTotal=mjR2(costoInsumos+mod+otros), unidades=Math.max(1,Number(orden.unidades)||1);
   const P=conta.plantillas||{};
-  const lineas=[{cuenta:'186-000',debe:costoTotal,haber:0}];
+  const lineas=[{cuenta:ctaCuentaAuto(conta,'prod_proceso')||'186-000',debe:costoTotal,haber:0}];
   if(costoInsumos>0) lineas.push({cuenta:P.inventarios||'188-000',debe:0,haber:costoInsumos});
   if(mod>0) lineas.push({cuenta:P.nominasPorPagar||'331-000',debe:0,haber:mod});
   if(otros>0) lineas.push({cuenta:P.cxp||'311-000',debe:0,haber:otros,analisis:orden.otrosAnalisis||orden.proveedorId||('orden:'+orden.id)});
@@ -11798,7 +12239,7 @@ function mjOrdenTerminar(conta,id,fecha,usuario){ const g=mjAsegurarGestion(cont
   if(o.estado==='terminada') return {ok:true,ya:true,orden:o};
   const clave='orden-fin:'+id;
   if(!(conta.asientos||[]).some(a=>a.fuenteKey===clave)){ const r=ctaAgregarAsiento(conta,{fecha:fecha||o.fecha,concepto:'Producción terminada · orden '+(o.numero||o.id),origen:'manual',fuenteKey:clave,
-    lineas:[{cuenta:'187-000',debe:o.costoTotal,haber:0},{cuenta:'186-000',debe:0,haber:o.costoTotal}]});
+    lineas:[{cuenta:ctaCuentaAuto(conta,'prod_terminada')||'187-000',debe:o.costoTotal,haber:0},{cuenta:ctaCuentaAuto(conta,'prod_proceso')||'186-000',debe:0,haber:o.costoTotal}]});
     if(!r.ok) return {ok:false,motivo:r.motivo}; }
   o.estado='terminada';
   mjBitacoraAdd(conta,usuario||'','orden terminada',o.numero||o.id,'en proceso','terminada · costo unitario '+o.costoUnitario);
@@ -11825,7 +12266,7 @@ function mjCreditoDevengoMes(conta,credito,periodo,fecha,usuario){ const g=mjAse
      devengo era rechazado en cuanto había contrapartes). */
   const ctaIntXP=(typeof CTA_CREDITO_INT_X_PAGAR!=='undefined')?CTA_CREDITO_INT_X_PAGAR:'314-000';
   const r=ctaAgregarAsiento(conta,{fecha:fecha,concepto:'Intereses devengados del crédito '+(credito.numero||credito.id)+' · '+periodo,origen:'manual',fuenteKey:clave,
-    lineas:[{cuenta:'710-000',debe:fila.interes,haber:0},{cuenta:ctaIntXP,debe:0,haber:fila.interes,analisis:'credito:'+credito.id}]});
+    lineas:[{cuenta:ctaCuentaAuto(conta,'gastos_financieros')||'710-000',debe:fila.interes,haber:0},{cuenta:ctaIntXP,debe:0,haber:fila.interes,analisis:'credito:'+credito.id}]});
   if(!r.ok) return {ok:false,motivo:r.motivo};
   mjBitacoraAdd(conta,usuario||'','devengo de intereses','crédito '+(credito.numero||credito.id),'',periodo+' · '+fila.interes);
   return {ok:true,interes:fila.interes,asiento:r.asiento}; }
@@ -11963,20 +12404,20 @@ function mjAplicarActor(){ const A=window.ACTOR_NEGOCIO; if(!A) return;
         /* ===== CONTABILIDAD · CAPA DE APLICACIÓN ===== */
         function getContaKey(){ return `finanzas_conta_${getCurrentUser()}`; }
         function getConta(){ const base=ctaDocVacio(); try{ const x=Store.getItem(getContaKey()); if(!x) return base; const d=JSON.parse(x)||{}; const c=Object.assign(base,d); if(!Array.isArray(c.plan)||!c.plan.length)c.plan=base.plan;
-            const _cods=new Set(c.plan.map(x=>x.codigo)); base.plan.forEach(x=>{ if(!_cods.has(x.codigo)) c.plan.push(x); });
+            if(c.planOrigen!=='oficial'){ const _cods=new Set(c.plan.map(x=>x.codigo)); base.plan.forEach(x=>{ if(!_cods.has(x.codigo)) c.plan.push(x); }); }
             /* Ronda 6: los planes guardados antes no traen auxiliar /
                requiereAuxiliar — se rellenan desde la semilla SOLO si la
                cuenta no los define (lo que el dueño haya editado manda). */
-            const _seed={}; base.plan.forEach(x=>{ _seed[x.codigo]=x; }); c.plan.forEach(x=>{ const s=_seed[x.codigo]; if(s){ if(x.auxiliar===undefined&&s.auxiliar!==undefined) x.auxiliar=s.auxiliar; if(x.requiereAuxiliar===undefined&&s.requiereAuxiliar!==undefined) x.requiereAuxiliar=s.requiereAuxiliar; } });
+            const _seed={}; if(c.planOrigen!=='oficial') base.plan.forEach(x=>{ _seed[x.codigo]=x; }); c.plan.forEach(x=>{ const s=_seed[x.codigo]; if(s){ if(x.auxiliar===undefined&&s.auxiliar!==undefined) x.auxiliar=s.auxiliar; if(x.requiereAuxiliar===undefined&&s.requiereAuxiliar!==undefined) x.requiereAuxiliar=s.requiereAuxiliar; if(x.auto===undefined&&s.auto!==undefined) x.auto=s.auto; } });
             if(!c.seqComp||typeof c.seqComp!=='object'||Array.isArray(c.seqComp)) c.seqComp={};
-            c.plantillas=Object.assign(base.plantillas,d.plantillas||{}); c.plantillas.banco=Object.assign(base.plantillas.banco,(d.plantillas||{}).banco||{});
+            c.plantillas=Object.assign(base.plantillas,d.plantillas||{}); c.plantillas.banco=Object.assign(base.plantillas.banco,(d.plantillas||{}).banco||{}); try{ ctaResolverPlantillas(c); }catch(e){}
             /* Decisión de Leonardo (2026-10-25): los dividendos por pagar
                van a la 417 OFICIAL del PC No. 28 del MFP. Si la
                plantilla guardada aún trae el valor por defecto anterior
                (316-000), se recodifica aquí; un valor distinto, puesto a
                mano por el dueño, se respeta. Los asientos históricos ya
                generados con la 316-000 NO se tocan. */
-            if(c.plantillas.dividendosPorPagar==='316-000') c.plantillas.dividendosPorPagar='417'; ['asientos','contrapartes','documentos','aplicaciones','productos','movInventario','centros','cierres','aperturas','reglas','conceptosTes','bandeja','estadosBanco','cuarentena','importaciones','notas','arqueos','revalorizaciones','reportes'].forEach(k=>{ if(!Array.isArray(c[k]))c[k]=[]; }); if(typeof c.seqCuar!=='number') c.seqCuar=0; if(typeof c.seqImp!=='number') c.seqImp=0; if(!c.candados||typeof c.candados!=='object'||Array.isArray(c.candados)) c.candados={}; try{ const _mr=ctaMigrarClasificador(c); if(_mr&&_mr.migrado) window.__contaMigR8=_mr; }catch(e){} return c; }catch(e){ return base; } }
+            if(c.plantillas.dividendosPorPagar==='316-000') c.plantillas.dividendosPorPagar='417'; ['asientos','contrapartes','documentos','aplicaciones','productos','movInventario','centros','cierres','aperturas','reglas','conceptosTes','bandeja','estadosBanco','cuarentena','importaciones','notas','arqueos','revalorizaciones','reportes'].forEach(k=>{ if(!Array.isArray(c[k]))c[k]=[]; }); if(typeof c.seqCuar!=='number') c.seqCuar=0; if(typeof c.seqImp!=='number') c.seqImp=0; if(!c.candados||typeof c.candados!=='object'||Array.isArray(c.candados)) c.candados={}; if(c.planOrigen!=='oficial'){ try{ const _mr=ctaMigrarClasificador(c); if(_mr&&_mr.migrado) window.__contaMigR8=_mr; }catch(e){} } return c; }catch(e){ return base; } }
         function saveConta(d){ Store.setItem(getContaKey(), JSON.stringify(d)); }
         function contaEventos(clonar){ const ev=[]; const cp=m=>clonar?JSON.parse(JSON.stringify(m)):m;
             for(const h of getHistorial()){ if(Array.isArray(h.movimientos)) for(const m of h.movimientos) ev.push({tipo:'mov',periodo:h.mes,mov:cp(m),fecha:m.fecha,tasa:Number(h.tasa)||tasaVista()}); }
@@ -12433,6 +12874,8 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            ve y se aplica, no se duplica). */
         function contaMesDatos(periodo){ for(const h of getHistorial()){ if(h.mes===periodo) return {saldoInicial:h.saldoInicial||{},saldoInicialTasaUSD:h.saldoInicialTasaUSD,movimientos:h.movimientos||[],tasa:Number(h.tasa)||tasaVista()}; }
             const md=getMesActual()||{}; return {saldoInicial:md.saldoInicial||{},saldoInicialTasaUSD:md.saldoInicialTasaUSD,movimientos:(typeof movimientos!=='undefined'?movimientos:[]),tasa:tasaVista()}; }
+        function contaPlanOficialUI(){ const c=getConta(); if((c.asientos||[]).length){ alert('Este negocio ya tiene asientos con el plan actual. Cambiar de plan con asientos exige migrarlos primero; por seguridad, el plan oficial solo se carga en negocios sin asientos.'); return; } if(!confirm('Se sustituirá el plan de cuentas de este negocio por el Nomenclador oficial (Res. 494/2016 del MFP, 423 cuentas) y las plantillas volverán a sus valores por defecto, recodificados a las cuentas oficiales (ventas 900, gastos financieros 835, producción terminada 188, mercancías 189…). ¿Continuar?')) return; c.plan=ctaPlanOficial(); c.planOrigen='oficial'; c.plantillas=ctaPlantillasDef(); ctaResolverPlantillas(c); saveConta(c); renderAll(); alert('Plan oficial cargado: '+c.plan.length+' cuentas. Las cuentas automáticas ya resuelven a los códigos oficiales.'); }
+        function contaPlanDuenoUI(){ const c=getConta(); if((c.asientos||[]).length){ alert('Este negocio ya tiene asientos con el plan actual. Cambiar de plan con asientos exige migrarlos primero; por seguridad, el plan solo se cambia en negocios sin asientos.'); return; } if(!confirm('Se sustituirá el plan de cuentas de este negocio por el plan de la casa (el del dueño, 87 cuentas) y las plantillas volverán a sus valores por defecto. ¿Continuar?')) return; c.plan=ctaPlanSemilla(); c.planOrigen='dueno'; c.plantillas=ctaPlantillasDef(); ctaResolverPlantillas(c); saveConta(c); renderAll(); alert('Plan de la casa cargado: '+c.plan.length+' cuentas.'); }
         function contaDatosCuadres(periodo){ const c=getConta(); const md=contaMesDatos(periodo); const P=c.plantillas||ctaPlantillasDef(); const porPlan={};
             for(const k in (P.banco||{})){ const cod=P.banco[k]; if(porPlan[cod]==null) porPlan[cod]=0;
                 let ini=Number((md.saldoInicial||{})[k])||0; if(k==='tarjeta_usd') ini=ctaR2(ini*(Number(md.saldoInicialTasaUSD)>0?Number(md.saldoInicialTasaUSD):md.tasa));
@@ -15419,7 +15862,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
         function lbTabNumInput(id){ const e=document.getElementById(id); if(!e) return null; const v=String(e.value==null?'':e.value).trim(); if(v==='') return null; const n=Number(v); return isNaN(n)?null:n; }
         function lbTabSetInput(id,v){ const e=document.getElementById(id); if(e) e.value=(v===null||v===undefined)?'':String(v); }
         function lbTabGuardadoNum(g,k){ return (g&&g[k]!==null&&g[k]!==undefined&&g[k]!==''&&!isNaN(Number(g[k])))?Number(g[k]):null; }
-        function lbTabCostoVentasPeriodo(conta,periodo){ try{ const pp=periodoParts(periodo); if(!pp||typeof ctaResultados!=='function') return 0; const desde=pp.y+'-'+String(pp.mi+1).padStart(2,'0')+'-01'; const r=ctaResultados(conta,{desde:desde,hasta:fechaContablePeriodo(periodo)}); const d=(r.detGastos||[]).find(x=>x.codigo==='695-000'); return d?mjR2(d.importe):0; }catch(e){ return 0; } }
+        function lbTabCostoVentasPeriodo(conta,periodo){ try{ const pp=periodoParts(periodo); if(!pp||typeof ctaResultados!=='function') return 0; const desde=pp.y+'-'+String(pp.mi+1).padStart(2,'0')+'-01'; const r=ctaResultados(conta,{desde:desde,hasta:fechaContablePeriodo(periodo)}); const d=(r.detGastos||[]).find(x=>x.codigo===(ctaCuentaAuto(conta,'costo_ventas')||'695-000')); return d?mjR2(d.importe):0; }catch(e){ return 0; } }
         function lbTabAutoSubmayor(tipo,fechaFin){ try{ const c=getConta(); const sm=ctaSubmayor(c,tipo,fechaFin); if(!sm||!sm.buckets) return null; return mjR2(Object.keys(sm.buckets).reduce((s,k)=>s+(Number(sm.buckets[k])||0),0)); }catch(e){ return null; } }
         function lbTabAutoInventario(doc,periodo){ try{ const ind=mjIndicadores(getConta(),doc,periodo); return (ind&&ind.inventarios!==null&&ind.inventarios!==undefined)?mjR2(ind.inventarios):null; }catch(e){ return null; } }
         function lbTableroGuardar(){ const sel=document.getElementById('lbTabPeriodo'); const per=(sel&&sel.value)||lbTabPeriodoVisto||''; if(!per){ alert('Elige primero el per\u00edodo del tablero.'); return; }
@@ -15837,7 +16280,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
             pdlGuardarMov(r.enHist);
             if(tipo===PDL_FUENTE_FIDEICOMISO){ const com=+(v*0.04).toFixed(2);
                 if(com>0&&confirm('Este desembolso del fideicomiso lleva la comisión bancaria del 4 %: '+moneda(com)+' (Res. 118/2026 del BCC).\n\n¿Crear ahora el movimiento de gasto de la comisión en la misma cuenta y fecha del desembolso?')){
-                    const gm={id:nextId++, tipo:'gasto', clasificacion:'operacional', cuenta:mov.cuenta||'chequera', cuentaContable:'710-000', monto:com, fecha:mov.fecha||hoy(), concepto:'Comisión bancaria del Fondo de Fideicomiso (4 % · Res. 118/2026 BCC)', fideicomisoComisionDe:mov.id};
+                    const gm={id:nextId++, tipo:'gasto', clasificacion:'operacional', cuenta:mov.cuenta||'chequera', cuentaContable:(function(){try{return ctaCuentaAuto(getConta(),'gastos_financieros')||'710-000';}catch(e){return '710-000';}})(), monto:com, fecha:mov.fecha||hoy(), concepto:'Comisión bancaria del Fondo de Fideicomiso (4 % · Res. 118/2026 BCC)', fideicomisoComisionDe:mov.id};
                     if(r.enHist){ r.enHist.movimientos.push(gm); saveHistorial(getHistorial()); } else { movimientos.push(gm); saveMovimientos(movimientos); }
                 }
             }
@@ -19439,7 +19882,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.20-114';
+        var MANUAL_VERSION = 'v2026.11.21-115';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -19627,9 +20070,10 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
             '<ul><li>Un documento <b>confirmado no se edita</b>: se cancela (contraasiento) o se ajusta (nota o comprobante de ajuste). Así los libros nunca pierden la historia.</li>' +
             '<li>El botón <b>Generar</b> de Contabilidad reconstruye los asientos desde los movimientos respetando tus imputaciones manuales y tus anulaciones.</li></ul>'},
         {id:'plan-cuentas', modulo:'contabilidad', titulo:'El plan de cuentas (tu clasificador)', html:
-            '<p>La app trabaja con <b>tu clasificador</b> de cuentas (84 cuentas), visible y editable en la tarjeta <b>Plan de cuentas</b>. De él salen el mayor, los balances y las validaciones: cada cuenta declara su naturaleza, si admite movimientos y qué <b>auxiliar</b> exige (socio, contraparte, crédito…).</p>' +
+            '<p>La app trabaja con <b>tu clasificador</b> de cuentas (87 cuentas), visible y editable en la tarjeta <b>Plan de cuentas</b>. De él salen el mayor, los balances y las validaciones: cada cuenta declara su naturaleza, si admite movimientos y qué <b>auxiliar</b> exige (socio, contraparte, crédito…).</p>' +
             '<ul><li>Bancos: 110-010 (CUP) y 110-020 (USD). Ventas por correo: 801-000. Intereses por pagar de créditos: <b>314-000</b>. Dividendos por pagar: <b>417</b> por socio.</li>' +
-            '<li>El pago ONAT genérico va a la 341-000 <b>sin netear</b> contra otras cuentas.</li></ul>'},
+            '<li>El pago ONAT genérico va a la 341-000 <b>sin netear</b> contra otras cuentas.</li></ul>' +
+            '<p><b>Plan oficial cargable (Nomenclador Res. 494/2016 del MFP):</b> en un negocio <b>sin asientos</b>, el botón <b>«Usar el plan oficial»</b> de la misma tarjeta sustituye tu plan por el nomenclador oficial completo (423 cuentas) y el botón <b>«Volver al plan de la casa»</b> deshace el cambio. No hay que reenseñarle nada a la app: las cuentas de los asientos automáticos se resuelven <b>por concepto</b> según el plan activo (con el oficial, ventas es la 900, el costo de ventas la 810, los gastos financieros la 835, mercancías la 189 y producción terminada la 188) y las plantillas se recodifican solas; lo que hayas ajustado a mano en una plantilla se respeta.</p>'},
         {id:'diario-mayor-balance', modulo:'contabilidad', titulo:'Libro Diario, Libro Mayor y Balance de Comprobación', html:
             '<ul><li><b>Libro Diario General:</b> los comprobantes en orden cronológico con sus líneas.</li>' +
             '<li><b>Libro Mayor:</b> el movimiento de cada cuenta con su saldo.</li>' +
@@ -20081,7 +20525,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            algún handler inline de la app invoca. No cambia ninguna lógica:
            solo las hace alcanzables desde los atributos onclick/onchange/
            oninput, igual que ya se hacía con irAPestana o verMesDetalle. */
-        ['nominaDocCompleta', 'nominaDocResumenContable', 'nominaDocListadoPago', 'nominaDocTalon', 'nominaDocCertificado', 'nominaBancoDescargarUI', 'nominaBancoFilas', 'nominaBancoTexto', 'nominaDocContrato', 'mjExpedienteDocUI', 'mjExpedienteRevisionUI', 'mjEvaluacionUI', 'mjPlantillaPlazasUI', 'getRRHH', 'saveRRHH', 'mjRenderProfundidad', 'renderPuestos', 'mjPatronesAplicarTodosUI', 'mjPrepararCierreUI', 'gInformesTodosDescargar', 'renderAvisosInicio', 'irAPestana', 'toggleModoSimple', 'aplicarModoSimple', 'irASeccionGestion', 'gestionAplicarPlegado', 'gestionFijarModulo', 'gestionAbrirModulo', 'gestionAlternarModulo', 'mjContratoGuardarForm', 'mjInstrumentoGuardarForm', 'mjOrdenGuardarForm', 'mjConsignacionGuardarForm', 'nomPrenominaGenerarUI', 'nomPrenominaAprobarUI', 'nominaDocPrenomina', 'nomAdelantoRegistrarUI', 'contaGenerar', 'contaRevalBtn', 'compraDivisaRegistrarUI', 'getConta', 'ctaAgregarAsiento', 'ctaRevalorizacion', 'ctaMayor', 'contaAddContraparte', 'contaAddDocumento', 'printPane', 'contaEmitirNotaBtn', 'contaArqueoBtn', 'contaAddProducto', 'contaInvEntrada', 'contaInvSalida', 'contaEdAddLinea', 'contaEdAsentar', 'contaAddCuenta', 'contaSavePlantillas', 'contaAddCentro', 'contaCierreBtn', 'contaPagarDoc', 'contaEdRecalc', 'contaEdDelLinea', 'contaAsentar', 'contaAnular', 'contaClasificar', 'contaBorrarRegla', 'mjDescargarCopiaUI', 'mjRestaurarCopiaUI', 'mjRestaurarServidorUI', 'mjAltaPrestamoUI', 'mjReabrirUI', 'mjEstadosUI', 'mjDJUtilidadesUI', 'mjReservaUI', 'mjExportarEstadosCSV', 'mjFacturaCrearUI', 'mjDepreciacionAFUI', 'mjFichaCostosUI', 'mjIPVUI', 'abrirEditorNegocio', 'eliminarNegocio', 'mjExpedienteToggle', 'mjRenderExpediente', 'mjKYCEditar', 'mjROSAgregarUI', 'mjExclusionAgregarUI', 'mjFacturaConfirmarUI', 'mjFacturaCancelarUI', 'mjPatronAplicarUI', 'facClienteGuardar', 'facClienteEditar', 'facClienteLimpiar', 'facLineaAdd', 'facLineaDel', 'facRecalc', 'facCrearUI', 'facConfirmarUI', 'facAnularUI', 'facImprimirUI', 'renderFacturas', 'facPagoToggleUI', 'facCobroQuitarUI', 'facConvertirUI', 'facAvisoMarcarUI', 'lluviaToggle', 'lluviaVolumen', 'renderContratos', 'ctorGuardarUI', 'ctorEditarUI', 'ctorLimpiarUI', 'ctorEstadoUI', 'ctorEliminarUI', 'ctorRenderLista', 'ctorAbrirMenu', 'facContratoRefrescar', 'ctorAdjAbrir', 'ctorAdjCerrar', 'ctorAdjArchivo', 'ctorAdjVer', 'ctorAdjDescargar', 'ctorAdjQuitar', 'ctorGenAbrir', 'ctorGenCerrar', 'ctorGenGenerar', 'ctorGenFilaAdd', 'ctorGenFilaDel', 'ctorAutAdd', 'ctorAutDel', 'ctorDocCerrar', 'ctorDocImprimir', 'ctrabAbrir', 'ctrabCerrar', 'ctrabGenerar', 'ctrabDocCerrar', 'ctrabDocImprimir', 'tarjAbrir', 'tarjCerrar', 'tarjPintar', 'tarjGuardar', 'tarjRestablecer', 'tarjImprimir', 'tarjCertImprimir', 'tarjDocCerrar', 'tarjDocImprimir', 'expdAbrir', 'expdCerrar', 'expdGuardar', 'expdImprimir', 'retRender', 'retAbrir', 'retCerrar', 'retGuardar', 'retTipoCambio', 'retDarBaja', 'retCertImprimir', 'retResumenImprimir', 'retDocCerrar', 'retDocImprimir', 'contaEfeGenerar', 'dj01DocGenerar', 'mjPatronCrearUI', 'mjPresupuestoAgregarUI', 'mjInstrumentoUsarUI', 'mjInstrumentoAnularUI', 'mjInstrumentoCrearUI', 'contaTesAdd', 'contaTesDel', 'contaTesToggle', 'contaTesTipoUI', 'contaCandadoAsumir', 'contaCandadoDesasumir', 'contaCuarentenaLiberar', 'contaCuarentenaLiberarOp', 'contaCuarentenaDescartar', 'contaCuarentenaToggle', 'contaCancelarDoc', 'contaPatronAplicar', 'contaPatronCrear', 'lbQuitarFila', 'lbAddDir', 'lbAddInd', 'lbDepUI', 'lbDepSumarUI', 'lbFichaUI', 'lbTraerCostoUI', 'lbPreciosUI', 'lbEquilibrioUI', 'lbTableroRender', 'lbTableroGuardar', 'mjContratoCrearUI', 'mjUtilCrearUI', 'mjTraspasoUI', 'mjOrdenTerminarUI', 'mjOrdenCrearUI', 'mjCreditoDevengoUI', 'mjCreditoCrearUI', 'mjSaldoDivisaUI', 'mjRevalAmpliaUI', 'mjConsignacionRecibirUI', 'mjConsignacionVentaUI', 'guardarParamsFiscalesNomina', 'docCuentaPrint', 'docQRPrint', 'manualBuscar', 'manualLimpiarBusqueda', 'manualDescargarPDF', 'manualIrSeccion', 'editarDatosBancoCuenta', 'guardarBancoCuentaDesdeModal', 'retDivisaCfgUI', 'retDivisaFuenteUI', 'retDivisaTasaUI', 'retDivisaEnlazarUI', 'retDivisaDesenlazarUI', 'docResumenPrint', 'docNominaSubmayoresPrint', 'docTrimestresPrint', 'docOnatPrint', 'docCierreAnualPrint', 'docBalanceAperturaPrint', 'docProgramadorPrint', 'docMotorTributosPrint', 'docCalendarioPrint', 'docGestorCalendarioPrint', 'docBancarizacionPrint', 'docExpedientePrint', 'docKYCPrint', 'docPresupuestoPrint', 'docFlujoProyectadoPrint', 'docIndicadoresPrint', 'docOrdenProduccionPrint', 'docIPVPrint', 'docConsignacionPrint', 'docUtilesPrint', 'docPanelGestorPrint', 'renderCobro', 'cobroFormUI', 'cobroGuardarUI', 'cobroCartaUI'].forEach(function(n){ try { var f = eval(n); if (typeof f === 'function') window[n] = f; } catch(e) {} });
+        ['nominaDocCompleta', 'nominaDocResumenContable', 'nominaDocListadoPago', 'nominaDocTalon', 'nominaDocCertificado', 'nominaBancoDescargarUI', 'nominaBancoFilas', 'nominaBancoTexto', 'nominaDocContrato', 'mjExpedienteDocUI', 'mjExpedienteRevisionUI', 'mjEvaluacionUI', 'mjPlantillaPlazasUI', 'getRRHH', 'saveRRHH', 'mjRenderProfundidad', 'renderPuestos', 'mjPatronesAplicarTodosUI', 'mjPrepararCierreUI', 'gInformesTodosDescargar', 'renderAvisosInicio', 'irAPestana', 'toggleModoSimple', 'aplicarModoSimple', 'irASeccionGestion', 'gestionAplicarPlegado', 'gestionFijarModulo', 'gestionAbrirModulo', 'gestionAlternarModulo', 'mjContratoGuardarForm', 'mjInstrumentoGuardarForm', 'mjOrdenGuardarForm', 'mjConsignacionGuardarForm', 'nomPrenominaGenerarUI', 'nomPrenominaAprobarUI', 'nominaDocPrenomina', 'nomAdelantoRegistrarUI', 'contaGenerar', 'contaRevalBtn', 'compraDivisaRegistrarUI', 'getConta', 'ctaAgregarAsiento', 'ctaRevalorizacion', 'ctaMayor', 'contaAddContraparte', 'contaAddDocumento', 'printPane', 'contaEmitirNotaBtn', 'contaArqueoBtn', 'contaAddProducto', 'contaInvEntrada', 'contaInvSalida', 'contaEdAddLinea', 'contaEdAsentar', 'contaAddCuenta', 'contaSavePlantillas', 'contaAddCentro', 'contaCierreBtn', 'contaPagarDoc', 'contaEdRecalc', 'contaEdDelLinea', 'contaAsentar', 'contaAnular', 'contaClasificar', 'contaBorrarRegla', 'mjDescargarCopiaUI', 'mjRestaurarCopiaUI', 'mjRestaurarServidorUI', 'mjAltaPrestamoUI', 'mjReabrirUI', 'mjEstadosUI', 'mjDJUtilidadesUI', 'mjReservaUI', 'mjExportarEstadosCSV', 'mjFacturaCrearUI', 'mjDepreciacionAFUI', 'mjFichaCostosUI', 'mjIPVUI', 'abrirEditorNegocio', 'eliminarNegocio', 'mjExpedienteToggle', 'mjRenderExpediente', 'mjKYCEditar', 'mjROSAgregarUI', 'mjExclusionAgregarUI', 'mjFacturaConfirmarUI', 'mjFacturaCancelarUI', 'mjPatronAplicarUI', 'facClienteGuardar', 'facClienteEditar', 'facClienteLimpiar', 'facLineaAdd', 'facLineaDel', 'facRecalc', 'facCrearUI', 'facConfirmarUI', 'facAnularUI', 'facImprimirUI', 'renderFacturas', 'facPagoToggleUI', 'facCobroQuitarUI', 'facConvertirUI', 'facAvisoMarcarUI', 'lluviaToggle', 'lluviaVolumen', 'renderContratos', 'ctorGuardarUI', 'ctorEditarUI', 'ctorLimpiarUI', 'ctorEstadoUI', 'ctorEliminarUI', 'ctorRenderLista', 'ctorAbrirMenu', 'facContratoRefrescar', 'ctorAdjAbrir', 'ctorAdjCerrar', 'ctorAdjArchivo', 'ctorAdjVer', 'ctorAdjDescargar', 'ctorAdjQuitar', 'ctorGenAbrir', 'ctorGenCerrar', 'ctorGenGenerar', 'ctorGenFilaAdd', 'ctorGenFilaDel', 'ctorAutAdd', 'ctorAutDel', 'ctorDocCerrar', 'ctorDocImprimir', 'ctrabAbrir', 'ctrabCerrar', 'ctrabGenerar', 'ctrabDocCerrar', 'ctrabDocImprimir', 'tarjAbrir', 'tarjCerrar', 'tarjPintar', 'tarjGuardar', 'tarjRestablecer', 'tarjImprimir', 'tarjCertImprimir', 'tarjDocCerrar', 'tarjDocImprimir', 'expdAbrir', 'expdCerrar', 'expdGuardar', 'expdImprimir', 'retRender', 'retAbrir', 'retCerrar', 'retGuardar', 'retTipoCambio', 'retDarBaja', 'retCertImprimir', 'retResumenImprimir', 'retDocCerrar', 'retDocImprimir', 'contaEfeGenerar', 'dj01DocGenerar', 'mjPatronCrearUI', 'mjPresupuestoAgregarUI', 'mjInstrumentoUsarUI', 'mjInstrumentoAnularUI', 'mjInstrumentoCrearUI', 'contaTesAdd', 'contaTesDel', 'contaTesToggle', 'contaTesTipoUI', 'contaCandadoAsumir', 'contaCandadoDesasumir', 'contaCuarentenaLiberar', 'contaCuarentenaLiberarOp', 'contaCuarentenaDescartar', 'contaCuarentenaToggle', 'contaCancelarDoc', 'contaPatronAplicar', 'contaPatronCrear', 'lbQuitarFila', 'lbAddDir', 'lbAddInd', 'lbDepUI', 'lbDepSumarUI', 'lbFichaUI', 'lbTraerCostoUI', 'lbPreciosUI', 'lbEquilibrioUI', 'lbTableroRender', 'lbTableroGuardar', 'mjContratoCrearUI', 'mjUtilCrearUI', 'mjTraspasoUI', 'mjOrdenTerminarUI', 'mjOrdenCrearUI', 'mjCreditoDevengoUI', 'mjCreditoCrearUI', 'mjSaldoDivisaUI', 'mjRevalAmpliaUI', 'mjConsignacionRecibirUI', 'mjConsignacionVentaUI', 'guardarParamsFiscalesNomina', 'docCuentaPrint', 'docQRPrint', 'manualBuscar', 'manualLimpiarBusqueda', 'manualDescargarPDF', 'manualIrSeccion', 'editarDatosBancoCuenta', 'guardarBancoCuentaDesdeModal', 'retDivisaCfgUI', 'retDivisaFuenteUI', 'retDivisaTasaUI', 'retDivisaEnlazarUI', 'retDivisaDesenlazarUI', 'docResumenPrint', 'docNominaSubmayoresPrint', 'docTrimestresPrint', 'docOnatPrint', 'docCierreAnualPrint', 'docBalanceAperturaPrint', 'docProgramadorPrint', 'docMotorTributosPrint', 'docCalendarioPrint', 'docGestorCalendarioPrint', 'docBancarizacionPrint', 'docExpedientePrint', 'docKYCPrint', 'docPresupuestoPrint', 'docFlujoProyectadoPrint', 'docIndicadoresPrint', 'docOrdenProduccionPrint', 'docIPVPrint', 'docConsignacionPrint', 'docUtilesPrint', 'docPanelGestorPrint', 'renderCobro', 'cobroFormUI', 'cobroGuardarUI', 'cobroCartaUI', 'contaPlanOficialUI','contaPlanDuenoUI'].forEach(function(n){ try { var f = eval(n); if (typeof f === 'function') window[n] = f; } catch(e) {} });
         // Gancho de prueba (node) para la retención de divisa del PDL
         window.__retDivTest = { procesar: retDivisaProcesar, registros: function(){ try { return getFiscal().retDivisa || []; } catch(e) { return []; } }, editar: retDivisaEditar, enlazar: retDivisaEnlazarManual, desenlazar: retDivisaDesenlazar, esPDL: retDivisaEsPDL, resumenMes: retDivisaResumenMes };
         // Ganchos de prueba (node) para el módulo DJ
