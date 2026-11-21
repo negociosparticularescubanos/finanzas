@@ -9460,6 +9460,11 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                     </tr>
                 `;
             }).join('');
+            if (sorted.length) {
+                let ingC = 0, gasC = 0;
+                sorted.forEach(m => { const v = esUSD ? (Number(m.monto) || 0) : getMontoMovimientoCUP(m); if (m.tipo === 'ingreso') ingC += v; else if (m.tipo === 'gasto' || m.tipo === 'onat') gasC += v; });
+                tbodyCuenta.innerHTML += '<tr class="table-active fw-bold"><td colspan="3">Totales de la cuenta · ' + sorted.length + ' documento(s)</td><td class="text-end"><span class="text-success">+ $' + ingC.toFixed(2) + '</span><br><span class="text-danger">\u2212 $' + gasC.toFixed(2) + '</span></td><td class="text-end">Neto: $' + (ingC - gasC).toFixed(2) + ' ' + unidadMoneda + '</td><td colspan="2"></td></tr>';
+            }
             
             if (puedeEditarUsuario) {
                 document.querySelectorAll(`#body-${cuenta} .eliminar-mov-cuenta`).forEach(btn => {
@@ -19955,7 +19960,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.21-122';
+        var MANUAL_VERSION = 'v2026.11.21-123';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20052,7 +20057,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
             '<p>El encadenado se dispara al guardar o editar un mes cerrado, al eliminar un mes y al importar un PDF a un mes cerrado. En los meses cerrados, «Saldo Actual» muestra siempre el saldo real, no una foto vieja.</p>'},
         {id:'movimientos-alertas', modulo:'resumen', titulo:'Movimientos manuales desde el Resumen y las alertas', html:
             '<p>Desde cada cuenta puedes registrar movimientos a mano con los botones <b>Ingreso</b>, <b>Gasto</b> y <b>ONAT</b>. Para el trabajo diario, lo normal es que casi todo entre por la importación del estado de cuenta (menú Importar de cada cuenta) y solo corrijas excepciones.</p>' +
-            '<p>Si falta clasificar algo, el distintivo de <b>Contabilidad</b> y las alertas del Resumen te lo recuerdan; nada queda escondido.</p><p>La tabla <b>«Todos los movimientos»</b> cierra con una banda de <b>totales de lo mostrado</b>: ingresos, gastos (con la ONAT) y neto del mes a la vista, todo en CUP.</p> La tarjeta <b>«Tesorería por áreas»</b> del Resumen enseña las seis áreas (Chequera, Tarjeta CUP, Tarjeta USD, Cobros del mes, Pagos del mes y Transferencias) con su saldo y su neto del mes: tocar un área filtra la tabla «Todos los movimientos» por ella (también con los selectores sobre la tabla) y la banda de totales pasa a ser la de lo mostrado.'},
+            '<p>Si falta clasificar algo, el distintivo de <b>Contabilidad</b> y las alertas del Resumen te lo recuerdan; nada queda escondido.</p><p>La tabla <b>«Todos los movimientos»</b> cierra con una banda de <b>totales de lo mostrado</b>: ingresos, gastos (con la ONAT) y neto del mes a la vista, todo en CUP.</p> La tarjeta <b>«Tesorería por áreas»</b> del Resumen enseña las seis áreas (Chequera, Tarjeta CUP, Tarjeta USD, Cobros del mes, Pagos del mes y Transferencias) con su saldo y su neto del mes: tocar un área filtra la tabla «Todos los movimientos» por ella (también con los selectores sobre la tabla) y la banda de totales pasa a ser la de lo mostrado. Cada tabla por cuenta cierra con su banda <b>«Totales de la cuenta»</b>: número de documentos, suma de ingresos, suma de egresos y neto, en la moneda de la cuenta.'},
         {id:'cuentas-vista', modulo:'cuentas', titulo:'Chequera, Tarjeta CUP y Tarjeta USD', html:
             '<p>Cada cuenta tiene su propio menú con su lista de movimientos, su saldo y sus botones. La chequera y la tarjeta CUP se unen en la cuenta contable <b>110-010</b> en el mayor; la tarjeta USD va a la <b>110-020</b> con su divisa.</p>' +
             '<ul><li>Usa el mes contable de la parte superior para moverte entre meses; los meses cerrados no se editan hasta desbloquearlos.</li>' +

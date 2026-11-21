@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-122",
-  "publicada": "2026-11-21 07:04",
-  "notas": "Ronda -122: tesoreria por areas (punto 26) — seis areas con saldo y neto del mes que filtran la tabla de movimientos.",
+  "version": "v2026.11.21-123",
+  "publicada": "2026-11-21 07:11",
+  "notas": "Ronda -123: banda de totales al pie de cada tabla por cuenta (punto 30).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "d056580c4e83fa71c1a6b53c2a8afd4897ccd19425e9c557ee0d9ba201e0c5e2",
-      "bytes": 2185651
+      "sha256": "11b7c38f5bd68f99fccd909f016287589a5902f1112698b44e8fe1990d5e08a6",
+      "bytes": 2186537
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "j6EG4te309Jf1guL58YE28StKss4APbJDdrmuCAOWT+X2bgdeNrL++wd1LzwULeSZXtdom6QFLqoEuDhfI8zDw=="
+  "firma": "Esf9LvXYrYYKWQp06NcCDYlQ3/Tfm0H12jq6o72o+gOCN47X+DDRPCSCRKQUb7yuNTaI5///w+MXen9WMRJWCw=="
 }
