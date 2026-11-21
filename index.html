@@ -4686,7 +4686,7 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
             document.getElementById('btnGuardarNomina').style.display = editable ? '' : 'none';
             document.getElementById('nominaVacia').style.display = d.lineas.length ? 'none' : 'block';
             const _cc=getCompCfg(); const _minEf=compSalarioMinimo(_cc, periodoNominaActual());
-            body.innerHTML = d.lineas.map(({t,salario,otras,comp,calc}) => {
+            const filaNom = ({t,salario,otras,comp,calc}) => {
                 const warnMin=!!(t.compAplica&&t.compAplica.salarioMinimo) && (salario+otras)>0 && (salario+otras)<_minEf;
                 const compTotal=calc.extra+calc.subsidios-calc.deducciones-(calc.descAdelanto||0);
                 const compTitle=calc.detalle.map(dd=>dd[0]+': '+moneda(dd[1])).join('\n');
@@ -4704,7 +4704,18 @@ html[data-theme="dark"] .conn-badge-login{background:rgba(255,255,255,.12);color
                     <td class="text-end pay-comp" title="${esc(compTitle)}">${moneda(compTotal)}</td>
                     <td class="text-end fw-semibold pay-costo">${moneda(calc.costo)}</td>
                     <td class="text-end"><button class="btn btn-sm btn-outline-info me-1" onclick="nomDetalleUI('${t.id}')" title="Ver el detalle completo de este trabajador en este período">Detalle</button><button class="btn btn-sm btn-outline-success contrato-trab me-1" data-id="${t.id}" title="Generar su contrato de trabajo">Contrato</button><button class="btn btn-sm btn-outline-info tarjeta-trab me-1" data-id="${t.id}" title="Tarjeta de salario y tiempo de servicio (SC-4-08)">Tarjeta</button><button class="btn btn-sm btn-outline-secondary expediente-trab me-1" data-id="${t.id}" title="Expediente laboral del trabajador">Expediente</button><div class="btn-group btn-group-sm">${editable?`<button class="btn btn-outline-primary editar-trab" data-id="${t.id}" title="Editar"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger borrar-trab" data-id="${t.id}" title="Eliminar"><i class="bi bi-trash3"></i></button>`:''}</div></td>
-                </tr>`;}).join('');
+                </tr>`; };
+            const areasNom = [];
+            d.lineas.forEach(L => { const a = ((L.t.centroCosto || '') + '').trim() || 'General'; if (!areasNom.includes(a)) areasNom.push(a); });
+            if (areasNom.length > 1) {
+                body.innerHTML = areasNom.map(a => {
+                    const ls = d.lineas.filter(L => (((L.t.centroCosto || '') + '').trim() || 'General') === a);
+                    const sub = ls.reduce((r, L) => ({ bruto: r.bruto + (Number(L.calc.bruto) || 0), neto: r.neto + (Number(L.calc.neto) || 0), costo: r.costo + (Number(L.calc.costo) || 0) }), { bruto: 0, neto: 0, costo: 0 });
+                    return '<tr class="table-secondary"><td colspan="12" class="fw-semibold">🏢 Área: ' + esc(a) + ' · ' + ls.length + ' trabajador(es)</td></tr>' + ls.map(filaNom).join('') + '<tr class="table-light fw-semibold"><td colspan="3" class="text-end">Subtotal ' + esc(a) + '</td><td class="text-end">' + moneda(sub.bruto) + '</td><td></td><td></td><td class="text-end">' + moneda(sub.neto) + '</td><td></td><td></td><td></td><td class="text-end">' + moneda(sub.costo) + '</td><td></td></tr>';
+                }).join('');
+            } else {
+                body.innerHTML = d.lineas.map(filaNom).join('');
+            }
             actualizarResumenNominaDesdeDOM();
             document.querySelectorAll('#nominaBody .pay-salario,#nominaBody .pay-otras').forEach(i => i.addEventListener('input', actualizarResumenNominaDesdeDOM));
             document.querySelectorAll('.editar-trab').forEach(b => b.addEventListener('click',()=>abrirTrabajador(b.dataset.id)));
@@ -19960,7 +19971,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
            MANUAL_VERSION en el mismo commit; el chequeo permanente
            audit/check_instrucciones.js falla si algún módulo de la lista
            vigente se queda sin sección. */
-        var MANUAL_VERSION = 'v2026.11.21-123';
+        var MANUAL_VERSION = 'v2026.11.21-124';
         var MANUAL_MODULOS = [
             {id:'empezar', titulo:'1 · Empezar: acceso, sesión y tus negocios'},
             {id:'regla-oro', titulo:'2 · Cómo decide la app por ti (la regla de oro)'},
@@ -20239,7 +20250,7 @@ f=>f?esc(String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(0,4)
             '<p><b>Archivo para el banco:</b> en la tarjeta de documentos, «Descargar archivo de acreditación» genera el fichero para acreditar los salarios por banca remota: una línea por trabajador con su <b>tarjeta</b> (o su cuenta, si no tiene tarjeta), su CI, su nombre y el <b>neto</b> a acreditar, en TXT (tabulador) o CSV (punto y coma). Los trabajadores con neto en cero o sin tarjeta ni cuenta en su ficha quedan <b>fuera y avisados</b> en la propia tarjeta. Acompaña el archivo con el «Listado para pago por tarjeta» impreso y firmado. Los bancos cubanos no publican un formato único de fichero: si tu sucursal te entrega su plantilla exacta, se adapta el archivo a esa plantilla.</p>' +
             '<p><b>Recursos humanos · Ley 189/2026 (nuevo Código de Trabajo).</b> La ficha del trabajador guarda su <b>contrato</b> (tipo: indeterminado, determinado o por obra; fecha, fin previsto, lugar de trabajo y jornada), con el que la app genera el <b>contrato imprimible</b> con el contenido mínimo legal (botón «Contrato» en Gestión+).</p>' +
             '<p><b>Expediente laboral</b> (Gestión+ → Profundidad): checklist por trabajador con la lista de los artículos 76-82: datos, contrato, tiempo de servicio y remuneraciones (se acredita también con las nóminas de la app) y los documentos «cuando corresponda» (calificación, nombramiento, peritaje, disciplina…), que se registran por nombre y fecha con «+ Documento». Avisa si el expediente sigue incompleto a los 15 días del alta y si falta la <b>revisión anual firmada</b> por el trabajador (art. 78), que se marca con el botón «Revisión firmada».</p><p><b>Eventos del expediente:</b> con sus botones registras, sin borrar nunca nada, la <b>solicitud de revisión</b> del trabajador (queda marcada como pendiente hasta que registres la revisión), la <b>revisión sin firma</b> (la revisión se hizo pero el trabajador no firmó: la constancia exige el nombre de un <b>testigo</b>), el <b>acta de ausencia</b> cuando un trabajador de baja no se presenta a la entrega (vale por el acta en el checklist) y la <b>custodia</b> del expediente de un trabajador de baja: pide la causa y, obligatorio, el <b>documento que la respalda</b> (acta de defunción, constancia…); sin ese documento no se guarda. La <b>rehabilitación</b> de una medida disciplinaria se registra con la fecha y el acto que la declara: la medida queda en el historial, marcada como rehabilitada, no se borra. Los últimos eventos se ven bajo cada trabajador.</p>' +
-            '<p><b>Plantilla de cargos</b> (tarjeta Puestos de trabajo): plazas aprobadas por cargo frente a ocupadas por los trabajadores activos, con aviso de sobreplantilla. <b>Incidencias del período</b> (Gestión+): días trabajados, ausencias, licencias y horas extras desde el control de días. <b>Evaluación anual</b> del desempeño (arts. 71-74): se registra por trabajador con el botón «Evaluación anual».</p> El botón <b>Detalle</b> de cada trabajador abre su ficha del período en tres pestañas: <b>Cálculo</b> (del bruto al costo total), <b>Ajustes y adelantos</b> (los conceptos del mes y sus adelantos con el descuento aplicado) y <b>Datos</b>.'},
+            '<p><b>Plantilla de cargos</b> (tarjeta Puestos de trabajo): plazas aprobadas por cargo frente a ocupadas por los trabajadores activos, con aviso de sobreplantilla. <b>Incidencias del período</b> (Gestión+): días trabajados, ausencias, licencias y horas extras desde el control de días. <b>Evaluación anual</b> del desempeño (arts. 71-74): se registra por trabajador con el botón «Evaluación anual».</p> El botón <b>Detalle</b> de cada trabajador abre su ficha del período en tres pestañas: <b>Cálculo</b> (del bruto al costo total), <b>Ajustes y adelantos</b> (los conceptos del mes y sus adelantos con el descuento aplicado) y <b>Datos</b>. Cuando los trabajadores tienen <b>centros de costo distintos</b>, la tabla se agrupa por <b>área</b>: encabezado por área y subtotal (bruto, neto y costo) al pie de cada una, como el árbol por áreas de VERSAT; el botón «Detalle» de cada fila sigue abriendo su ficha en pestañas.'},
         {id:'prenomina', modulo:'nomina', titulo:'Pre-nómina y tarjeta de tiempo', html:
             '<p>La <b>Pre-nómina</b> es la tarjeta de tiempo formal por período: días trabajados, ausencias y horas que alimentan el cálculo. Se genera, se revisa y se <b>aprueba</b>; aprobada, es la base de la nómina del mes y de su documento oficial.</p>'},
         {id:'submayores-nomina', modulo:'nomina', titulo:'Submayores: vacaciones, adelantos y aportes', html:

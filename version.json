@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-123",
-  "publicada": "2026-11-21 07:11",
-  "notas": "Ronda -123: banda de totales al pie de cada tabla por cuenta (punto 30).",
+  "version": "v2026.11.21-124",
+  "publicada": "2026-11-21 07:14",
+  "notas": "Ronda -124: nomina agrupada por areas con subtotales (punto 32).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "11b7c38f5bd68f99fccd909f016287589a5902f1112698b44e8fe1990d5e08a6",
-      "bytes": 2186537
+      "sha256": "f7cb17f9e4d796abb12147bc9a19551c5b0889b0ac5f15d9ea1450610e6ebe40",
+      "bytes": 2188050
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "Esf9LvXYrYYKWQp06NcCDYlQ3/Tfm0H12jq6o72o+gOCN47X+DDRPCSCRKQUb7yuNTaI5///w+MXen9WMRJWCw=="
+  "firma": "fAMQreJtPvOigzp0oWdi2URZ93pSgC2c6PWsI/Cu/t9U5VcnmRjqWh6vntCy/DFDpMS9snOzIgomVjtlps9GBQ=="
 }
