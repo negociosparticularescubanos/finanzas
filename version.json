@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-139",
-  "publicada": "2026-11-21 08:36",
-  "notas": "Ronda -139: patrones con porcentaje e importar asientos desde CSV (puntos 76 y 77).",
+  "version": "v2026.11.21-140",
+  "publicada": "2026-11-21 08:45",
+  "notas": "Ronda -140: informe por cliente del gestor, ultima copia en la nube visible y aprobacion previa de facturas grandes (puntos 78, 79 y 80).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "c2140916ba06cde6294300c5fbb35f055453955449fe0d5285a4de85c920f16e",
-      "bytes": 2243589
+      "sha256": "38a1da1cc4683d4892c5c701a0efb0fb5e27feceed276f6b49aceff89c16c2e6",
+      "bytes": 2249611
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "lAwwFJHEKDrbzU6MyJQUNGb6y7rWB2uQcWi7SyH2Vm8cMTwEC4DzpPVonm2Ef/viTW1ZFOLjqc0CRONt/ANhBg=="
+  "firma": "Zi1rQ1VwD3cD2GzcRCJUSyOkEQHqtEF9/m0E0+uV61UeuxvtjW4gBPWWxTQ2vIDvahIDFVo5iBtI/nIQGWzBAA=="
 }
