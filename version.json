@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-136",
-  "publicada": "2026-11-21 08:17",
-  "notas": "Ronda -136: presupuesto contra real para todo el negocio en el Resumen (punto 72).",
+  "version": "v2026.11.21-137",
+  "publicada": "2026-11-21 08:20",
+  "notas": "Ronda -137: CRM sencillo por etapas en El dia a dia (punto 73).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "376fe82f295e83a9ae78070d85cb27a44b6afd63167fddbbe1f3bf400946a6ba",
-      "bytes": 2227148
+      "sha256": "e5f4af17a29688f0ec6e75c8d201810b5f6e76a7d2442a39dbed5a269460f29a",
+      "bytes": 2229988
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "WsTsZqgBsG3EII+YypnHNwtS+wrYyCzMh7+MaWG0JOHLs4d5FQzJBRfL1qm0yReGvwVjmfBybIzr2qHIZF62BQ=="
+  "firma": "GYNcM1zk2jnVGznEdzJAPPU/iKcuKydfUAY65fcH/tjH1OOFQGoDJmVUyRW/daxy0K4COX3i8sMopmcAbFuCBQ=="
 }
