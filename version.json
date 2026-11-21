@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-116",
-  "publicada": "2026-11-21 05:54",
-  "notas": "Ronda -116: menú Sistema estilo VERSAT (punto 15) — Cambiar negocio (Ctrl+U), Cambiar mes de procesamiento (Ctrl+F), Estado de operaciones (Ctrl+O), Exportar/Importar copia y Catálogos (Ctrl+C al plan de cuentas).",
+  "version": "v2026.11.21-117",
+  "publicada": "2026-11-21 06:03",
+  "notas": "Ronda -117: bandas de totales estilo VERSAT (punto 17) — totales de lo mostrado en la tabla general de movimientos y totales sin anuladas (facturado/cobrado/pendiente) al pie del listado de facturas.",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b3c5c389696356270267df81fffd7df0945466ab80a313997cfe5ea4e83adb64",
-      "bytes": 2163475
+      "sha256": "b3e2969942d365cb174e3a0befa7dbde53824c729c30f25c73916fd3c68a6ab4",
+      "bytes": 2164959
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "8YFiAcEyjaTnP2w4/KrTY6CZutI7YshR0nmg+Schkhavz6tIHATXa2EeWJhYo26xZ+Zrfk79liaw6GdsBFQkBA=="
+  "firma": "aGyuDr6c+UmWAGn/tT/X5XD9G9skjNODdZmavJe1exFi0wp2WylVww4ZA/tKk33hd2l3qroJJH3pB0dGXA20DA=="
 }
