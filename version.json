@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-115",
-  "publicada": "2026-11-21 05:18",
-  "notas": "Ronda -115: plan oficial Res. 494/2016 cargable (híbrido) con equivalencias por concepto y vuelta al plan de la casa",
+  "version": "v2026.11.21-116",
+  "publicada": "2026-11-21 05:54",
+  "notas": "Ronda -116: menú Sistema estilo VERSAT (punto 15) — Cambiar negocio (Ctrl+U), Cambiar mes de procesamiento (Ctrl+F), Estado de operaciones (Ctrl+O), Exportar/Importar copia y Catálogos (Ctrl+C al plan de cuentas).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "9db963c4546c5b8d7fb4b202fbbc65ed80b224533fa0f6d864f4e498e26fbdbc",
-      "bytes": 2158097
+      "sha256": "b3c5c389696356270267df81fffd7df0945466ab80a313997cfe5ea4e83adb64",
+      "bytes": 2163475
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "5dmNha8BlQ3x/Pfo3Md4qGmtDfSCF4aylBeoLvXUFJwVZdM/pJ7XPdwUl65j5QV+Hx4E6nr4pJFQux6T0tOlDQ=="
+  "firma": "8YFiAcEyjaTnP2w4/KrTY6CZutI7YshR0nmg+Schkhavz6tIHATXa2EeWJhYo26xZ+Zrfk79liaw6GdsBFQkBA=="
 }
