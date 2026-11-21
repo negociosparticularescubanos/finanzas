@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-126",
-  "publicada": "2026-11-21 07:27",
-  "notas": "Ronda -126: plan por periodo en Presupuestos (punto 40).",
+  "version": "v2026.11.21-127",
+  "publicada": "2026-11-21 07:33",
+  "notas": "Ronda -127: informe del sistema en una hoja (punto 42).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "b0f754185281b40037d42a86a2d89f617e11eb11e0e73a129354288de40ef20b",
-      "bytes": 2193728
+      "sha256": "08f15a97dcb7c0fac6e8cb9c3918efec356076948ad2a3195e660d821fe81fab",
+      "bytes": 2196353
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "nE9c6sq8NaaUMpdDyjypb1Ow1x1/fTry+jppIXRlTxuQCRzKP//a9/YAjUnseaz0kXvF4alvAkgIDu+p1/hoBw=="
+  "firma": "Ixxm+n5ZtLjAXsVcbcHlDZP6Usr+dDMouKkbWFHbZxNKjyAIGFJbKjHio2sjpyORSBuTAlzng53sEiPUUhMCAQ=="
 }
