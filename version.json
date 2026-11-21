@@ -1,20 +1,20 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-127",
-  "publicada": "2026-11-21 07:33",
-  "notas": "Ronda -127: informe del sistema en una hoja (punto 42).",
+  "version": "v2026.11.21-128",
+  "publicada": "2026-11-21 07:37",
+  "notas": "Ronda -128: cobertura y propuesta de automatizacion (48-49), huecos de talonario (53), aviso de cuadre banco-contabilidad (54) y arrastrar y soltar el estado (57).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "08f15a97dcb7c0fac6e8cb9c3918efec356076948ad2a3195e660d821fe81fab",
-      "bytes": 2196353
+      "sha256": "bebf728a7e07fbd5bbff2f7d26354d86aeda4bfeb1bb0680a84a071aeb45e886",
+      "bytes": 2200998
     },
     {
       "ruta": "pdf-import.js",
-      "sha256": "cb2e8df4e5644b3a057ac18a84a8377439641ec96e97857e8660214a5f40b8f1",
-      "bytes": 112549
+      "sha256": "7fcd268da28ee00d051f532c976081db71b7d76f1eb30f69fa840c609f95d8d1",
+      "bytes": 114281
     },
     {
       "ruta": "iconos.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "Ixxm+n5ZtLjAXsVcbcHlDZP6Usr+dDMouKkbWFHbZxNKjyAIGFJbKjHio2sjpyORSBuTAlzng53sEiPUUhMCAQ=="
+  "firma": "MIQh8rLmajiAcVZEWXrc6GwkCxe4SxavvAmA1Bu55PwU9tL6517XC+4kGKeqwNHM/IAldzpXwBVqvLfuPBIbDg=="
 }
