@@ -1,15 +1,15 @@
 {
   "formato": "finanzas-version",
-  "version": "v2026.11.21-125",
-  "publicada": "2026-11-21 07:18",
-  "notas": "Ronda -125: aviso de lento movimiento en Inventario (punto 34) y listas de precios formales en el POS (punto 38).",
+  "version": "v2026.11.21-126",
+  "publicada": "2026-11-21 07:27",
+  "notas": "Ronda -126: plan por periodo en Presupuestos (punto 40).",
   "requiereServidor": "0.11.0",
   "migracionDatos": 2,
   "archivos": [
     {
       "ruta": "index.html",
-      "sha256": "9812a5d53b3226e03276f534ef6d5665baaa7e147506e6ac29c63cca3806f7d8",
-      "bytes": 2191357
+      "sha256": "b0f754185281b40037d42a86a2d89f617e11eb11e0e73a129354288de40ef20b",
+      "bytes": 2193728
     },
     {
       "ruta": "pdf-import.js",
@@ -22,5 +22,5 @@
       "bytes": 37434
     }
   ],
-  "firma": "XbwERww+B/QcIBofdfq6bwrlvkqazS6Pqx+tfzfehkXUNgUXtuLsYurMtk9/awQqyU/vubhkNze6wAa3jZnEDg=="
+  "firma": "nE9c6sq8NaaUMpdDyjypb1Ow1x1/fTry+jppIXRlTxuQCRzKP//a9/YAjUnseaz0kXvF4alvAkgIDu+p1/hoBw=="
 }
