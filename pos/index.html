@@ -278,6 +278,21 @@ img[loading="lazy"]{background:var(--bg2)}
     </div>
   </section>
 
+  <!-- LISTAS DE PRECIOS -->
+  <section class="view" id="v-listas">
+    <div class="card mt">
+      <div class="row"><b>🏷️ Listas de precios</b><span class="badge" id="plCountEl"></span>
+      <input id="plName" type="text" placeholder="Nombre de la lista (ej.: Mayoreo)" style="flex:1;min-width:180px">
+      <button class="btn" onclick="plCreate()">+ Crear desde precios actuales</button></div>
+      <div class="row mt"><select id="plSel" onchange="renderListas()"></select>
+      <button class="btn" onclick="plApply()">Aplicar esta lista a los productos</button>
+      <button class="btn sec" onclick="plPrint()">🖨 Imprimir lista</button>
+      <button class="btn sec" onclick="plDelete()">Borrar lista</button></div>
+      <p class="mut small">Cada lista guarda su propio precio por producto. Edita los precios en la tabla y se guardan solos; «Aplicar» copia esos precios a los productos (el producto que la lista no tenga queda como está).</p>
+      <div style="overflow:auto"><table><thead><tr><th>Código</th><th>Nombre</th><th>Precio actual</th><th>Precio en esta lista</th></tr></thead><tbody id="plBody"></tbody></table></div>
+    </div>
+  </section>
+
   <!-- CLIENTES -->
   <section class="view" id="v-cli">
     <div class="grid2 mt">
@@ -429,18 +444,19 @@ if(DB.cfg.ratesSrc===undefined)DB.cfg.ratesSrc="manual";
 if(DB.cfg.ratesAt===undefined)DB.cfg.ratesAt=null;
 if(DB.cfg.ratesDate===undefined)DB.cfg.ratesDate=null;
 if(DB.cfg.marginPct===undefined)DB.cfg.marginPct=45;
+if(!DB.priceLists)DB.priceLists=[];
 cashOpen=DB.cashMoves.find(m=>m.kind==="APERTURA"&&!m.closedTurn)||null}
 
 /* ---------- login / nav ---------- */
-const ICONS={ventas:"cart",inv:"box",cli:"users",prov:"truck",comp:"inbox",gastos:"coins",caja:"cash",rep:"chart",vales:"ticket",emp:"id",aj:"gear"};
+const ICONS={ventas:"cart",inv:"box",listas:"ticket",cli:"users",prov:"truck",comp:"inbox",gastos:"coins",caja:"cash",rep:"chart",vales:"ticket",emp:"id",aj:"gear"};
 const ic=n=>`<svg class="ic" aria-hidden="true"><use href="#i-${ICONS[n]||n}"/></svg>`;
-const VIEWS=[["ventas","Ventas"],["inv","Inventario"],["cli","Clientes"],["prov","Proveedores"],["comp","Compras"],["gastos","Gastos"],["caja","Caja"],["rep","Reportes"],["vales","Vales"],["emp","Empleados"],["aj","Ajustes"]];
+const VIEWS=[["ventas","Ventas"],["inv","Inventario"],["listas","Precios"],["cli","Clientes"],["prov","Proveedores"],["comp","Compras"],["gastos","Gastos"],["caja","Caja"],["rep","Reportes"],["vales","Vales"],["emp","Empleados"],["aj","Ajustes"]];
 function buildNav(){const role=currentUser?.role||"admin";$("navEl").innerHTML=VIEWS.filter(v=>{
  if(role==="ventas")return["ventas","cli","vales"].includes(v[0]);
  if(role==="almacen")return["inv","prov","comp"].includes(v[0]);
  return true}).map(v=>`<button data-v="${v[0]}" onclick="go('${v[0]}')">${ic(v[0])}<span>${v[1]}</span></button>`).join("")}
 function go(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("on"));$("v-"+v).classList.add("on");document.querySelectorAll("#navEl button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
- if(v==="ventas"){renderProdGrid();recalcSale();renderSalesHist()}if(v==="inv")renderInv();if(v==="cli")renderCli();if(v==="prov")renderProv();if(v==="comp")renderRec();if(v==="gastos")renderExp();if(v==="caja")renderCash();if(v==="rep")renderReports();if(v==="vales")renderVales();if(v==="emp")renderEmp();if(v==="aj")renderCfg()}
+ if(v==="ventas"){renderProdGrid();recalcSale();renderSalesHist()}if(v==="inv")renderInv();if(v==="listas")renderListas();if(v==="cli")renderCli();if(v==="prov")renderProv();if(v==="comp")renderRec();if(v==="gastos")renderExp();if(v==="caja")renderCash();if(v==="rep")renderReports();if(v==="vales")renderVales();if(v==="emp")renderEmp();if(v==="aj")renderCfg()}
 function doLogin(){const id=$("loginUserInput").value,pin=$("loginPinInput").value.trim();const u=DB.employees.find(e=>e.id===id&&e.active);if(!u||u.pin!==pin){toast("❌ Usuario o PIN incorrecto");return}currentUser=u;$("login").style.display="none";buildNav();refreshTop();go("ventas");toast("👋 Hola, "+u.name)}
 function doLogout(){currentUser=null;/* Ronda -102: al salir del POS se vuelve al acceso de Finanzas (y se cierra la sesión allí), no al acceso propio del POS. */location.href="../?salir=1"}
 function refreshTop(){$("userEl").textContent="👤 "+(currentUser?currentUser.name+" ("+currentUser.role+")":"—");
@@ -763,5 +779,13 @@ load();renderEmp();
    marca. El acceso con PIN de la página, fuera de Finanzas, no cambia. */
 try{ const fa=DB&&DB.__finAuto; if(fa&&fa.id&&(Date.now()-fa.ts)<120000){ const u=DB.employees.find(e=>e.id===fa.id&&e.active); delete DB.__finAuto; save(); if(u){ currentUser=u; $("login").style.display="none"; buildNav(); refreshTop(); go(u.role==="almacen"?"inv":"ventas"); toast("👋 Hola, "+u.name); } } }catch(e){}try{setTheme(document.documentElement.dataset.theme||"light")}catch(e){}$("repFrom").value=today();$("repTo").value=today();
 setTimeout(()=>{try{const last=DB.cfg.ratesAt?Date.now()-new Date(DB.cfg.ratesAt).getTime():1e15;if(DB.cfg.autoRates!==false&&last>3600000)updateRatesFromToque(false)}catch(e){}},4000);
-window.go=go;window.toggleTheme=toggleTheme;window.printTicketById=printTicketById;window.showTicketModal=showTicketModal;window.doLogin=doLogin;window.doLogout=doLogout;window.saleSuggest=saleSuggest;window.saleAddFirst=saleAddFirst;window.saleAdd=saleAdd;window.cartSet=cartSet;window.clearCart=clearCart;window.holdSale=holdSale;window.renderHolds=renderHolds;window.takeHold=takeHold;window.delHold=delHold;window.recalcSale=recalcSale;window.openPay=openPay;window.payToggle=payToggle;window.addSplit=addSplit;window.finishSale=finishSale;window.printTicket=printTicket;window.returnSale=returnSale;window.exportSalesCSV=exportSalesCSV;window.renderInv=renderInv;window.openProdModal=openProdModal;window.handlePhotoFile=handlePhotoFile;window.clearPhoto=clearPhoto;window.saveProd=saveProd;window.delProd=delProd;window.exportInvCSV=exportInvCSV;window.renderCli=renderCli;window.openClientModal=openClientModal;window.saveCli=saveCli;window.cliDetail=cliDetail;window.payDebt=payDebt;window.renderProv=renderProv;window.openProvModal=openProvModal;window.saveProv=saveProv;window.delProv=delProv;window.renderRec=renderRec;window.addRecLine=addRecLine;window.saveReceiving=saveReceiving;window.renderExp=renderExp;window.saveExpense=saveExpense;window.delExp=delExp;window.renderCash=renderCash;window.openCash=openCash;window.cashMove=cashMove;window.closeCash=closeCash;window.renderReports=renderReports;window.renderVales=renderVales;window.openValeModal=openValeModal;window.saveVale=saveVale;window.toggleVale=toggleVale;window.renderEmp=renderEmp;window.openEmpModal=openEmpModal;window.saveEmp=saveEmp;window.renderCfg=renderCfg;window.saveCfg=saveCfg;window.quickBackup=quickBackup;window.updateRatesFromToque=updateRatesFromToque;window.importBackup=importBackup;window.resetDemo=resetDemo;window.closeModal=closeModal;
+/* ---------- listas de precios (punto 38) ---------- */
+function plCur(){const id=$("plSel")?.value;return (DB.priceLists||[]).find(l=>l.id===id)||null}
+function renderListas(){ if(!DB.priceLists)DB.priceLists=[]; const sel=$("plSel"); const cur=sel.value; sel.innerHTML=DB.priceLists.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join("")||'<option value="">— Sin listas —</option>'; if(cur&&DB.priceLists.some(l=>l.id===cur))sel.value=cur; $("plCountEl").textContent=DB.priceLists.length+" lista(s)"; const L=plCur(); $("plBody").innerHTML=L?DB.products.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${fmt(p.price)}</td><td><input type="number" step="any" min="0" value="${L.prices[p.id]??""}" placeholder="—" onchange="plSet('${L.id}','${p.id}',this.value)" style="width:130px"></td></tr>`).join(""):'<tr><td colspan="4" class="mut">Crea tu primera lista con el botón de arriba: nace con los precios actuales de los productos.</td></tr>' }
+function plCreate(){ const name=($("plName").value||"").trim(); if(!name){toast("Ponle un nombre a la lista","err");return} if(!DB.priceLists)DB.priceLists=[]; const L={id:uid("PL"),name,prices:{}}; for(const p of DB.products)L.prices[p.id]=p.price; DB.priceLists.push(L); save(); $("plName").value=""; renderListas(); $("plSel").value=L.id; renderListas(); toast("✅ Lista «"+name+"» creada con los precios actuales","ok") }
+function plSet(lid,pid,v){ const L=(DB.priceLists||[]).find(l=>l.id===lid); if(!L)return; const n=Number(v); if(v===""||isNaN(n)||n<0){delete L.prices[pid]}else{L.prices[pid]=n} save() }
+function plApply(){ const L=plCur(); if(!L){toast("No hay lista elegida","err");return} let n=0; for(const p of DB.products){ if(L.prices[p.id]!=null){p.price=Number(L.prices[p.id]);n++} } save(); renderListas(); toast("✅ Lista «"+L.name+"» aplicada a "+n+" producto(s)","ok") }
+function plDelete(){ const L=plCur(); if(!L)return; if(!confirm("¿Borrar la lista «"+L.name+"»? Los productos conservan sus precios actuales."))return; DB.priceLists=DB.priceLists.filter(l=>l.id!==L.id); save(); renderListas(); toast("Lista borrada","ok") }
+function plPrint(){ const L=plCur(); if(!L){toast("No hay lista elegida","err");return} $("printZone").innerHTML=`<div style="font-family:monospace"><h3>${esc(DB.cfg.name)}</h3><p>Lista de precios: <b>${esc(L.name)}</b><br>${today()}</p><table>${DB.products.map(p=>`<tr><td>${esc(p.name)}</td><td style="text-align:right">${fmt(L.prices[p.id]!=null?L.prices[p.id]:p.price)}</td></tr>`).join("")}</table><p>Precios en CUP.</p></div>`; setTimeout(()=>window.print(),150) }
+window.go=go;window.toggleTheme=toggleTheme;window.printTicketById=printTicketById;window.showTicketModal=showTicketModal;window.doLogin=doLogin;window.doLogout=doLogout;window.saleSuggest=saleSuggest;window.saleAddFirst=saleAddFirst;window.saleAdd=saleAdd;window.cartSet=cartSet;window.clearCart=clearCart;window.holdSale=holdSale;window.renderHolds=renderHolds;window.takeHold=takeHold;window.delHold=delHold;window.recalcSale=recalcSale;window.openPay=openPay;window.payToggle=payToggle;window.addSplit=addSplit;window.finishSale=finishSale;window.printTicket=printTicket;window.returnSale=returnSale;window.exportSalesCSV=exportSalesCSV;window.renderInv=renderInv;window.openProdModal=openProdModal;window.handlePhotoFile=handlePhotoFile;window.clearPhoto=clearPhoto;window.saveProd=saveProd;window.delProd=delProd;window.exportInvCSV=exportInvCSV;window.renderCli=renderCli;window.openClientModal=openClientModal;window.saveCli=saveCli;window.cliDetail=cliDetail;window.payDebt=payDebt;window.renderProv=renderProv;window.openProvModal=openProvModal;window.saveProv=saveProv;window.delProv=delProv;window.renderRec=renderRec;window.addRecLine=addRecLine;window.saveReceiving=saveReceiving;window.renderExp=renderExp;window.saveExpense=saveExpense;window.delExp=delExp;window.renderCash=renderCash;window.openCash=openCash;window.cashMove=cashMove;window.closeCash=closeCash;window.renderReports=renderReports;window.renderVales=renderVales;window.openValeModal=openValeModal;window.saveVale=saveVale;window.toggleVale=toggleVale;window.renderEmp=renderEmp;window.openEmpModal=openEmpModal;window.saveEmp=saveEmp;window.renderCfg=renderCfg;window.saveCfg=saveCfg;window.quickBackup=quickBackup;window.updateRatesFromToque=updateRatesFromToque;window.importBackup=importBackup;window.resetDemo=resetDemo;window.closeModal=closeModal;window.renderListas=renderListas;window.plCreate=plCreate;window.plSet=plSet;window.plApply=plApply;window.plDelete=plDelete;window.plPrint=plPrint;
 </script>
