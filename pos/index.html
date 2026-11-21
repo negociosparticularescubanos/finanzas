@@ -57,7 +57,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .grid2,.grid3{display:grid;grid-template-columns:1fr;gap:12px}
 @media(min-width:900px){.wrap{padding:14px}.grid2{grid-template-columns:1.5fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.mt{margin-top:12px}.mut{color:var(--mut);font-size:13px}.small{font-size:12px}
+.mt{margin-top:12px}.warnbox{background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px.mut{color:var(--mut);font-size:13px}.small{font-size:12px}
 input[type=text],input[type=number],input[type=date],input[type=password],select,textarea{border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;background:var(--card);min-width:0;transition:border-color .2s,box-shadow .2s}
 input:hover,select:hover,textarea:hover{border-color:color-mix(in srgb,var(--pri2) 55%,var(--line))}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri2);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri2) 25%,transparent)}
@@ -234,7 +234,7 @@ img[loading="lazy"]{background:var(--bg2)}
           </div>
           <select id="saleCatFilter" onchange="renderProdGrid()"><option value="">Todas categorías</option></select>
         </div>
-        <div class="prodgrid mt" id="prodGridEl"></div>
+        <div id="lowStockWarn" class="warnbox" style="display:none"></div><div class="prodgrid mt" id="prodGridEl"></div>
         <div class="mut small mt">Métodos Cuba: Efectivo CUP · Transfermóvil · EnZona · Tarjeta CUP · Tarjeta MLC · USD · EUR · Fiado. Toque un producto para agregarlo. Use +/- para cantidad. F2 = Cobrar.</div>
       </div>
       <div class="card">
@@ -470,7 +470,8 @@ function refreshTop(){$("userEl").textContent="👤 "+(currentUser?currentUser.n
 
 /* ---------- ventas ---------- */
 function cats(){return [...new Set(DB.products.map(p=>p.cat||"General"))]}
-function renderProdGrid(){const cf=$("saleCatFilter");const cur=cf.value;cf.innerHTML=`<option value="">Todas categorías</option>`+cats().map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("");
+function lowStockRender(){const b=$("lowStockWarn");if(!b)return;const bajos=DB.products.filter(p=>p.stock<=p.min);if(!bajos.length){b.style.display="none";return;}b.style.display="";b.innerHTML="⚠ <b>"+bajos.length+" producto(s) en o bajo su mínimo:</b> "+bajos.slice(0,6).map(p=>esc(p.name)+" ("+p.stock+")").join(", ")+(bajos.length>6?"…":"");}
+function renderProdGrid(){lowStockRender();const cf=$("saleCatFilter");const cur=cf.value;cf.innerHTML=`<option value="">Todas categorías</option>`+cats().map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("");
  const q=($("saleSearchInput").value||"").toLowerCase(),cat=cf.value;
  const list=DB.products.filter(p=>(!cat||p.cat===cat)&&(!q||p.name.toLowerCase().includes(q)||p.code.includes(q)));
  $("prodGridEl").innerHTML=list.map(p=>{const st=p.stock<=0?"out":p.stock<=p.min?"low":"ok";return `<button class="prod" onclick="saleAdd('${p.id}')">${p.photo?`<img loading="lazy" decoding="async" src="${p.photo}" alt="" style="width:100%;height:64px;object-fit:cover;border-radius:8px;margin-bottom:4px">`:""}<b>${esc(p.name)}</b><span class="s">${esc(p.code)} · ${esc(p.cat||"")}</span><span class="p">${fmt(p.price)}</span><span class="s">Stock: ${p.stock} <span class="badge ${st}">${st==="out"?"agotado":st==="low"?"bajo":"ok"}</span></span></button>`}).join("")||`<p class="mut">Sin resultados.</p>`;
