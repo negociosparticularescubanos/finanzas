@@ -67,8 +67,24 @@
     </div>
 </div>
 
+<div class="tarjeta">
+    <h2 style="margin-top:0">Mis consultas — preguntas guardadas sobre tus asientos</h2>
+    <p class="tenue">¿Cada mes buscas lo mismo? «¿Cuánto gasté en comisiones?», «¿qué asientos mencionan a un proveedor?»… Haz la pregunta una vez, guárdala con un nombre y reábrela cuando quieras: se responde sola con los asientos que haya hasta ese día.</p>
+    <div class="fila no-imprimir">
+        <input id="mcNombre" placeholder="Nombre de la consulta" style="min-width:170px">
+        <label>Desde <input type="date" id="mcDesde"></label>
+        <label>Hasta <input type="date" id="mcHasta"></label>
+        <input id="mcTexto" placeholder="Palabra en el concepto (opcional)" style="min-width:190px">
+        <label>Cuenta <select id="mcCuenta"><option value="">Todas</option></select></label>
+        <button type="button" id="mcEjecutar" class="secundario chico">Ejecutar</button>
+        <button type="button" id="mcGuardar">Guardar la consulta</button>
+    </div>
+    <div id="mcResultado"><p class="tenue">Ejecuta una consulta o abre una guardada.</p></div>
+    <div id="mcLista"></div>
+</div>
+
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(10);
@@ -76,7 +92,7 @@ aplicarFondo(10);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, presupuesto = null, fiscal = null;
+let conta = null, presupuesto = null, fiscal = null, consultas = [];
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -228,6 +244,40 @@ function pintarPresupuesto(porMes) {
     if (actual) sel.value = actual;
 }
 
+function ejecutarConsulta(c) {
+    const desde = c.desde || '0000-01-01', hasta = c.hasta || '9999-12-31';
+    const texto = (c.texto || '').toLowerCase();
+    const filas = [];
+    let tD = 0, tH = 0;
+    for (const a of (conta.asientos || [])) {
+        if ((a.fecha || '') < desde || (a.fecha || '') > hasta) continue;
+        if (texto && String(a.concepto || '').toLowerCase().indexOf(texto) < 0) continue;
+        if (c.cuenta && !(a.lineas || []).some((l) => l.cuenta === c.cuenta)) continue;
+        const d = r2((a.lineas || []).reduce((sx, l) => sx + (Number(l.debe) || 0), 0));
+        const h = r2((a.lineas || []).reduce((sx, l) => sx + (Number(l.haber) || 0), 0));
+        tD = r2(tD + d); tH = r2(tH + h);
+        filas.push('<tr><td>' + a.numero + '</td><td>' + a.fecha + '</td><td>' + a.concepto + '</td><td class="num">' + fmt(d) + '</td><td class="num">' + fmt(h) + '</td></tr>');
+    }
+    $('mcResultado').innerHTML = '<table><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Haber</th></tr></thead><tbody>' +
+        (filas.join('') || '<tr><td colspan="5" class="tenue">Ningún asiento cumple esos criterios.</td></tr>') +
+        '<tr class="totales"><td colspan="3">' + filas.length + ' asiento(s)</td><td class="num">' + fmt(tD) + '</td><td class="num">' + fmt(tH) + '</td></tr></tbody></table>';
+}
+function pintarConsultas() {
+    $('mcLista').innerHTML = consultas.length ? '<p style="margin-top:10px"><b>Consultas guardadas:</b></p>' + consultas.map((c) =>
+        '<div class="fila"><b>' + c.nombre + '</b><span class="tenue">' + (c.desde || '…') + ' a ' + (c.hasta || '…') + (c.texto ? ' · «' + c.texto + '»' : '') + (c.cuenta ? ' · cuenta ' + c.cuenta : '') + '</span>' +
+        '<button type="button" class="chico" data-mc="' + c.id + '">Abrir</button> <button type="button" class="chico secundario" data-mcdel="' + c.id + '">Borrar</button></div>').join('') : '<p class="tenue">Todavía no guardas ninguna consulta.</p>';
+    $('mcLista').querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => {
+        const c = consultas.find((x) => x.id === b.dataset.mc);
+        if (!c) return;
+        $('mcNombre').value = c.nombre; $('mcDesde').value = c.desde || ''; $('mcHasta').value = c.hasta || ''; $('mcTexto').value = c.texto || ''; $('mcCuenta').value = c.cuenta || '';
+        ejecutarConsulta(c);
+    }));
+    $('mcLista').querySelectorAll('[data-mcdel]').forEach((b) => b.addEventListener('click', async () => {
+        consultas = consultas.filter((x) => x.id !== b.dataset.mcdel);
+        await bd().docGuardar(tokenSesion(), 'consultas', consultas);
+        pintarConsultas(); aviso('Consulta borrada');
+    }));
+}
 (async () => {
     try {
         pintarIndicador();
@@ -237,6 +287,18 @@ function pintarPresupuesto(porMes) {
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
         presupuesto = (await bd().docLeer(tokenSesion(), 'presupuesto')) || {};
         fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || null;
+        consultas = (await bd().docLeer(tokenSesion(), 'consultas')) || [];
+        $('mcCuenta').innerHTML = '<option value="">Todas</option>' + (conta.plan || []).filter((c) => c.admite).map((c) => '<option value="' + c.codigo + '">' + c.codigo + ' · ' + c.nombre + '</option>').join('');
+        $('mcEjecutar').addEventListener('click', () => ejecutarConsulta({ desde: $('mcDesde').value, hasta: $('mcHasta').value, texto: $('mcTexto').value.trim(), cuenta: $('mcCuenta').value }));
+        $('mcGuardar').addEventListener('click', async () => {
+            const nombre = $('mcNombre').value.trim();
+            if (!nombre) { aviso('La consulta necesita un nombre para guardarla', 'error'); return; }
+            consultas = consultas.filter((c) => c.nombre !== nombre);
+            consultas.push({ id: 'mc' + Date.now().toString(36), nombre, desde: $('mcDesde').value, hasta: $('mcHasta').value, texto: $('mcTexto').value.trim(), cuenta: $('mcCuenta').value });
+            await bd().docGuardar(tokenSesion(), 'consultas', consultas);
+            pintarConsultas(); aviso('Consulta «' + nombre + '» guardada: ábrela cuando quieras y se responde sola');
+        });
+        pintarConsultas();
         $('iMes').value = new Date().toISOString().slice(0, 7);
         $('iVer').addEventListener('click', pintar);
         $('iImprimir').addEventListener('click', () => window.print());
@@ -255,6 +317,21 @@ function pintarPresupuesto(porMes) {
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         pintar();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['informes', 'Informes'], ['presupuesto', 'Presupuesto'], ['consultas', 'Mis consultas']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Presupuesto contra') === 0) return 'presupuesto'; if (x.indexOf('Mis consultas') === 0) return 'consultas'; return 'informes'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar no-imprimir';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('informes');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

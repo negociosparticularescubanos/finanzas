@@ -244,6 +244,17 @@ export async function sesionActual() {
 }
 
 /* ---------- Avisos en pantalla ---------- */
+/* Descarga una tabla como CSV que Excel abre directo (separador ; y
+ * BOM para que las tildes y la ñ se vean bien en Excel en español). */
+export function descargarCSV(nombre, filas) {
+    const esc = (v) => { const t = String(v == null ? '' : v); return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const texto = '\ufeff' + (filas || []).map((f) => f.map(esc).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
 export function aviso(texto, tipo) {
     let caja = document.getElementById('saldova-avisos');
     if (!caja) {

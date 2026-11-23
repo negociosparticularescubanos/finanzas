@@ -44,6 +44,7 @@
         <label>Vence <input id="fVence" type="date"></label>
         <input id="fTotal" class="monto" type="number" step="0.01" min="0" placeholder="Total">
         <button type="button" id="fAdd" class="secundario chico">Añadir factura</button>
+        <button type="button" id="fCsv" class="secundario chico">Descargar las facturas en Excel (CSV)</button>
     </div>
 </div>
 
@@ -92,7 +93,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(6);
@@ -275,6 +276,17 @@ function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(
             conta.gestion.facturas.push({ id: 'f' + Date.now().toString(36), numero, cliente, fecha: $('fFecha').value, vencimiento: $('fVence').value, total, cobros: [] });
             await guardar(); $('fNumero').value = $('fCliente').value = $('fTotal').value = '';
             pintarTodo(); aviso('Factura añadida');
+        });
+        $('fCsv').addEventListener('click', () => {
+            const filas = [['Número', 'Cliente', 'Fecha', 'Vencimiento', 'Total', 'Cobrado', 'Saldo', 'Estado']];
+            for (const f of (conta.gestion.facturas || [])) {
+                const saldo = saldoFac(f);
+                const cobrado = r2((Number(f.total) || 0) - saldo);
+                filas.push([f.numero, f.cliente, f.fecha, f.vencimiento || '', (Number(f.total) || 0).toFixed(2), cobrado.toFixed(2), saldo.toFixed(2), saldo <= 0 ? 'Pagada' : (f.vencimiento && f.vencimiento < hoy() ? 'Vencida' : 'Pendiente')]);
+            }
+            if (filas.length === 1) { aviso('No hay facturas para descargar', 'error'); return; }
+            descargarCSV('facturas.csv', filas);
+            aviso('Facturas descargadas en CSV: ábrelo con Excel');
         });
         $('cAdd').addEventListener('click', async () => {
             const numero = $('cNumero').value.trim(), cliente = $('cCliente').value.trim();

@@ -53,7 +53,8 @@
 <div class="tarjeta">
     <h2>Ventas del día y asiento del día</h2>
     <div class="fila"><input type="date" id="vdFecha"><button type="button" id="vdVer" class="secundario chico">Ver</button>
-    <button type="button" id="vdAsiento">Generar el asiento del día</button></div>
+    <button type="button" id="vdAsiento">Generar el asiento del día</button>
+    <button type="button" id="vdCsv" class="secundario chico">Descargar las ventas en Excel (CSV)</button></div>
     <div id="ventasDia"><p class="tenue">Elige la fecha.</p></div>
     <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja (101-010), la tarjeta y el QR al Banco (110-010), lo vendido a crédito a Cuentas por Cobrar (131-000), contra Ventas (801-000), ya neto de las devoluciones del día. Cada venta entra una sola vez.</p>
 </div>
@@ -79,6 +80,14 @@
         <input id="pMin" type="number" step="1" min="0" placeholder="Mínimo" style="width:80px">
         <button type="button" id="pAdd" class="secundario chico">Añadir producto</button>
     </div>
+</div>
+
+<div class="tarjeta" id="tarjetaPrecios">
+    <h2>Lista de precios e historia de precios</h2>
+    <p class="tenue">La lista para el mostrador, lista para imprimir. Cada cambio de precio queda registrado con su antes y su después: nadie cambia un precio sin dejar rastro.</p>
+    <div id="listaPrecios"><p class="tenue">Cargando…</p></div>
+    <div class="fila"><button type="button" id="lpImprimir" class="secundario chico">Imprimir la lista de precios</button></div>
+    <div id="histPrecios"></div>
 </div>
 
 <div class="tarjeta">
@@ -108,7 +117,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(7);
@@ -138,7 +147,7 @@ function pintarProductos() {
         const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
         return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + fmt(p.precio) + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
         '<td class="num">' + (p.stock <= (p.stockMin || 0) ? '<span class="rojo">' + p.stock + '</span>' : p.stock) + '</td>' +
-        '<td><button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>';
+        '<td><input type="number" step="0.01" min="0" style="width:90px" placeholder="Nuevo" data-np="' + p.id + '"> <button type="button" class="chico secundario" data-fijar="' + p.id + '">Fijar precio</button> <button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>';
     }).join('');
     $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Costo</th><th class="num">Margen</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
         (filas || '<tr><td colspan="7" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
@@ -146,7 +155,32 @@ function pintarProductos() {
         pos.productos = pos.productos.filter((p) => p.id !== b.dataset.del);
         await guardar(); pintarTodo();
     }));
+    $('productos').querySelectorAll('[data-fijar]').forEach((b) => b.addEventListener('click', async () => {
+        const p = pos.productos.find((x) => x.id === b.dataset.fijar);
+        const inp = $('productos').querySelector('[data-np="' + p.id + '"]');
+        const nuevo = Number(inp.value) || 0;
+        if (!p || nuevo <= 0) { aviso('Escribe el nuevo precio (mayor que cero)', 'error'); return; }
+        if (nuevo === Number(p.precio)) { aviso('Ese ya es el precio actual', 'error'); return; }
+        pos.preciosHist = pos.preciosHist || [];
+        pos.preciosHist.push({ fecha: hoy(), codigo: p.codigo, nombre: p.nombre, antes: Number(p.precio) || 0, despues: nuevo });
+        p.precio = nuevo;
+        await guardar(); pintarTodo();
+        aviso('Precio de ' + p.nombre + ' actualizado y registrado en la historia');
+    }));
     pintarOcioso();
+    pintarPrecios();
+}
+function pintarPrecios() {
+    const lista = pos.productos || [];
+    $('listaPrecios').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Costo</th><th class="num">Margen</th></tr></thead><tbody>' +
+        (lista.map((p) => {
+            const costo = Number(p.costo) || 0;
+            const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
+            return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num"><b>' + fmt(p.precio) + '</b></td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td></tr>';
+        }).join('') || '<tr><td colspan="5" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
+    const hist = [...(pos.preciosHist || [])].reverse().slice(0, 10);
+    $('histPrecios').innerHTML = hist.length ? '<p style="margin-top:10px"><b>Últimos cambios de precio:</b></p>' + hist.map((h) =>
+        '<div class="fila"><span>' + h.fecha + '</span><span>' + h.nombre + '</span><span class="tenue">de ' + fmt(h.antes) + ' a</span><b>' + fmt(h.despues) + '</b></div>').join('') : '<p class="tenue">Todavía no se ha cambiado ningún precio.</p>';
 }
 function pintarCarrito() {
     const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
@@ -270,6 +304,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         pos.productos = pos.productos || [];
         pos.ventas = pos.ventas || [];
         pos.devoluciones = pos.devoluciones || [];
+        pos.preciosHist = pos.preciosHist || [];
         pos.arqueos = pos.arqueos || [];
         pos.inventario = pos.inventario || [];
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
@@ -317,6 +352,18 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             await guardar();
             carrito = []; pintarTodo(); pintarDevoluciones();
             aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
+        });
+        $('lpImprimir').addEventListener('click', () => window.print());
+        $('vdCsv').addEventListener('click', () => {
+            const fecha = $('vdFecha').value;
+            const filas = [['Venta', 'Fecha', 'Productos', 'Medio de cobro', 'Total', 'Devuelto', 'Neto']];
+            for (const v of (pos.ventas || []).filter((x) => x.fecha === fecha)) {
+                const dev = r2((pos.devoluciones || []).filter((d) => d.ventaId === v.id).reduce((sx, d) => sx + (Number(d.total) || 0), 0));
+                filas.push([v.id, v.fecha, v.lineas.map((l) => l.nombre + ' x' + l.cant).join(', '), v.cobros.map((c) => c.medio).join(', '), (Number(v.total) || 0).toFixed(2), dev.toFixed(2), r2((Number(v.total) || 0) - dev).toFixed(2)]);
+            }
+            if (filas.length === 1) { aviso('No hay ventas en ' + fecha + ' para descargar', 'error'); return; }
+            descargarCSV('ventas-' + fecha + '.csv', filas);
+            aviso('Ventas de ' + fecha + ' descargadas en CSV: ábrelo con Excel');
         });
         $('ipvFecha').value = hoy();
         $('ipvVer').addEventListener('click', pintarIPV);
@@ -433,10 +480,10 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         /* Pestañas internas del módulo (modelo .exe) */
         (() => {
             const estilo = document.createElement('style');
-            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}@media print{body>*:not(#tarjetaPrecios){display:none!important}#tarjetaPrecios{display:block!important;border:none}}';
             document.head.appendChild(estilo);
             const grupos = [['vender', 'Vender'], ['ventas', 'Ventas y caja'], ['productos', 'Productos']];
-            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Vender') === 0) return 'vender'; if (x.indexOf('Productos') === 0 || x.indexOf('Inventario ocioso') === 0) return 'productos'; return 'ventas'; };
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Vender') === 0) return 'vender'; if (x.indexOf('Productos') === 0 || x.indexOf('Inventario ocioso') === 0 || x.indexOf('Lista de precios') === 0) return 'productos'; return 'ventas'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
             const primera = document.querySelector('.tarjeta');

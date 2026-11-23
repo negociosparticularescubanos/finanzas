@@ -57,13 +57,14 @@
 <div class="tarjeta">
     <h2 style="margin-top:0">Existencias</h2>
     <div id="existencias"><p class="tenue">Cargando…</p></div>
+    <div class="fila"><button type="button" id="eCsv" class="secundario chico">Descargar las existencias en Excel (CSV)</button></div>
     <h2>Kardex de un producto</h2>
     <div class="fila"><label>Producto <select id="kProducto"></select></label></div>
     <div id="kardex"><p class="tenue">Elige un producto: verás sus documentos y sus ventas en orden de fecha.</p></div>
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(12);
 const $ = (id) => document.getElementById(id);
@@ -184,6 +185,15 @@ async function aplicarAjustes() {
         $('cHoja').addEventListener('click', pintarHojaConteo);
         $('cMostrar').addEventListener('change', () => { if ($('conteo').querySelector('[data-conteo]')) pintarHojaConteo(); });
         $('cComparar').addEventListener('click', pintarComparacion);
+        $('eCsv').addEventListener('click', () => {
+            const filas = [['Código', 'Producto', 'Stock', 'Mínimo', 'Costo promedio', 'Valor a costo', 'Valor a precio de venta', 'Estado']];
+            for (const p of (pos.productos || [])) {
+                filas.push([p.codigo, p.nombre, Number(p.stock) || 0, Number(p.stockMin) || 0, (Number(p.costo) || 0).toFixed(2), r2((Number(p.stock) || 0) * (Number(p.costo) || 0)).toFixed(2), r2((Number(p.stock) || 0) * (Number(p.precio) || 0)).toFixed(2), (Number(p.stock) || 0) < (Number(p.stockMin) || 0) ? 'Bajo mínimo' : 'Bien']);
+            }
+            if (filas.length === 1) { aviso('No hay productos para descargar', 'error'); return; }
+            descargarCSV('existencias.csv', filas);
+            aviso('Existencias descargadas en CSV: ábrelo con Excel');
+        });
         $('dRegistrar').addEventListener('click', async () => {
             const p = producto($('dProducto').value);
             const cant = Math.floor(Number($('dCant').value) || 0);

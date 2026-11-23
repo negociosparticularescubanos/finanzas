@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Producción ligera</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 110px; text-align: right; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .rojo { color: #B23218; font-weight: 600; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    .pest-bar { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 12px; }
+    .pest-bar button { background: linear-gradient(180deg,#DCE8F5,#C6D9EE); border: 1px solid #7E9CC0; color: #14324F; font-weight: 400; border-radius: 7px 7px 0 0; padding: 7px 15px; }
+    .pest-bar button.activa { background: linear-gradient(180deg,#3A87D4,#2B5B84); color: #fff; font-weight: 700; }
+    @media print { body > *:not(#fichaImp) { display: none !important; } #fichaImp { display: block !important; border: none; } }
+</style>
+</head>
+<body>
+<h1>Producción ligera</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="pest-bar" id="pestBar">
+    <button type="button" data-pest="ordenes">Órdenes de producción</button>
+    <button type="button" data-pest="fichas">Fichas y ficha de costo</button>
+</div>
+
+<div class="tarjeta" data-grupo="ordenes">
+    <h2>Orden de producción</h2>
+    <p class="tenue">Una pantalla y listo: eliges el producto y la cantidad; la app descuenta los materiales de su ficha (con su documento de salida), entra el producto terminado con su costo unitario calculado de los materiales, y todo queda en el kardex. El costo sale de los costos promedio reales de tu almacén: si una compra cambia de precio, la próxima orden ya lo sabe.</p>
+    <div class="fila">
+        <label>Producto a fabricar <select id="opProducto" style="min-width:220px"></select></label>
+        <label>Cantidad <input id="opCant" type="number" step="1" min="1" value="1" style="width:80px"></label>
+        <label>Fecha <input id="opFecha" type="date"></label>
+        <button type="button" id="opVer" class="secundario chico">Ver qué necesita</button>
+        <button type="button" id="opProducir">Producir</button>
+    </div>
+    <div id="opDetalle"><p class="tenue">Elige el producto: verás los materiales que pide su ficha y si alcanzan.</p></div>
+    <div id="opLista"></div>
+</div>
+
+<div class="tarjeta" data-grupo="fichas">
+    <h2>Fichas de producción (recetas)</h2>
+    <p class="tenue">La ficha dice qué materiales lleva UNA unidad del producto terminado. Es la misma ficha que usa la orden de producción y la ficha de costo.</p>
+    <div class="fila">
+        <label>Producto terminado <select id="rProducto" style="min-width:220px"></select></label>
+    </div>
+    <div id="rMateriales"><p class="tenue">Este producto aún no tiene materiales en su ficha.</p></div>
+    <div class="fila">
+        <select id="rMaterial" style="min-width:220px"></select>
+        <label>Cantidad por unidad <input id="rCant" type="number" step="0.01" min="0" value="1" style="width:90px"></label>
+        <button type="button" id="rAdd" class="secundario chico">Añadir material a la ficha</button>
+        <button type="button" id="rGuardar">Guardar la ficha</button>
+    </div>
+</div>
+
+<div class="tarjeta" data-grupo="fichas">
+    <h2>Ficha de costo del producto (Res. 148/2023)</h2>
+    <p class="tenue">La ficha de costo se alimenta sola de tu almacén: los materiales se valoran al costo promedio de hoy, así que una compra nueva actualiza la ficha sin teclear nada. Añades la mano de obra y los demás gastos por unidad, eliges la utilidad, y la app propone el precio. El formato sigue la lógica de la Resolución 148/2023 del MFP para la formación de precios.</p>
+    <div class="fila">
+        <label>Producto <select id="fcProducto" style="min-width:220px"></select></label>
+        <label>Mano de obra por unidad <input id="fcMano" class="monto" type="number" step="0.01" min="0" value="0"></label>
+        <label>Otros gastos por unidad <input id="fcOtros" class="monto" type="number" step="0.01" min="0" value="0"></label>
+        <label>Utilidad deseada % <input id="fcUtil" type="number" step="1" min="0" value="20" style="width:70px"></label>
+        <button type="button" id="fcVer" class="secundario chico">Ver la ficha</button>
+        <button type="button" id="fcGuardar">Guardar la ficha</button>
+    </div>
+    <div id="ficha"><p class="tenue">Elige un producto con ficha de producción: aquí sale su costo desglosado.</p></div>
+</div>
+
+<div class="tarjeta" id="fichaImp" style="display:none">
+    <h2>Ficha de costo — documento</h2>
+    <div id="fichaImpCuerpo"></div>
+    <div class="fila"><button type="button" id="fiImprimir">Imprimir la ficha</button>
+    <button type="button" id="fiCerrar" class="secundario">Cerrar</button></div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(14);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const hoy = () => new Date().toISOString().slice(0, 10);
+let pos = null, conta = null, recetaEdit = [];
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
+const prod = (cod) => (pos.productos || []).find((p) => p.codigo === cod);
+const recetaDe = (cod) => (pos.recetas || []).find((r) => r.codigo === cod);
+function opcionesProductos(sel, vacio) {
+    $(sel).innerHTML = (pos.productos || []).map((p) => '<option value="' + p.codigo + '">' + p.codigo + ' · ' + p.nombre + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('') || '<option value="">' + vacio + '</option>';
+}
+function costoOrden(codTerminado, cant) {
+    const r = recetaDe(codTerminado);
+    if (!r || !(r.materiales || []).length) return null;
+    let unitario = 0;
+    const detalle = (r.materiales || []).map((m) => {
+        const mp = prod(m.codigo);
+        const costo = mp ? (Number(mp.costo) || 0) : 0;
+        const necesita = r2(m.cant * cant);
+        unitario = r2(unitario + m.cant * costo);
+        return { codigo: m.codigo, nombre: mp ? mp.nombre : m.codigo, porUnidad: m.cant, necesita, hay: mp ? (Number(mp.stock) || 0) : 0, costo, importe: r2(necesita * costo) };
+    });
+    return { detalle, unitario, total: r2(unitario * cant) };
+}
+function pintarOrden() {
+    const cod = $('opProducto').value, cant = Math.max(1, Math.floor(Number($('opCant').value) || 1));
+    const c = costoOrden(cod, cant);
+    if (!c) { $('opDetalle').innerHTML = '<p class="tenue">Este producto no tiene ficha de producción: créala en la pestaña «Fichas y ficha de costo».</p>'; return; }
+    const falta = c.detalle.filter((d) => d.necesita > d.hay);
+    $('opDetalle').innerHTML = '<table><thead><tr><th>Material</th><th class="num">Por unidad</th><th class="num">Necesita</th><th class="num">Hay</th><th class="num">Costo prom.</th><th class="num">Importe</th></tr></thead><tbody>' +
+        c.detalle.map((d) => '<tr><td>' + d.nombre + '</td><td class="num">' + d.porUnidad + '</td><td class="num">' + d.necesita + '</td><td class="num">' + (d.necesita > d.hay ? '<span class="rojo">' + d.hay + '</span>' : d.hay) + '</td><td class="num">' + fmt(d.costo) + '</td><td class="num">' + fmt(d.importe) + '</td></tr>').join('') +
+        '<tr class="totales"><td colspan="5">COSTO DE MATERIALES DE LA ORDEN (' + cant + ' unidades)</td><td class="num">' + fmt(c.total) + '</td></tr></tbody></table>' +
+        '<p>Costo unitario del terminado por materiales: <b>' + fmt(c.unitario) + '</b>.' + (falta.length ? ' <span class="rojo">No alcanza: falta material (' + falta.map((d) => d.nombre).join(', ') + '); la orden no se puede producir todavía.</span>' : ' Alcanza para producir.') + '</p>';
+}
+function pintarOrdenes() {
+    const lista = [...(pos.produccion || [])].reverse().slice(0, 10);
+    $('opLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Últimas órdenes:</b></p>' + lista.map((o) =>
+        '<div class="fila"><span>' + o.fecha + '</span><b>' + o.nombre + ' × ' + o.cant + '</b><span class="tenue">costo unitario ' + fmt(o.costoUnitario) + ' · total ' + fmt(o.costoTotal) + '</span></div>').join('') : '';
+}
+function pintarReceta() {
+    const cod = $('rProducto').value;
+    const r = recetaDe(cod);
+    recetaEdit = r ? (r.materiales || []).map((m) => ({ ...m })) : [];
+    pintarRecetaEdit();
+}
+function pintarRecetaEdit() {
+    $('rMateriales').innerHTML = recetaEdit.map((m, i) => {
+        const mp = prod(m.codigo);
+        return '<div class="fila"><span>' + (mp ? mp.nombre : m.codigo) + '</span><span class="tenue">' + m.cant + ' por unidad · costo prom. ' + fmt(mp ? (Number(mp.costo) || 0) : 0) + '</span>' +
+            '<button type="button" class="chico secundario" data-rq="' + i + '">Quitar</button></div>';
+    }).join('') || '<p class="tenue">Este producto aún no tiene materiales en su ficha.</p>';
+    $('rMateriales').querySelectorAll('[data-rq]').forEach((b) => b.addEventListener('click', () => { recetaEdit.splice(Number(b.dataset.rq), 1); pintarRecetaEdit(); }));
+}
+function pintarFicha() {
+    const cod = $('fcProducto').value;
+    const c = costoOrden(cod, 1);
+    const p = prod(cod);
+    if (!p) { $('ficha').innerHTML = '<p class="tenue">Sin productos: créalos en el Punto de Venta.</p>'; return; }
+    if (!c) { $('ficha').innerHTML = '<p class="tenue">Este producto no tiene ficha de producción: sin materiales no hay costo que calcular. Créala en esta misma pestaña.</p>'; return; }
+    const mano = Number($('fcMano').value) || 0, otros = Number($('fcOtros').value) || 0, util = Number($('fcUtil').value) || 0;
+    const costoTotal = r2(c.unitario + mano + otros);
+    const precio = r2(costoTotal * (1 + util / 100));
+    $('ficha').innerHTML =
+        '<p><b>Ficha de costo de ' + p.nombre + '</b> · precios y costos de hoy (' + hoy() + ')</p>' +
+        '<table><thead><tr><th>Concepto</th><th class="num">Importe por unidad</th></tr></thead><tbody>' +
+        c.detalle.map((d) => '<tr><td>Materia prima: ' + d.nombre + ' (' + d.porUnidad + ' × ' + fmt(d.costo) + ')</td><td class="num">' + fmt(r2(d.porUnidad * d.costo)) + '</td></tr>').join('') +
+        '<tr><td>Materiales directos</td><td class="num">' + fmt(c.unitario) + '</td></tr>' +
+        '<tr><td>Mano de obra directa</td><td class="num">' + fmt(mano) + '</td></tr>' +
+        '<tr><td>Otros gastos</td><td class="num">' + fmt(otros) + '</td></tr>' +
+        '<tr class="totales"><td>COSTO TOTAL POR UNIDAD</td><td class="num">' + fmt(costoTotal) + '</td></tr>' +
+        '<tr><td>Utilidad deseada (' + util + ' % sobre el costo)</td><td class="num">' + fmt(r2(precio - costoTotal)) + '</td></tr>' +
+        '<tr class="totales"><td>PRECIO PROPUESTO</td><td class="num">' + fmt(precio) + '</td></tr></tbody></table>' +
+        '<p class="tenue">Precio de venta actual del producto: ' + fmt(p.precio) + '. Si el propuesto difiere, decides tú: la app no cambia precios sola. El impuesto sobre ventas se liquida aparte, por el Vector Fiscal.</p>' +
+        '<div class="fila"><button type="button" id="fcImprimir" class="secundario chico">Ver el documento imprimible</button></div>';
+    $('fcImprimir').addEventListener('click', () => {
+        $('fichaImpCuerpo').innerHTML = $('ficha').querySelector('table').outerHTML + '<p>Ficha de costo de ' + p.nombre + ' · ' + hoy() + ' · Utilidad ' + util + ' % · Precio propuesto ' + fmt(precio) + '.</p>';
+        $('fichaImp').style.display = '';
+        $('fichaImp').scrollIntoView({ behavior: 'smooth' });
+    });
+}
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        pos = (await bd().docLeer(tokenSesion(), 'pos')) || {};
+        pos.productos = pos.productos || [];
+        pos.ventas = pos.ventas || [];
+        pos.inventario = pos.inventario || [];
+        pos.recetas = pos.recetas || [];
+        pos.produccion = pos.produccion || [];
+        pos.fichas = pos.fichas || [];
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { candados: {} };
+        $('opFecha').value = hoy();
+        const refrescarSelects = () => { opcionesProductos('opProducto', 'Sin productos'); opcionesProductos('rProducto', 'Sin productos'); opcionesProductos('rMaterial', 'Sin productos'); opcionesProductos('fcProducto', 'Sin productos'); };
+        refrescarSelects();
+        $('opProducto').addEventListener('change', pintarOrden);
+        $('opCant').addEventListener('input', pintarOrden);
+        $('opVer').addEventListener('click', pintarOrden);
+        $('opProducir').addEventListener('click', async () => {
+            const cod = $('opProducto').value, cant = Math.max(1, Math.floor(Number($('opCant').value) || 1)), fecha = $('opFecha').value;
+            const term = prod(cod);
+            if (!term) { aviso('Elige el producto a fabricar', 'error'); return; }
+            if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se produce en un período cerrado', 'error'); return; }
+            const c = costoOrden(cod, cant);
+            if (!c) { aviso('Ese producto no tiene ficha de producción', 'error'); return; }
+            const falta = c.detalle.filter((d) => d.necesita > d.hay);
+            if (falta.length) { aviso('No alcanza el material: ' + falta.map((d) => d.nombre + ' (hay ' + d.hay + ', necesitas ' + d.necesita + ')').join('; '), 'error'); return; }
+            const idOrden = 'OP-' + Date.now().toString(36).toUpperCase();
+            for (const d of c.detalle) {
+                const mp = prod(d.codigo);
+                mp.stock = (Number(mp.stock) || 0) - d.necesita;
+                pos.inventario.push({ id: 'd' + Date.now().toString(36) + d.codigo, fecha, tipo: 'salida', codigo: d.codigo, nombre: d.nombre, cant: d.necesita, motivo: 'Producción ' + idOrden + ' (' + term.nombre + ')' });
+            }
+            const stockAntes = Number(term.stock) || 0, costoAntes = Number(term.costo) || 0;
+            term.stock = stockAntes + cant;
+            term.costo = r2(((stockAntes * costoAntes) + (cant * c.unitario)) / ((stockAntes + cant) || 1));
+            pos.inventario.push({ id: 'd' + Date.now().toString(36) + 'T', fecha, tipo: 'entrada', codigo: term.codigo, nombre: term.nombre, cant, motivo: 'Producción ' + idOrden + ' (producto terminado)', costo: c.unitario });
+            pos.produccion.push({ id: idOrden, fecha, codigo: term.codigo, nombre: term.nombre, cant, costoUnitario: c.unitario, costoTotal: c.total });
+            await guardar();
+            refrescarSelects();
+            $('opProducto').value = cod;
+            pintarOrden(); pintarOrdenes();
+            aviso('Orden ' + idOrden + ' producida: ' + cant + ' × ' + term.nombre + ' a un costo unitario de ' + fmt(c.unitario) + '. Los materiales quedaron descontados y el terminado entró al almacén.');
+        });
+        $('rProducto').addEventListener('change', pintarReceta);
+        $('rAdd').addEventListener('click', () => {
+            const cod = $('rMaterial').value, cant = Number($('rCant').value) || 0;
+            if (!cod || cant <= 0) { aviso('Elige el material y su cantidad por unidad', 'error'); return; }
+            if (cod === $('rProducto').value) { aviso('Un producto no puede ser material de sí mismo', 'error'); return; }
+            const ex = recetaEdit.find((m) => m.codigo === cod);
+            if (ex) ex.cant = cant; else recetaEdit.push({ codigo: cod, cant });
+            pintarRecetaEdit();
+        });
+        $('rGuardar').addEventListener('click', async () => {
+            const cod = $('rProducto').value;
+            if (!cod) { aviso('Elige el producto terminado', 'error'); return; }
+            const ex = recetaDe(cod);
+            if (ex) ex.materiales = [...recetaEdit]; else pos.recetas.push({ codigo: cod, materiales: [...recetaEdit] });
+            await guardar();
+            aviso('Ficha de ' + (prod(cod) ? prod(cod).nombre : cod) + ' guardada con ' + recetaEdit.length + ' material(es)');
+            pintarOrden();
+        });
+        $('fcProducto').addEventListener('change', pintarFicha);
+        $('fcVer').addEventListener('click', pintarFicha);
+        $('fcGuardar').addEventListener('click', async () => {
+            const cod = $('fcProducto').value;
+            const c = costoOrden(cod, 1);
+            if (!c) { aviso('Ese producto no tiene ficha de producción', 'error'); return; }
+            const mano = Number($('fcMano').value) || 0, otros = Number($('fcOtros').value) || 0, util = Number($('fcUtil').value) || 0;
+            const costoTotal = r2(c.unitario + mano + otros);
+            const precio = r2(costoTotal * (1 + util / 100));
+            pos.fichas = (pos.fichas || []).filter((f) => f.codigo !== cod);
+            pos.fichas.push({ codigo: cod, fecha: hoy(), materiales: c.unitario, manoObra: mano, otros, costoTotal, pctUtilidad: util, precioPropuesto: precio });
+            await guardar();
+            aviso('Ficha de costo guardada: costo ' + fmt(costoTotal) + ' · precio propuesto ' + fmt(precio));
+        });
+        $('fiCerrar').addEventListener('click', () => { $('fichaImp').style.display = 'none'; });
+        $('fiImprimir').addEventListener('click', () => window.print());
+        document.querySelectorAll('#pestBar button').forEach((b) => b.addEventListener('click', () => {
+            document.querySelectorAll('#pestBar button').forEach((x) => x.classList.toggle('activa', x === b));
+            document.querySelectorAll('.tarjeta[data-grupo]').forEach((t) => { t.style.display = t.dataset.grupo === b.dataset.pest ? '' : 'none'; });
+        }));
+        document.querySelector('#pestBar button').classList.add('activa');
+        pintarReceta();
+        pintarOrden();
+        pintarOrdenes();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>
