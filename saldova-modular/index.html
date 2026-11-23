@@ -259,14 +259,14 @@ function pintarPestanasBarra(pestanas, activa) {
         b.type = 'button';
         b.textContent = p.texto;
         if (String(p.id) === String(activa)) b.className = 'activa';
-        b.addEventListener('click', () => { if (marcoActual) marcoActual.postMessage({ tipo: 'saldova-ir-pestana', id: p.id }, '*'); });
+        b.addEventListener('click', () => { if (marcoActual && marcoActual.contentWindow) marcoActual.contentWindow.postMessage({ tipo: 'saldova-ir-pestana', id: p.id }, '*'); });
         c.appendChild(b);
     });
 }
 window.addEventListener('message', (e) => {
     const d = e.data || {};
     if (d.tipo !== 'saldova-pestanas') return;
-    if (!marcoActual || e.source !== marcoActual) return;
+    if (!marcoActual || e.source !== marcoActual.contentWindow) return;
     pintarPestanasBarra(d.pestanas, d.activa);
 });
 document.getElementById('bmCerrar').addEventListener('click', () => {
