@@ -73,22 +73,19 @@
 </style>
 </head>
 <body>
-<saldova-cinta id="cinta"></saldova-cinta>
+<saldova-cinta id="cinta" style="display:none"></saldova-cinta>
 <main id="area">
     <section class="bienvenida">
-        <h1>Saldova, por módulos</h1>
-        <p>Cada módulo es una página independiente que se abre aquí dentro en su propia
-           ventana: se puede <b>arrastrar, minimizar, maximizar y cerrar</b>, como en un
-           programa de escritorio, pero viviendo en tu navegador.</p>
-        <p>La base de datos es <b>local</b> (SQLite dentro del navegador, como la de ahora):
-           trabaja sin internet y el indicador de arriba a la derecha te dice si está conectada.</p>
-        <p class="nota">Bloque 1 del proyecto modular: cimientos completos y el primer módulo
-           (Panel y base de datos) funcionando. Los demás módulos se irán activando uno a uno.</p>
+        <h1>Saldova</h1>
+        <p>Primero se carga la <b>base de datos inicial</b> con los datos del administrador
+           general; después se entra con ese usuario, y ya dentro se crean los negocios
+           y los demás usuarios. Los módulos solo se ven cuando ya estás dentro.</p>
+        <p>La base es <b>local</b> (SQLite dentro del navegador): trabaja sin internet.</p>
         <div id="puerta"><p class="nota">Comprobando el acceso…</p></div>
     </section>
 </main>
 <script type="module">
-import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual } from 'nucleo';
+import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal } from 'nucleo';
 import 'componentes';
 
 exponerBase();
@@ -177,6 +174,7 @@ async function pintarPuerta() {
     const ses = await sesionActual();
     if (ses) {
         haySesion = true;
+        cinta.style.display = '';
         puerta.innerHTML = '<h2>Ya estás dentro</h2>' +
             '<p>Sesión de <b>' + ses.username + '</b> (' + ses.role + ') · Base: <b>' + acc.activa + '</b></p>' +
             '<button type="button" id="pSalir" class="secundario">Salir</button>' + errHtml;
@@ -188,10 +186,16 @@ async function pintarPuerta() {
         return;
     }
     if (!acc.hayUsuarios) {
-        puerta.innerHTML = '<h2>Primera vez: configura tu base</h2>' +
-            '<p class="nota">Se crea el administrador de la base y tu PIN de creador ' +
-            '(el PIN se pide para crear otras bases; guárdalo bien, no se puede recuperar).</p>' +
+        puerta.innerHTML = '<h2>Primero: la base de datos inicial</h2>' +
+            '<p class="nota">Aquí se crea la base con los datos del administrador general y tu PIN de creador ' +
+            '(el PIN se pide para crear otras bases; guárdalo bien, no se puede recuperar). ' +
+            'Hasta que la base esté cargada no se ve ningún módulo: después de crearla, ' +
+            'entras con el administrador y ya dentro creas los negocios y los usuarios.</p>' +
             '<label>Nombre de la base<input id="pBase" value="Principal"></label>' +
+            '<p class="nota">Ubicación de la base: el almacenamiento propio de este navegador ' +
+            '(archivo <b>saldova.db</b>). Si ya tienes una base de Saldova guardada en un archivo, ' +
+            'localízala en vez de crear una nueva:</p>' +
+            '<button type="button" id="pLocalizar" class="secundario">Localizar una base existente (.db)</button>' +
             '<label>Usuario administrador<input id="pUsuario" autocomplete="username"></label>' +
             '<label>Contraseña (mínimo 6)<input id="pClave" type="password" autocomplete="new-password"></label>' +
             '<label>Repite la contraseña<input id="pClave2" type="password" autocomplete="new-password"></label>' +
@@ -207,8 +211,14 @@ async function pintarPuerta() {
                 if (clave !== document.getElementById('pClave2').value) throw new Error('Las contraseñas no coinciden');
                 if (pin !== document.getElementById('pPin2').value) throw new Error('Los PIN no coinciden');
                 await bd().inicializar({ base, usuario, clave, pin });
-                const s = await bd().entrar(usuario, clave);
-                guardarSesion(s.token);
+                location.reload();
+            } catch (e) { puertaFallo(e); }
+        });
+        document.getElementById('pLocalizar').addEventListener('click', async () => {
+            try {
+                const bytes = await abrirArchivoReal('.db');
+                if (!bytes) return;
+                await bd().importar(bytes);
                 location.reload();
             } catch (e) { puertaFallo(e); }
         });

@@ -129,6 +129,20 @@ function sesionValida(token) {
     return u.length ? u[0] : null;
 }
 const esAdmin = (token) => { const s = sesionValida(token); return s && s.role === 'admin' ? s : null; };
+/* Los negocios de la base viven en config ('negocios', JSON): los crea
+ * el administrador general tras entrar; los usuarios cuelgan de uno. */
+function listaNegocios() {
+    const f = filas(db, "SELECT valor FROM config WHERE clave = 'negocios'");
+    let lista = [];
+    if (f.length) { try { lista = JSON.parse(f[0].valor); } catch (e) { lista = []; } }
+    if (!Array.isArray(lista) || !lista.length) {
+        lista = [...new Set(usuariosDeActiva().map((u) => u.negocio).filter(Boolean))];
+    }
+    return lista;
+}
+function guardarNegocios(lista) {
+    db.exec({ sql: "INSERT INTO config (clave, valor) VALUES ('negocios', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor", bind: [JSON.stringify(lista)] });
+}
 
 const api = {
     async estado() { await listo; return { estado, detalle }; },
@@ -223,6 +237,7 @@ const api = {
             sql: 'INSERT INTO usuarios (username, hash, role, entity_type, socios, negocio) VALUES (?, ?, ?, ?, ?, ?)',
             bind: [usuario, await hashSecreto(clave), 'admin', 'tcp', 0, nombreBase],
         });
+        guardarNegocios([nombreBase]);
         return { ok: true, base: activaNombre };
     },
     async entrar(usuario, clave) {
@@ -274,6 +289,22 @@ const api = {
         });
         return { ok: true };
     },
+    async negocios(token) {
+        await listo;
+        if (!sesionValida(token)) throw new Error('Sesión expirada');
+        return listaNegocios();
+    },
+    async negocioCrear(token, nombre) {
+        await listo;
+        if (!esAdmin(token)) throw new Error('Solo el administrador');
+        nombre = String(nombre || '').trim();
+        if (!nombre) throw new Error('El negocio necesita un nombre');
+        const lista = listaNegocios();
+        if (lista.some((n) => n.toLowerCase() === nombre.toLowerCase())) throw new Error('Ese negocio ya existe en esta base');
+        lista.push(nombre);
+        guardarNegocios(lista);
+        return lista;
+    },
     async bases() {
         await listo;
         return { lista: listaBases().map((b) => ({ nombre: b.nombre, activa: b.nombre === activaNombre })), activa: activaNombre, hayPin: !!regGet('pin_hash') };
@@ -297,6 +328,7 @@ const api = {
             sql: 'INSERT INTO usuarios (username, hash, role, entity_type, socios, negocio) VALUES (?, ?, ?, ?, ?, ?)',
             bind: [usuario, await hashSecreto(clave), 'admin', 'tcp', 0, nombre],
         });
+        nueva.exec({ sql: "INSERT INTO config (clave, valor) VALUES ('negocios', ?)", bind: [JSON.stringify([nombre])] });
         nueva.close();
         reg.exec({ sql: 'INSERT INTO bases (nombre, archivo, creada) VALUES (?, ?, ?)', bind: [nombre, archivo, Date.now()] });
         regSet('predeterminada', nombre);

@@ -83,6 +83,17 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Negocios de esta base</h2>
+    <p class="tenue">Los crea el administrador general. Cada usuario pertenece a un negocio.</p>
+    <table><thead><tr><th>Negocio</th></tr></thead>
+    <tbody id="tablaNegocios"><tr><td class="tenue">Cargando…</td></tr></tbody></table>
+    <p id="filaNegocioCrear">
+        <input id="nnNombre" placeholder="Nombre del negocio nuevo" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <button id="btnNegocioCrear">Crear negocio</button>
+    </p>
+</div>
+
+<div class="tarjeta">
     <h2>Usuarios de esta base</h2>
     <p id="usuariosDetalle" class="tenue">Comprobando…</p>
     <table><thead><tr><th>Usuario</th><th>Rol</th><th>Negocio</th></tr></thead>
@@ -95,7 +106,7 @@
             <option value="editor">Editor (trabajador)</option>
             <option value="consultor">Consultor</option>
         </select>
-        <input id="nuNegocio" placeholder="Negocio" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <select id="nuNegocio" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px"></select>
     </p>
     <button id="btnUsuarioCrear">Crear usuario</button>
 </div>
@@ -284,8 +295,33 @@ async function refrescarUsuarios() {
         cuerpo.innerHTML = '<tr><td colspan="3" class="tenue">Solo el administrador ve los usuarios.</td></tr>';
     }
 }
+async function refrescarNegocios() {
+    try {
+        const lista = await bd().negocios(tokenSesion());
+        document.getElementById('tablaNegocios').innerHTML =
+            lista.map((n) => '<tr><td>' + n + '</td></tr>').join('') ||
+            '<tr><td class="tenue">Todavía no hay negocios: crea el primero.</td></tr>';
+        document.getElementById('nuNegocio').innerHTML =
+            lista.map((n) => '<option>' + n + '</option>').join('');
+        const ses = await bd().sesion(tokenSesion());
+        document.getElementById('filaNegocioCrear').style.display =
+            (ses && ses.role === 'admin') ? '' : 'none';
+    } catch (e) {
+        document.getElementById('tablaNegocios').innerHTML =
+            '<tr><td class="tenue">Sin sesión: entra de nuevo.</td></tr>';
+    }
+}
+document.getElementById('btnNegocioCrear').addEventListener('click', async () => {
+    try {
+        await bd().negocioCrear(tokenSesion(), document.getElementById('nnNombre').value.trim());
+        document.getElementById('nnNombre').value = '';
+        aviso('Negocio creado');
+        refrescarNegocios();
+    } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+});
 refrescarBases();
 refrescarUsuarios();
+refrescarNegocios();
 document.getElementById('btnBaseCrear').addEventListener('click', async () => {
     try {
         const r = await bd().baseCrear({
@@ -306,7 +342,7 @@ document.getElementById('btnUsuarioCrear').addEventListener('click', async () =>
             username: document.getElementById('nuUsuario').value.trim(),
             clave: document.getElementById('nuClave').value,
             role: document.getElementById('nuRol').value,
-            negocio: document.getElementById('nuNegocio').value.trim(),
+            negocio: document.getElementById('nuNegocio').value,
         });
         aviso('Usuario creado');
         refrescarUsuarios();

@@ -75,6 +75,8 @@ export function bd() {
                 baseElegir: (nombre) => rpcMarco('baseElegir', [nombre]),
                 docLeer: (token, slot) => rpcMarco('docLeer', [token, slot]),
                 docGuardar: (token, slot, valor) => rpcMarco('docGuardar', [token, slot, valor]),
+                negocios: (token) => rpcMarco('negocios', [token]),
+                negocioCrear: (token, nombre) => rpcMarco('negocioCrear', [token, nombre]),
             };
         } else {
             const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
@@ -109,6 +111,8 @@ export function exponerBase() {
         baseElegir: (nombre) => duena.baseElegir(nombre),
         docLeer: (token, slot) => duena.docLeer(token, slot),
         docGuardar: (token, slot, valor) => duena.docGuardar(token, slot, valor),
+        negocios: (token) => duena.negocios(token),
+        negocioCrear: (token, nombre) => duena.negocioCrear(token, nombre),
     };
     window.addEventListener('message', async (ev) => {
         const d = ev.data || {};
