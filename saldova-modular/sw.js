@@ -1,13 +1,13 @@
 /* Saldova modular — Service Worker (PWA): todo el proyecto queda
  * guardado en el equipo y abre sin internet. Subir la versión del
  * caché al publicar cambios. */
-const CACHE = 'saldova-modular-v29';
+const CACHE = 'saldova-modular-v30';
 const ARCHIVOS = [
     './', 'index.html', 'nucleo.js', 'componentes.js', 'fondos.js', 'db-worker.mjs',
     'libs/winbox.bundle.min.js', 'libs/comlink.mjs', 'libs/comlink.js',
     'libs/sqlite3/index.mjs', 'libs/sqlite3/sqlite3-opfs-async-proxy.js', 'libs/sqlite3/sqlite3.wasm.b64',
-    'modulos/panel.html', 'modulos/chequera.html', 'modulos/contabilidad.html', 'modulos/fiscal.html', 'modulos/nomina.html', 'modulos/aft.html', 'modulos/gestion.html', 'modulos/pos.html', 'modulos/cierre.html', 'modulos/gestor.html', 'modulos/informes.html', 'modulos/inventarios.html', 'modulos/tasas.html', 'modulos/ayuda.html', 'plan-dueno.js', 'plan-oficial.js', 'sql/esquema.sql', 'sql/esquema-datos.sql',
-    'manifest.webmanifest', 'icono.svg',
+    'modulos/panel.html', 'modulos/chequera.html', 'modulos/contabilidad.html', 'modulos/fiscal.html', 'modulos/nomina.html', 'modulos/aft.html', 'modulos/gestion.html', 'modulos/pos.html', 'modulos/cierre.html', 'modulos/gestor.html', 'modulos/informes.html', 'modulos/inventarios.html', 'modulos/tasas.html', 'modulos/ayuda.html', 'modulos/produccion.html', 'plan-dueno.js', 'plan-oficial.js', 'sql/esquema.sql', 'sql/esquema-datos.sql',
+    'manifest.webmanifest', 'icono.svg', 'iconos/panel.svg', 'iconos/chequera.svg', 'iconos/conta.svg', 'iconos/fiscal.svg', 'iconos/nomina.svg', 'iconos/aft.svg', 'iconos/gestion.svg', 'iconos/pos.svg', 'iconos/cierre.svg', 'iconos/gestor.svg', 'iconos/informes.svg', 'iconos/inventarios.svg', 'iconos/produccion.svg', 'iconos/tasas.svg', 'iconos/ayuda.svg',
 ];
 
 self.addEventListener('install', (e) => {
