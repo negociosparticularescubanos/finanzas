@@ -250,7 +250,17 @@ async function pintarPuerta() {
 pintarPuerta();
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    /* updateViaCache 'none': el navegador busca SIEMPRE la versión
+     * nueva del sw.js en la red (sin la caché HTTP de 10 minutos de
+     * GitHub Pages) y, al tomar el control el SW nuevo, se recarga
+     * una sola vez para trabajar ya con los archivos nuevos. */
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+    let recargado = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (recargado) return;
+        recargado = true;
+        location.reload();
+    });
 }
 </script>
 </body>
