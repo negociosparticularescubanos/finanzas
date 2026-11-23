@@ -132,11 +132,23 @@ function abrirModulo(id) {
     if (!m || !m.activo) return;
     if (!haySesion) { aviso('Primero entra con tu usuario', 'error'); return; }
     if (abiertas[id]) { abiertas[id].focus(); abiertas[id].restore(); return; }
+    const altoCinta = Math.round((document.getElementById('cinta') || {}).offsetHeight || 0);
     const wb = new WinBox(m.titulo, {
         url: m.url, width: m.ancho || 820, height: m.alto || 600,
-        x: 'center', y: 'center', top: 8, bottom: 8, left: 8, right: 8,
+        x: 'center', y: 'center', top: altoCinta, bottom: 0, left: 0, right: 0,
         onminimize: () => SND.ventana(),
-        onmaximize: () => SND.ventana(),
+        onmaximize: () => {
+            SND.ventana();
+            /* Maximizar = TODO el área de trabajo: bajo la cinta, de
+             * borde a borde, como la ventana-documento del .exe. */
+            requestAnimationFrame(() => {
+                const h = Math.round((document.getElementById('cinta') || {}).offsetHeight || 0);
+                wb.dom.style.top = h + 'px';
+                wb.dom.style.left = '0px';
+                wb.dom.style.width = window.innerWidth + 'px';
+                wb.dom.style.height = (window.innerHeight - h) + 'px';
+            });
+        },
         onrestore: () => SND.ventana(),
         onclose: () => { delete abiertas[id]; SND.ventana(); return false; },
     });

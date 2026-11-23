@@ -25,10 +25,14 @@
     .tenue { color: #5A738C; font-size: 13px; }
     saldova-indicador { font-size: 15px; font-weight: 600; }
     .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    .expl { color: #3D5A76; font-size: 13px; margin: 2px 0 8px; }
+    .solo-imprimir { display: none; }
+    .cab-informe { border-bottom: 2px solid #14324F; padding-bottom: 8px; margin-bottom: 12px; }
     @media print {
         body { background: #fff; padding: 0; }
         .no-imprimir { display: none !important; }
         .tarjeta { box-shadow: none; border-color: #999; }
+        .solo-imprimir { display: block; }
     }
 </style>
 </head>
@@ -38,13 +42,21 @@
 <p class="no-imprimir"><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
 
 <div class="tarjeta">
+    <div class="solo-imprimir cab-informe">
+        <div style="font-size:19px;font-weight:700" id="cabImpNegocio">Informes</div>
+        <div id="cabImpDatos" style="color:#3D5A76"></div>
+        <div style="margin-top:6px">Estos informes salen de tus asientos confirmados: son para ti y sirven para presentarlos al banco, al CAM o a la ONAT cuando te los pidan. Período: <b class="periodo-txt"></b>.</div>
+    </div>
     <div class="fila no-imprimir"><input type="month" id="iMes"><button type="button" id="iVer" class="secundario chico">Ver</button>
     <button type="button" id="iImprimir">Imprimir / guardar como PDF</button></div>
     <h2 id="titResultados">Estado de resultados</h2>
+    <p class="expl">Qué es: lo que tu negocio ganó o perdió en el mes — lo que entró por ventas menos el costo y los gastos. Para quién: para ti primero; el banco y el CAM también lo miran. Período: <span class="periodo-txt"></span>.</p>
     <div id="resultados"><p class="tenue">Elige el mes.</p></div>
     <h2>Balance de comprobación (acumulado hasta fin de mes)</h2>
+    <p class="expl">Qué es: la suma de todas tus cuentas hasta fin de mes, con el Debe y el Haber frente a frente. Si las dos columnas dan lo mismo, la contabilidad cuadra. Período: acumulado hasta <span class="periodo-txt"></span>.</p>
     <div id="balance"><p class="tenue">Elige el mes.</p></div>
     <h2>Balance General — estado de situación (al cierre del mes)</h2>
+    <p class="expl">Qué es: la foto de tu negocio al cerrar el mes — lo que tienes (activo), lo que debes (pasivo) y lo que es tuyo (patrimonio). Tiene que cuadrar: activo = pasivo + patrimonio. Período: al cierre de <span class="periodo-txt"></span>.</p>
     <div id="balanceGeneral"><p class="tenue">Elige el mes.</p></div>
     <p class="tenue">El Flujo de Efectivo y el Estado de Cambios en el Patrimonio están en el módulo Contabilidad. Estos informes salen solo de los asientos confirmados: lo que no está contabilizado no aparece.</p>
 </div>
@@ -109,6 +121,7 @@ function pintar() {
     const mes = $('iMes').value;
     if (!mes) return;
     $('titResultados').textContent = 'Estado de resultados de ' + mes;
+    document.querySelectorAll('.periodo-txt').forEach((e) => { e.textContent = mes; });
     const porMes = new Map(), porAcum = new Map();
     for (const a of conta.asientos || []) {
         for (const l of a.lineas) {
@@ -185,6 +198,8 @@ function pintarBalanceGeneral(porAcum) {
 function pintarObligaciones(porAcum) {
     const cabN = $('cabNegocio');
     if (cabN && fiscal && fiscal.meta) cabN.textContent = [fiscal.meta.razon, fiscal.meta.nit ? 'NIT ' + fiscal.meta.nit : '', fiscal.meta.direccion || ''].filter(Boolean).join(' · ');
+    const cabImp = $('cabImpNegocio'); if (cabImp && fiscal && fiscal.meta && fiscal.meta.razon) cabImp.textContent = fiscal.meta.razon + ' — Informes';
+    const cabDat = $('cabImpDatos'); if (cabDat && cabN) cabDat.textContent = cabN.textContent;
     const tipo = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
     const mes = $('iMes').value;
     const [yy, mm] = mes.split('-').map(Number);
