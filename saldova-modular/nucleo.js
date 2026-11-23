@@ -14,11 +14,56 @@ import * as Comlink from './libs/comlink.mjs';
  * puente de Comlink entre marcos. Un módulo abierto suelto en su
  * propia pestaña sí crea su Worker (y si el index ya tiene la base,
  * verá el estado «ocupada», como debe ser). */
+/* Puente entre marcos (index <-> módulos en ventanas): RPC propio
+ * sobre postMessage, con respuesta SIEMPRE a la ventana que llamó
+ * (event.source) y tiempo límite. Comlink se queda para el Worker,
+ * donde es el canal correcto; entre ventanas su endpoint respondía
+ * a la ventana equivocada y las llamadas nunca volvían (fallo
+ * verificado en navegador real el 2026-11-22). */
+let _rpcSeq = 0;
+const _rpcPendientes = new Map();
+let _rpcEscuchando = false;
+function rpcMarco(metodo, args) {
+    return new Promise((resolve, reject) => {
+        const id = ++_rpcSeq;
+        _rpcPendientes.set(id, { resolve, reject });
+        if (!_rpcEscuchando) {
+            _rpcEscuchando = true;
+            window.addEventListener('message', (ev) => {
+                const d = ev.data || {};
+                if (ev.source !== window.parent || d.tipo !== 'saldova-rpc-res' || !_rpcPendientes.has(d.id)) return;
+                const p = _rpcPendientes.get(d.id);
+                _rpcPendientes.delete(d.id);
+                if (d.ok) p.resolve(d.valor);
+                else p.reject(new Error(d.error || 'Error en el index'));
+            });
+        }
+        window.parent.postMessage(
+            { tipo: 'saldova-rpc', id, metodo, args: args || [] },
+            window.location.origin
+        );
+        setTimeout(() => {
+            if (_rpcPendientes.has(id)) {
+                _rpcPendientes.delete(id);
+                reject(new Error('El index no respondió a tiempo'));
+            }
+        }, 12000);
+    });
+}
+
 let _bd = null;
 export function bd() {
     if (!_bd) {
         if (window.parent !== window) {
-            _bd = Comlink.wrap(Comlink.windowEndpoint(window.parent));
+            _bd = {
+                estado: () => rpcMarco('estado'),
+                ping: () => rpcMarco('ping'),
+                tablas: () => rpcMarco('tablas'),
+                consulta: (sql, params) => rpcMarco('consulta', [sql, params]),
+                ejecutar: (sql) => rpcMarco('ejecutar', [sql]),
+                exportar: () => rpcMarco('exportar'),
+                importar: (bytes) => rpcMarco('importar', [bytes]),
+            };
         } else {
             const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
             _bd = Comlink.wrap(w);
@@ -27,11 +72,12 @@ export function bd() {
     return _bd;
 }
 
-/* Lo llama SOLO el index: crea su Worker y expone la base a los
- * módulos de las ventanas (iframes) por el puente entre marcos. */
+/* Lo llama SOLO el index: crea su Worker y atiende las llamadas de
+ * los módulos de las ventanas (iframes), respondiendo a cada uno en
+ * su propia ventana. */
 export function exponerBase() {
     const duena = bd();
-    const fachada = {
+    const metodos = {
         estado: () => duena.estado(),
         ping: () => duena.ping(),
         tablas: () => duena.tablas(),
@@ -40,7 +86,21 @@ export function exponerBase() {
         exportar: () => duena.exportar(),
         importar: (bytes) => duena.importar(bytes),
     };
-    Comlink.expose(fachada, Comlink.windowEndpoint(window));
+    window.addEventListener('message', async (ev) => {
+        const d = ev.data || {};
+        if (ev.origin !== window.location.origin || d.tipo !== 'saldova-rpc') return;
+        try {
+            const fn = metodos[d.metodo];
+            if (!fn) throw new Error('Método desconocido: ' + d.metodo);
+            const valor = await fn(...(d.args || []));
+            ev.source.postMessage({ tipo: 'saldova-rpc-res', id: d.id, ok: true, valor }, ev.origin);
+        } catch (e) {
+            ev.source.postMessage(
+                { tipo: 'saldova-rpc-res', id: d.id, ok: false, error: String((e && e.message) || e) },
+                ev.origin
+            );
+        }
+    });
 }
 
 /* ---------- Bus entre módulos y pestañas ---------- */

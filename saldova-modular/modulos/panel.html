@@ -82,7 +82,15 @@ const ind = document.getElementById('indicador');
 const detalle = document.getElementById('detalleBase');
 
 async function refrescar() {
-    const est = await bd().estado();
+    let est;
+    try {
+        est = await bd().estado();
+    } catch (e) {
+        ind.fijar('error', 'Sin respuesta de la base');
+        detalle.textContent = String((e && e.message) || e);
+        document.getElementById('tablaTablas').innerHTML = '<tr><td colspan="2" class="tenue">El index no respondió: cierra la ventana y vuelve a abrir el módulo.</td></tr>';
+        return;
+    }
     if (est.estado === 'conectada') {
         ind.fijar('conectada', 'Base local conectada');
         const { tablas, conteos } = await bd().tablas();
