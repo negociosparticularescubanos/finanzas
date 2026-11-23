@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Panel principal</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono.svg">
+<script type="importmap">
+{ "imports": { "nucleo": "./nucleo.js", "componentes": "./componentes.js" } }
+</script>
+<script src="libs/winbox.bundle.min.js"></script>
+<style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F;
+        background: linear-gradient(180deg, #7FA3C8 0, #9DBBDB 130px, #A9C6E2 100%);
+        display: flex; flex-direction: column; overflow: hidden;
+    }
+    saldova-cinta {
+        display: flex; align-items: stretch; gap: 10px; padding: 6px 10px 8px;
+        background: linear-gradient(180deg, #2B5B84, #1A3E5E); color: #fff;
+        box-shadow: 0 2px 8px rgba(10,30,50,.45); z-index: 10;
+    }
+    saldova-cinta .orbe {
+        width: 40px; height: 40px; border-radius: 50%; align-self: center; flex: none;
+        background: radial-gradient(circle at 32% 30%, #FFE1A8, #F48C1E 58%, #C96A0A);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.4);
+        animation: pulso 3.4s ease-in-out infinite;
+    }
+    @keyframes pulso { 0%,100% { box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 0 0 0 rgba(244,140,30,.5); } 50% { box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 0 0 8px rgba(244,140,30,0); } }
+    saldova-cinta .botones { display: flex; gap: 6px; flex-wrap: wrap; }
+    saldova-cinta button.modulo {
+        display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 92px;
+        padding: 7px 8px 5px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; cursor: pointer;
+        background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)); color: #fff;
+        transition: transform .12s ease, background .12s ease;
+    }
+    saldova-cinta button.modulo:hover { transform: translateY(-2px); background: linear-gradient(180deg, #FFF6DE, #FFDF9E); color: #14324F; }
+    saldova-cinta button.modulo img { width: 30px; height: 30px; object-fit: contain; }
+    saldova-cinta button.modulo span { font-size: 12px; line-height: 1.15; text-align: center; }
+    saldova-cinta button.modulo.apagado { opacity: .45; cursor: default; }
+    saldova-cinta button.modulo.apagado:hover { transform: none; background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)); color: #fff; }
+    saldova-cinta .derecha { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    saldova-cinta button.sonido { background: transparent; border: none; font-size: 16px; cursor: pointer; }
+    main { flex: 1; position: relative; padding: 18px; overflow: auto; }
+    .bienvenida {
+        max-width: 640px; margin: 4vh auto; background: #F4F9FE; border: 1px solid #47688C; border-radius: 8px;
+        box-shadow: 5px 6px 18px rgba(13,38,66,.35); padding: 22px 26px;
+    }
+    .bienvenida h1 { margin: 0 0 6px; font-size: 24px; color: #1A3E5E; }
+    .bienvenida p { margin: 6px 0; line-height: 1.5; }
+    .bienvenida .nota { font-size: 13px; color: #5A7186; }
+    /* Piel Versat para las ventanas WinBox */
+    .winbox { border: 1px solid #47688C; border-radius: 6px 6px 4px 4px; box-shadow: 6px 8px 22px rgba(13,38,66,.45); }
+    .winbox .wb-header { background: linear-gradient(180deg, #2B5B84, #1A3E5E); border-radius: 5px 5px 0 0; }
+    .winbox .wb-title { font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 13.5px; }
+    .winbox .wb-body { background: #D8E6F3; }
+</style>
+</head>
+<body>
+<saldova-cinta id="cinta"></saldova-cinta>
+<main id="area">
+    <section class="bienvenida">
+        <h1>Saldova, por módulos</h1>
+        <p>Cada módulo es una página independiente que se abre aquí dentro en su propia
+           ventana: se puede <b>arrastrar, minimizar, maximizar y cerrar</b>, como en un
+           programa de escritorio, pero viviendo en tu navegador.</p>
+        <p>La base de datos es <b>local</b> (SQLite dentro del navegador, como la de ahora):
+           trabaja sin internet y el indicador de arriba a la derecha te dice si está conectada.</p>
+        <p class="nota">Bloque 1 del proyecto modular: cimientos completos y el primer módulo
+           (Panel y base de datos) funcionando. Los demás módulos se irán activando uno a uno.</p>
+    </section>
+</main>
+<script type="module">
+import { bd, bus, SND, aviso } from 'nucleo';
+import 'componentes';
+
+const MODULOS = [
+    { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'icono.svg', activo: true, ancho: 860, alto: 620 },
+    { id: 'chequera', titulo: 'Chequera y tarjetas', icono: 'icono.svg', activo: false },
+    { id: 'conta', titulo: 'Contabilidad', icono: 'icono.svg', activo: false },
+    { id: 'pos', titulo: 'Punto de venta', icono: 'icono.svg', activo: false },
+];
+
+const cinta = document.getElementById('cinta');
+cinta.modulos = MODULOS;
+if (!SND.isOn()) cinta.querySelector('button.sonido').textContent = '🔇';
+document.addEventListener('pointerdown', () => SND.ac(), { once: true });
+cinta.addEventListener('alternar-sonido', () => {
+    SND.setOn(!SND.isOn());
+    if (SND.isOn()) SND.ok();
+});
+
+const abiertas = {};
+function abrirModulo(id) {
+    const m = MODULOS.find((x) => x.id === id);
+    if (!m || !m.activo) return;
+    if (abiertas[id]) { abiertas[id].focus(); abiertas[id].restore(); return; }
+    const wb = new WinBox(m.titulo, {
+        url: m.url, width: m.ancho || 820, height: m.alto || 600,
+        x: 'center', y: 'center', top: 8, bottom: 8, left: 8, right: 8,
+        onminimize: () => SND.ventana(),
+        onmaximize: () => SND.ventana(),
+        onrestore: () => SND.ventana(),
+        onclose: () => { delete abiertas[id]; SND.ventana(); return false; },
+    });
+    abiertas[id] = wb;
+    SND.ventana();
+}
+cinta.addEventListener('abrir-modulo', (e) => abrirModulo(e.detail.id));
+
+/* Indicador de la base: comprobado contra la base REAL (el Worker) */
+async function vigilarBase() {
+    const ind = cinta.indicador;
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') {
+            const p = await bd().ping();
+            ind.fijar(p.ok ? 'conectada' : 'error', p.ok ? 'Base local conectada' : 'Base sin respuesta');
+        } else if (est.estado === 'ocupada') {
+            ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        } else if (est.estado === 'error') {
+            ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        } else {
+            ind.fijar('arrancando', 'Abriendo la base…');
+        }
+    } catch (e) {
+        ind.fijar('error', 'Base sin respuesta');
+    }
+}
+vigilarBase();
+setInterval(vigilarBase, 30000);
+
+/* El bus: los módulos avisan y el index reacciona */
+bus.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.tipo === 'venta-cerrada') { SND.venta(); aviso('Venta cerrada en el POS'); }
+    if (d.tipo === 'aviso') aviso(d.texto || 'Aviso de un módulo');
+});
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

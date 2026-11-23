@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Panel y base de datos</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; margin: 0; padding: 14px; background: #D8E6F3; }
+    h1 { font-size: 19px; margin: 2px 0 10px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 7px; padding: 13px 15px; margin-bottom: 12px; }
+    .tarjeta h2 { font-size: 15px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta p { margin: 5px 0; line-height: 1.45; font-size: 14px; }
+    button {
+        background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; border-radius: 5px;
+        padding: 7px 13px; cursor: pointer; font-size: 13.5px; color: #14324F; margin: 3px 4px 3px 0;
+    }
+    button:hover { filter: brightness(1.06); }
+    button.principal { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 600; }
+    button[disabled] { opacity: .5; cursor: default; }
+    table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+    th { background: #2B78C5; color: #fff; text-align: left; padding: 5px 8px; }
+    td { border-bottom: 1px solid #C6D9EE; padding: 4px 8px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tenue { color: #5A7186; font-size: 13px; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Panel y base de datos</h1>
+
+<div class="tarjeta">
+    <h2>Estado de la base local</h2>
+    <p><saldova-indicador id="indicador"></saldova-indicador></p>
+    <p id="detalleBase" class="tenue">Comprobando…</p>
+    <p id="persistencia" class="tenue"></p>
+    <button id="btnPersistir">Proteger los datos (almacenamiento persistente)</button>
+</div>
+
+<div class="tarjeta">
+    <h2>Tablas de la base (el esquema de Saldova)</h2>
+    <table><thead><tr><th>Tabla</th><th style="text-align:right">Registros</th></tr></thead>
+    <tbody id="tablaTablas"><tr><td colspan="2" class="tenue">Cargando…</td></tr></tbody></table>
+</div>
+
+<div class="tarjeta">
+    <h2>Mi archivo de base de datos</h2>
+    <p>La base vive dentro del navegador (OPFS). Cuando quieras, la guardas como
+       <b>un solo archivo con tu nombre</b> en la carpeta que elijas, la comprimes,
+       o abres un archivo existente para trabajar con él.</p>
+    <button class="principal" id="btnExportar">Guardar mi archivo .db</button>
+    <button id="btnExportarGz">Guardar comprimido (.db.gz)</button>
+    <button id="btnImportar">Abrir un archivo .db existente</button>
+</div>
+
+<div class="tarjeta">
+    <h2>Acceso con huella o PIN del equipo (WebAuthn)</h2>
+    <p id="webauthnEstado" class="tenue">Comprobando…</p>
+    <button id="btnRegistrarHuella">Registrar mi huella/PIN</button>
+    <button id="btnEntrarHuella">Entrar con huella/PIN</button>
+</div>
+
+<div class="tarjeta">
+    <h2>Impresora del punto de venta (Web Serial)</h2>
+    <p id="serialEstado" class="tenue">Comprobando…</p>
+    <button id="btnImpresora">Imprimir ticket de prueba</button>
+</div>
+
+<div class="tarjeta">
+    <h2>Bus de módulos</h2>
+    <p>Los módulos se avisan entre sí sin servidor. Este botón manda un aviso al index principal.</p>
+    <button id="btnBus">Avisar al index</button>
+</div>
+
+<script type="module">
+import { bd, bus, SND, aviso, persistencia, pedirPersistencia, guardarArchivoReal, abrirArchivoReal, comprimir } from 'nucleo';
+import 'componentes';
+
+const ind = document.getElementById('indicador');
+const detalle = document.getElementById('detalleBase');
+
+async function refrescar() {
+    const est = await bd().estado();
+    if (est.estado === 'conectada') {
+        ind.fijar('conectada', 'Base local conectada');
+        const { tablas, conteos } = await bd().tablas();
+        detalle.textContent = 'SQLite dentro del navegador (OPFS) · ' + tablas.length + ' tablas con el esquema de Saldova.';
+        document.getElementById('tablaTablas').innerHTML = tablas.map((t) =>
+            '<tr><td>' + t + '</td><td class="num">' + (conteos[t] === null ? '—' : conteos[t]) + '</td></tr>').join('');
+    } else if (est.estado === 'ocupada') {
+        ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        detalle.textContent = 'Cierra la otra pestaña de Saldova para trabajar aquí: solo una puede ser la dueña de la base.';
+    } else if (est.estado === 'error') {
+        ind.fijar('error', 'La base no pudo abrirse');
+        detalle.textContent = est.detalle || 'Error desconocido';
+    } else {
+        ind.fijar('arrancando', 'Abriendo la base…');
+        setTimeout(refrescar, 900);
+        return;
+    }
+    const per = await persistencia();
+    document.getElementById('persistencia').textContent = !per.soportada
+        ? 'Este navegador no informa del almacenamiento.'
+        : (per.persistente
+            ? 'Datos protegidos: el navegador no los borrará en sus limpiezas.'
+            : 'Datos aún sin protección especial.') +
+          (per.estimacion ? ' Uso actual: ' + Math.max(1, Math.round(per.estimacion.uso / 1024)) + ' KB.' : '');
+}
+refrescar();
+
+document.getElementById('btnPersistir').addEventListener('click', async () => {
+    const ok = await pedirPersistencia();
+    aviso(ok ? 'Almacenamiento protegido' : 'El navegador decidirá más adelante (suele concederlo con el uso)', ok ? '' : 'error');
+    refrescar();
+});
+
+document.getElementById('btnExportar').addEventListener('click', async () => {
+    try {
+        const bytes = await bd().exportar();
+        const via = await guardarArchivoReal(bytes, 'Mi base.db', 'Base de datos Saldova', '.db');
+        aviso(via === 'archivo' ? 'Archivo guardado donde elegiste' : 'Archivo descargado');
+    } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo guardar: ' + e.message, 'error'); }
+});
+document.getElementById('btnExportarGz').addEventListener('click', async () => {
+    try {
+        const bytes = await bd().exportar();
+        const gz = await comprimir(bytes);
+        await guardarArchivoReal(gz, 'Mi base.db.gz', 'Base comprimida', '.gz');
+        aviso('Comprimido: de ' + bytes.length + ' a ' + gz.length + ' bytes');
+    } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo comprimir: ' + e.message, 'error'); }
+});
+document.getElementById('btnImportar').addEventListener('click', async () => {
+    try {
+        const bytes = await abrirArchivoReal('.db');
+        await bd().importar(bytes);
+        aviso('Archivo abierto: ya trabajas con esa base');
+        refrescar();
+    } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo abrir: ' + e.message, 'error'); }
+});
+
+/* WebAuthn: candado local con la huella/PIN del propio equipo.
+ * Sin servidor: la credencial vive en el equipo y aquí solo se
+ * comprueba que el equipo la desbloquea. */
+const hayWebAuthn = 'PublicKeyCredential' in window;
+document.getElementById('webauthnEstado').textContent = hayWebAuthn
+    ? (localStorage.getItem('saldova_credencial') ? 'Ya tienes una huella/PIN registrado en este equipo.' : 'Este equipo admite huella/PIN. Aún no registras el tuyo.')
+    : 'Este navegador no admite WebAuthn.';
+function azar(n) { const b = new Uint8Array(n); crypto.getRandomValues(b); return b; }
+document.getElementById('btnRegistrarHuella').addEventListener('click', async () => {
+    if (!hayWebAuthn) return aviso('WebAuthn no disponible aquí', 'error');
+    try {
+        const cred = await navigator.credentials.create({ publicKey: {
+            challenge: azar(32),
+            rp: { name: 'Saldova' },
+            user: { id: azar(16), name: 'usuario', displayName: 'Usuario de Saldova' },
+            pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+            authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        } });
+        localStorage.setItem('saldova_credencial', btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
+        aviso('Huella/PIN registrado en este equipo');
+        refrescar();
+    } catch (e) { aviso('Registro cancelado o no admitido', 'error'); }
+});
+document.getElementById('btnEntrarHuella').addEventListener('click', async () => {
+    const guardado = localStorage.getItem('saldova_credencial');
+    if (!guardado) return aviso('Primero registra tu huella/PIN', 'error');
+    try {
+        const id = Uint8Array.from(atob(guardado), (c) => c.charCodeAt(0));
+        await navigator.credentials.get({ publicKey: {
+            challenge: azar(32),
+            allowCredentials: [{ type: 'public-key', id }],
+            userVerification: 'required',
+        } });
+        SND.venta();
+        aviso('Acceso confirmado con tu huella/PIN');
+    } catch (e) { aviso('No se pudo confirmar el acceso', 'error'); }
+});
+
+/* Web Serial: ticket de prueba a una impresora POS (ESC/POS) */
+const haySerial = 'serial' in navigator;
+document.getElementById('serialEstado').textContent = haySerial
+    ? 'Este navegador puede hablar con impresoras por puerto serie/USB.'
+    : 'Este navegador no tiene Web Serial (lo hay en Chrome/Edge de escritorio).';
+document.getElementById('btnImpresora').addEventListener('click', async () => {
+    if (!haySerial) return aviso('Web Serial no disponible aquí', 'error');
+    try {
+        const puerto = await navigator.serial.requestPort();
+        await puerto.open({ baudRate: 9600 });
+        const escritor = puerto.writable.getWriter();
+        const texto = new TextEncoder().encode('\x1B@SALDOVA\nTicket de prueba\nGracias\n\n\n\x1DV\x01');
+        await escritor.write(texto);
+        escritor.releaseLock();
+        await puerto.close();
+        aviso('Ticket de prueba enviado a la impresora');
+    } catch (e) { if (e.name !== 'AbortError') aviso('Impresora: ' + e.message, 'error'); }
+});
+
+document.getElementById('btnBus').addEventListener('click', () => {
+    bus.postMessage({ tipo: 'aviso', texto: 'El Panel te saluda: la base y los módulos se hablan' });
+    aviso('Aviso enviado al index por BroadcastChannel');
+});
+</script>
+</body>
+</html>
