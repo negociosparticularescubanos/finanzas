@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Gestión</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 110px; text-align: right; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .rojo { color: #B23218; font-weight: 600; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Gestión · Facturas, contratos y cobros</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Facturas</h2>
+    <div id="facturas"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="fNumero" placeholder="Nº factura" size="9">
+        <input id="fCliente" placeholder="Cliente" style="min-width:170px">
+        <label>Fecha <input id="fFecha" type="date"></label>
+        <label>Vence <input id="fVence" type="date"></label>
+        <input id="fTotal" class="monto" type="number" step="0.01" min="0" placeholder="Total">
+        <button type="button" id="fAdd" class="secundario chico">Añadir factura</button>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>TeleCobranzas — cobros pendientes</h2>
+    <p class="tenue">Las facturas con saldo, ordenadas por antigüedad, con la estrategia según la mora y el aviso listo para copiar y pegar en WhatsApp.</p>
+    <div id="telecobranzas"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Contratos</h2>
+    <div id="contratos"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="cNumero" placeholder="Nº contrato" size="9">
+        <input id="cCliente" placeholder="Cliente" style="min-width:170px">
+        <input id="cObjeto" placeholder="Objeto del contrato" style="min-width:200px">
+        <input id="cMonto" class="monto" type="number" step="0.01" min="0" placeholder="Monto">
+        <button type="button" id="cAdd" class="secundario chico">Añadir contrato</button>
+    </div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(6);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const hoy = () => new Date().toISOString().slice(0, 10);
+let conta = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+async function guardar() { await bd().docGuardar(tokenSesion(), 'conta', conta); }
+const saldoFac = (f) => r2((Number(f.total) || 0) - (f.cobros || []).reduce((s, c) => s + (Number(c.monto) || 0), 0));
+const diasDesde = (fecha) => Math.floor((new Date(hoy()) - new Date(fecha)) / 86400000);
+function estrategia(dias) {
+    if (dias <= 0) return 'Al día: recordatorio amable antes del vencimiento.';
+    if (dias <= 15) return 'Mora leve (1-15 días): recordatorio cordial con el saldo exacto.';
+    if (dias <= 30) return 'Mora media (16-30 días): aviso firme y propuesta de fecha de pago.';
+    return 'Mora alta (+30 días): gestión directa, visita o llamada, y valorar pausar nuevas ventas a crédito.';
+}
+function pintarFacturas() {
+    const lista = conta.gestion.facturas || [];
+    const filas = lista.map((f) => {
+        const saldo = saldoFac(f);
+        const vencida = saldo > 0 && f.vencimiento && f.vencimiento < hoy();
+        return '<tr><td>' + f.numero + '</td><td>' + f.cliente + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + '</td>' +
+            '<td class="num">' + fmt(f.total) + '</td><td class="num">' + fmt(saldo) + '</td>' +
+            '<td>' + (saldo <= 0 ? 'Pagada' : vencida ? '<span class="rojo">Vencida</span>' : 'Pendiente') + '</td>' +
+            '<td>' + (saldo > 0 ? '<input class="monto" type="number" step="0.01" min="0" placeholder="Cobro" data-cobro="' + f.id + '"> <button type="button" class="chico secundario" data-cobrar="' + f.id + '">Cobrar</button>' : '') +
+            ' <button type="button" class="chico secundario" data-del="' + f.id + '">Borrar</button></td></tr>';
+    }).join('');
+    const tSaldo = r2(lista.reduce((s, f) => s + Math.max(0, saldoFac(f)), 0));
+    $('facturas').innerHTML = '<table><thead><tr><th>Nº</th><th>Cliente</th><th>Fecha</th><th>Vence</th><th class="num">Total</th><th class="num">Saldo</th><th>Estado</th><th></th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="8" class="tenue">Sin facturas todavía.</td></tr>') +
+        '<tr class="totales"><td colspan="5">TOTAL POR COBRAR</td><td class="num">' + fmt(tSaldo) + '</td><td colspan="2"></td></tr></tbody></table>';
+    $('facturas').querySelectorAll('[data-cobrar]').forEach((b) => b.addEventListener('click', async () => {
+        const f = conta.gestion.facturas.find((x) => x.id === b.dataset.cobrar);
+        const inp = $('facturas').querySelector('[data-cobro="' + f.id + '"]');
+        const monto = Number(inp.value) || 0;
+        if (monto <= 0) { aviso('Escribe el monto del cobro', 'error'); return; }
+        f.cobros = f.cobros || [];
+        f.cobros.push({ fecha: hoy(), monto, medio: 'transferencia' });
+        await guardar(); pintarTodo(); aviso('Cobro registrado: saldo ' + fmt(saldoFac(f)));
+    }));
+    $('facturas').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Borrar esta factura?')) return;
+        conta.gestion.facturas = conta.gestion.facturas.filter((x) => x.id !== b.dataset.del);
+        await guardar(); pintarTodo();
+    }));
+    pintarTelecobranzas();
+}
+function pintarTelecobranzas() {
+    const pendientes = (conta.gestion.facturas || []).filter((f) => saldoFac(f) > 0)
+        .map((f) => ({ f, dias: diasDesde(f.vencimiento || f.fecha) }))
+        .sort((a, b) => b.dias - a.dias);
+    $('telecobranzas').innerHTML = pendientes.map(({ f, dias }) =>
+        '<div class="fila"><b>' + f.cliente + '</b><span>Factura ' + f.numero + ' · saldo ' + fmt(saldoFac(f)) + ' · ' + (dias > 0 ? dias + ' día(s) de mora' : 'aún no vence') + '</span>' +
+        '<span class="tenue">' + estrategia(dias) + '</span>' +
+        '<button type="button" class="chico" data-aviso="' + f.id + '">Copiar aviso</button></div>').join('') ||
+        '<p class="tenue">No hay cobros pendientes. Buena señal.</p>';
+    $('telecobranzas').querySelectorAll('[data-aviso]').forEach((b) => b.addEventListener('click', async () => {
+        const f = conta.gestion.facturas.find((x) => x.id === b.dataset.aviso);
+        const txt = 'Hola ' + f.cliente + ', le escribimos para recordarle que la factura ' + f.numero + ' tiene un saldo pendiente de ' + fmt(saldoFac(f)) + ' CUP' +
+            (f.vencimiento ? ' (venció el ' + f.vencimiento + ')' : '') + '. Le agradecemos que nos confirme cuándo podrá realizar el pago. Muchas gracias.';
+        try { await navigator.clipboard.writeText(txt); aviso('Aviso copiado: pégalo en WhatsApp'); }
+        catch (e) { aviso('No se pudo copiar automáticamente', 'error'); }
+    }));
+}
+function pintarContratos() {
+    const lista = conta.gestion.contratos || [];
+    $('contratos').innerHTML = lista.map((c) =>
+        '<div class="fila"><b>' + c.numero + '</b><span>' + c.cliente + '</span><span class="tenue">' + (c.objeto || '') + ' · ' + fmt(c.monto) + '</span>' +
+        '<button type="button" class="chico secundario" data-delc="' + c.id + '">Quitar</button></div>').join('') ||
+        '<p class="tenue">Sin contratos todavía.</p>';
+    $('contratos').querySelectorAll('[data-delc]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.contratos = conta.gestion.contratos.filter((x) => x.id !== b.dataset.delc);
+        await guardar(); pintarContratos();
+    }));
+}
+function pintarTodo() { pintarFacturas(); pintarContratos(); }
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        conta.gestion = conta.gestion || { contratos: [], facturas: [] };
+        conta.gestion.facturas = conta.gestion.facturas || [];
+        conta.gestion.contratos = conta.gestion.contratos || [];
+        $('fFecha').value = hoy();
+        $('fVence').value = hoy();
+        $('fAdd').addEventListener('click', async () => {
+            const numero = $('fNumero').value.trim(), cliente = $('fCliente').value.trim(), total = Number($('fTotal').value) || 0;
+            if (!numero || !cliente || total <= 0) { aviso('La factura necesita número, cliente y total', 'error'); return; }
+            conta.gestion.facturas.push({ id: 'f' + Date.now().toString(36), numero, cliente, fecha: $('fFecha').value, vencimiento: $('fVence').value, total, cobros: [] });
+            await guardar(); $('fNumero').value = $('fCliente').value = $('fTotal').value = '';
+            pintarTodo(); aviso('Factura añadida');
+        });
+        $('cAdd').addEventListener('click', async () => {
+            const numero = $('cNumero').value.trim(), cliente = $('cCliente').value.trim();
+            if (!numero || !cliente) { aviso('El contrato necesita número y cliente', 'error'); return; }
+            conta.gestion.contratos.push({ id: 'c' + Date.now().toString(36), numero, cliente, objeto: $('cObjeto').value.trim(), monto: Number($('cMonto').value) || 0 });
+            await guardar(); $('cNumero').value = $('cCliente').value = $('cObjeto').value = $('cMonto').value = '';
+            pintarContratos(); aviso('Contrato añadido');
+        });
+        pintarTodo();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

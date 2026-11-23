@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Informes</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 14px 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    @media print {
+        body { background: #fff; padding: 0; }
+        .no-imprimir { display: none !important; }
+        .tarjeta { box-shadow: none; border-color: #999; }
+    }
+</style>
+</head>
+<body>
+<h1>Informes</h1>
+<p class="no-imprimir"><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <div class="fila no-imprimir"><input type="month" id="iMes"><button type="button" id="iVer" class="secundario chico">Ver</button>
+    <button type="button" id="iImprimir">Imprimir / guardar como PDF</button></div>
+    <h2 id="titResultados">Estado de resultados</h2>
+    <div id="resultados"><p class="tenue">Elige el mes.</p></div>
+    <h2>Balance de comprobación (acumulado hasta fin de mes)</h2>
+    <div id="balance"><p class="tenue">Elige el mes.</p></div>
+    <p class="tenue">El Flujo de Efectivo y el Estado de Cambios en el Patrimonio están en el módulo Contabilidad. Estos informes salen solo de los asientos confirmados: lo que no está contabilizado no aparece.</p>
+</div>
+
+<script type="module">
+import { bd, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(10);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+let conta = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+function cuenta(cod) { return (conta.plan || []).find((c) => c.codigo === cod) || { nombre: '', grupo: '', naturaleza: 'deudora' }; }
+function pintar() {
+    const mes = $('iMes').value;
+    if (!mes) return;
+    $('titResultados').textContent = 'Estado de resultados de ' + mes;
+    const porMes = new Map(), porAcum = new Map();
+    for (const a of conta.asientos || []) {
+        for (const l of a.lineas) {
+            const acum = porAcum.get(l.cuenta) || { debe: 0, haber: 0 };
+            if (a.fecha <= mes + '-31') { acum.debe += Number(l.debe) || 0; acum.haber += Number(l.haber) || 0; porAcum.set(l.cuenta, acum); }
+            if ((a.fecha || '').startsWith(mes)) {
+                const m = porMes.get(l.cuenta) || { debe: 0, haber: 0 };
+                m.debe += Number(l.debe) || 0; m.haber += Number(l.haber) || 0; porMes.set(l.cuenta, m);
+            }
+        }
+    }
+    let ingresos = 0, costo = 0, gastos = 0;
+    const filasRes = [];
+    for (const [cod, g] of [...porMes.entries()].sort((x, y) => x[0].localeCompare(y[0]))) {
+        const c = cuenta(cod);
+        if (c.grupo === 'ingreso') { const v = r2(g.haber - g.debe); ingresos = r2(ingresos + v); filasRes.push('<tr><td>' + cod + ' ' + c.nombre + '</td><td class="num">' + fmt(v) + '</td></tr>'); }
+        else if (cod === '695-000') { const v = r2(g.debe - g.haber); costo = r2(costo + v); filasRes.push('<tr><td>' + cod + ' ' + c.nombre + ' (costo)</td><td class="num">(' + fmt(v) + ')</td></tr>'); }
+        else if (c.grupo === 'gasto') { const v = r2(g.debe - g.haber); gastos = r2(gastos + v); filasRes.push('<tr><td>' + cod + ' ' + c.nombre + '</td><td class="num">(' + fmt(v) + ')</td></tr>'); }
+    }
+    const resultado = r2(ingresos - costo - gastos);
+    $('resultados').innerHTML = '<table><tbody>' + (filasRes.join('') || '<tr><td class="tenue">Sin movimientos de resultados en el mes.</td><td></td></tr>') +
+        '<tr><td>Ingresos</td><td class="num">' + fmt(ingresos) + '</td></tr>' +
+        '<tr><td>Costo de ventas</td><td class="num">' + fmt(costo) + '</td></tr>' +
+        '<tr><td>Gastos</td><td class="num">' + fmt(gastos) + '</td></tr>' +
+        '<tr class="totales"><td>RESULTADO DEL MES (antes de impuestos)</td><td class="num">' + fmt(resultado) + '</td></tr></tbody></table>';
+    let td = 0, th = 0;
+    const filasBal = [...porAcum.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([cod, g]) => {
+        td += g.debe; th += g.haber;
+        const c = cuenta(cod);
+        const saldo = c.naturaleza === 'acreedora' ? g.haber - g.debe : g.debe - g.haber;
+        return '<tr><td>' + cod + '</td><td>' + c.nombre + '</td><td class="num">' + fmt(g.debe) + '</td><td class="num">' + fmt(g.haber) + '</td><td class="num">' + fmt(saldo) + '</td></tr>';
+    }).join('');
+    $('balance').innerHTML = '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead><tbody>' +
+        (filasBal || '<tr><td colspan="5" class="tenue">Sin asientos hasta ese mes.</td></tr>') +
+        '<tr class="totales"><td colspan="2">TOTALES</td><td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td><td></td></tr></tbody></table>';
+}
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
+        $('iMes').value = new Date().toISOString().slice(0, 7);
+        $('iVer').addEventListener('click', pintar);
+        $('iImprimir').addEventListener('click', () => window.print());
+        pintar();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

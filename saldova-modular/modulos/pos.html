@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Punto de Venta</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 110px; text-align: right; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .rojo { color: #B23218; font-weight: 600; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Punto de Venta</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Vender</h2>
+    <div class="fila">
+        <select id="vProducto" style="min-width:220px"></select>
+        <input id="vCant" type="number" step="1" min="1" value="1" style="width:70px">
+        <button type="button" id="vAdd" class="secundario chico">Añadir a la venta</button>
+    </div>
+    <div id="carrito"><p class="tenue">Venta vacía.</p></div>
+    <div class="fila">
+        <label>Medio de cobro <select id="vMedio"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="qr">QR / Transferencia</option></select></label>
+        <span id="vTotal" style="font-weight:700"></span>
+        <button type="button" id="vCobrar">Cobrar</button>
+    </div>
+    <p class="tenue">Recuerda la norma: un cobro en efectivo por encima de 5 000 CUP debe bancarizarse (Res. 111/2023 BCC); el módulo Fiscal lo vigila.</p>
+</div>
+
+<div class="tarjeta">
+    <h2>Ventas del día y asiento del día</h2>
+    <div class="fila"><input type="date" id="vdFecha"><button type="button" id="vdVer" class="secundario chico">Ver</button>
+    <button type="button" id="vdAsiento">Generar el asiento del día</button></div>
+    <div id="ventasDia"><p class="tenue">Elige la fecha.</p></div>
+    <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja (101-010), la tarjeta y el QR al Banco (110-010), contra Ventas (801-000). Cada venta entra una sola vez.</p>
+</div>
+
+<div class="tarjeta">
+    <h2>Productos</h2>
+    <div id="productos"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="pCodigo" placeholder="Código" size="9">
+        <input id="pNombre" placeholder="Nombre del producto" style="min-width:190px">
+        <input id="pPrecio" class="monto" type="number" step="0.01" min="0" placeholder="Precio">
+        <input id="pStock" type="number" step="1" min="0" placeholder="Stock" style="width:80px">
+        <input id="pMin" type="number" step="1" min="0" placeholder="Mínimo" style="width:80px">
+        <button type="button" id="pAdd" class="secundario chico">Añadir producto</button>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Inventario ocioso (90 días sin moverse)</h2>
+    <p class="tenue">Productos con stock que no se venden desde hace 90 días o más: es dinero parado. El valor se calcula a precio de venta.</p>
+    <div id="ocioso"><p class="tenue">Cargando…</p></div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(7);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const hoy = () => new Date().toISOString().slice(0, 10);
+let pos = null, conta = null, carrito = [];
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
+function pintarProductos() {
+    const lista = pos.productos || [];
+    $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + p.codigo + ' · ' + p.nombre + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
+    const filas = lista.map((p) =>
+        '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + fmt(p.precio) + '</td>' +
+        '<td class="num">' + (p.stock <= (p.stockMin || 0) ? '<span class="rojo">' + p.stock + '</span>' : p.stock) + '</td>' +
+        '<td><button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>').join('');
+    $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="5" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
+    $('productos').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+        pos.productos = pos.productos.filter((p) => p.id !== b.dataset.del);
+        await guardar(); pintarTodo();
+    }));
+    pintarOcioso();
+}
+function pintarCarrito() {
+    const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
+    $('carrito').innerHTML = carrito.map((l, i) =>
+        '<div class="fila"><span>' + l.nombre + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
+        '<button type="button" class="chico secundario" data-q="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Venta vacía.</p>';
+    $('vTotal').textContent = carrito.length ? 'Total: ' + fmt(total) : '';
+    $('carrito').querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => { carrito.splice(Number(b.dataset.q), 1); pintarCarrito(); }));
+}
+function pintarVentasDia() {
+    const fecha = $('vdFecha').value;
+    const ventas = (pos.ventas || []).filter((v) => v.fecha === fecha);
+    const total = r2(ventas.reduce((s, v) => s + (Number(v.total) || 0), 0));
+    $('ventasDia').innerHTML = ventas.map((v) =>
+        '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
+        '<span class="tenue">' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ') + (v.asientoId ? ' · ya en el asiento del día' : '') + '</span></div>').join('') ||
+        '<p class="tenue">Sin ventas en ' + fecha + '.</p>';
+    if (ventas.length) $('ventasDia').innerHTML += '<p><b>Total del día: ' + fmt(total) + '</b> · Sin asiento todavía: ' + ventas.filter((v) => !v.asientoId).length + ' venta(s).</p>';
+}
+function pintarOcioso() {
+    const ultimaVenta = new Map();
+    for (const v of pos.ventas || []) for (const l of v.lineas) {
+        if (!ultimaVenta.has(l.codigo) || v.fecha > ultimaVenta.get(l.codigo)) ultimaVenta.set(l.codigo, v.fecha);
+    }
+    const limite = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const ociosos = (pos.productos || []).filter((p) => (Number(p.stock) || 0) > 0 && (ultimaVenta.get(p.codigo) || p.fechaAlta || hoy()) <= limite);
+    let valor = 0;
+    $('ocioso').innerHTML = ociosos.map((p) => {
+        const v = r2((Number(p.stock) || 0) * (Number(p.precio) || 0)); valor += v;
+        return '<div class="fila"><b>' + p.nombre + '</b><span>stock ' + p.stock + ' · último movimiento: ' + (ultimaVenta.get(p.codigo) || p.fechaAlta || 'nunca') + ' · valor parado: ' + fmt(v) + '</span></div>';
+    }).join('') || '<p class="tenue">Nada ocioso: todo el stock se ha movido en los últimos 90 días.</p>';
+    if (ociosos.length) $('ocioso').innerHTML += '<p><b>Valor total inmovilizado: ' + fmt(valor) + '</b> (a precio de venta). Valora rebajarlo, devolverlo o promocionarlo.</p>';
+}
+function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        pos = (await bd().docLeer(tokenSesion(), 'pos')) || {};
+        pos.productos = pos.productos || [];
+        pos.ventas = pos.ventas || [];
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        $('vdFecha').value = hoy();
+        $('pAdd').addEventListener('click', async () => {
+            const codigo = $('pCodigo').value.trim(), nombre = $('pNombre').value.trim(), precio = Number($('pPrecio').value) || 0;
+            if (!codigo || !nombre || precio <= 0) { aviso('El producto necesita código, nombre y precio', 'error'); return; }
+            pos.productos.push({ id: 'p' + Date.now().toString(36), codigo, nombre, precio, stock: Number($('pStock').value) || 0, stockMin: Number($('pMin').value) || 0, fechaAlta: hoy() });
+            await guardar(); $('pCodigo').value = $('pNombre').value = $('pPrecio').value = $('pStock').value = $('pMin').value = '';
+            pintarTodo(); aviso('Producto añadido');
+        });
+        $('vAdd').addEventListener('click', () => {
+            const p = pos.productos.find((x) => x.id === $('vProducto').value);
+            const cant = Math.max(1, Number($('vCant').value) || 1);
+            if (!p) { aviso('Primero crea los productos', 'error'); return; }
+            const l = carrito.find((x) => x.codigo === p.codigo);
+            if (l) l.cant += cant; else carrito.push({ codigo: p.codigo, nombre: p.nombre, cant, precio: p.precio });
+            pintarCarrito();
+        });
+        $('vCobrar').addEventListener('click', async () => {
+            if (!carrito.length) { aviso('La venta está vacía', 'error'); return; }
+            const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
+            for (const l of carrito) {
+                const p = pos.productos.find((x) => x.codigo === l.codigo);
+                if (p && (Number(p.stock) || 0) < l.cant) { aviso('No hay stock suficiente de ' + l.nombre, 'error'); return; }
+            }
+            for (const l of carrito) { const p = pos.productos.find((x) => x.codigo === l.codigo); if (p) p.stock = (Number(p.stock) || 0) - l.cant; }
+            pos.ventas.push({ id: 'V' + Date.now().toString(36).toUpperCase(), fecha: hoy(), total, lineas: [...carrito], cobros: [{ medio: $('vMedio').value, monto: total }] });
+            await guardar();
+            carrito = []; pintarTodo();
+            aviso('Venta cobrada: ' + fmt(total));
+        });
+        $('vdVer').addEventListener('click', pintarVentasDia);
+        $('vdFecha').addEventListener('change', pintarVentasDia);
+        $('vdAsiento').addEventListener('click', async () => {
+            const fecha = $('vdFecha').value;
+            const pendientes = (pos.ventas || []).filter((v) => v.fecha === fecha && !v.asientoId);
+            if (!pendientes.length) { aviso('No hay ventas sin asiento en ' + fecha, 'error'); return; }
+            let efectivo = 0, banco = 0;
+            for (const v of pendientes) for (const c of v.cobros) {
+                if (c.medio === 'efectivo') efectivo = r2(efectivo + (Number(c.monto) || 0));
+                else banco = r2(banco + (Number(c.monto) || 0));
+            }
+            const total = r2(efectivo + banco);
+            const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
+            const lineas = [];
+            if (efectivo > 0) lineas.push(L('101-010', efectivo));
+            if (banco > 0) lineas.push(L('110-010', banco));
+            lineas.push(L('801-000', 0, total));
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            const id = 'a' + Date.now().toString(36);
+            conta.asientos.push({ id, numero: conta.seqAsiento, fecha, concepto: 'Ventas del POS de ' + fecha + ' (asiento del día)', origen: 'manual', estado: 'confirmado', lineas });
+            for (const v of pendientes) v.asientoId = id;
+            pos.asientoDia = fecha;
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            await guardar();
+            aviso('Asiento del día nº ' + conta.seqAsiento + ' creado por ' + fmt(total));
+            pintarVentasDia();
+        });
+        pintarTodo();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

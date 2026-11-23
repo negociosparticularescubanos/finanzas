@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Cierre</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .ok { color: #1E7A34; font-weight: 600; }
+    .mal { color: #B23218; font-weight: 600; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    .punto { padding: 7px 10px; border: 1px solid #C6D9EE; border-radius: 6px; margin: 5px 0; background: #FBFDFF; }
+</style>
+</head>
+<body>
+<h1>Cierre de período</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Revisión del mes antes de cerrar</h2>
+    <div class="fila"><input type="month" id="cMes"><button type="button" id="cVer" class="secundario chico">Revisar</button>
+    <button type="button" id="cCerrar">Cerrar el mes</button></div>
+    <div id="revision"><p class="tenue">Elige el mes y revisa: el cierre solo se hace cuando todo lo obligatorio está en regla.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Meses cerrados</h2>
+    <div id="cerrados"><p class="tenue">Cargando…</p></div>
+    <p class="tenue">El cierre queda registrado con su resumen. Reabrir un mes cerrado es decisión del administrador y queda en el historial.</p>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(8);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+let conta = null, movs = [], aft = null, rrhh = null, hist = [], sesion = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+function revision(mes) {
+    const puntos = [];
+    const asientosMes = (conta.asientos || []).filter((a) => (a.fecha || '').startsWith(mes));
+    let td = 0, th = 0;
+    for (const a of asientosMes) for (const l of a.lineas) { td += Number(l.debe) || 0; th += Number(l.haber) || 0; }
+    puntos.push({ ok: asientosMes.length > 0 && r2(td) === r2(th), bloquea: true,
+        texto: 'Asientos del mes: ' + asientosMes.length + ' asiento(s), Debe ' + fmt(td) + ' = Haber ' + fmt(th) + (asientosMes.length ? '' : ' — no hay asientos en el mes') });
+    const porClasificar = movs.filter((m) => (m.fecha || '').startsWith(mes) && (m.clasificacion || '') === 'Por clasificar');
+    puntos.push({ ok: porClasificar.length === 0, bloquea: true,
+        texto: porClasificar.length ? 'Quedan ' + porClasificar.length + ' movimiento(s) «Por clasificar» en la Chequera: sin clasificar no se puede cerrar' : 'Sin movimientos «Por clasificar» en el mes' });
+    const hayActivos = aft && (aft.activos || []).some((a) => a.estado !== 'baja');
+    const depOk = !hayActivos || (aft.ultimaDepreciacion && aft.ultimaDepreciacion >= mes);
+    puntos.push({ ok: depOk, bloquea: true,
+        texto: !hayActivos ? 'Sin activos fijos: la depreciación no aplica' : depOk ? 'Depreciación registrada hasta ' + aft.ultimaDepreciacion : 'Falta la depreciación de ' + mes + ' (última: ' + (aft.ultimaDepreciacion || 'ninguna') + '): el cierre queda bloqueado hasta depreciar' });
+    let conciliado = false;
+    for (const cuenta of ['chequera', 'tarjeta_cup', 'tarjeta_usd']) {
+        try {
+            const c = JSON.parse(localStorage.getItem('saldova_conciliacion_' + cuenta) || 'null');
+            if (c && (c.fecha || '').startsWith(mes)) conciliado = true;
+        } catch (e) { /* sin conciliación guardada */ }
+    }
+    puntos.push({ ok: conciliado, bloquea: false,
+        texto: conciliado ? 'Hay conciliación bancaria guardada del mes' : 'Sin conciliación bancaria guardada del mes (recomendada: no bloquea el cierre)' });
+    const hayTrab = rrhh && (rrhh.trabajadores || []).length > 0;
+    const nomOk = !hayTrab || !!(rrhh.nominas && rrhh.nominas[mes]);
+    puntos.push({ ok: nomOk, bloquea: false,
+        texto: !hayTrab ? 'Sin trabajadores: la nómina no aplica' : nomOk ? 'Nómina del mes registrada' : 'Hay trabajadores pero no nómina de ' + mes + ' (aviso: no bloquea el cierre)' });
+    const yaCerrado = hist.some((h) => h.mes === mes) || (conta.candados && conta.candados[mes]);
+    if (yaCerrado) puntos.push({ ok: false, bloquea: true, texto: 'Este mes YA está cerrado' });
+    return puntos;
+}
+function pintarRevision() {
+    const mes = $('cMes').value;
+    if (!mes) return;
+    const puntos = revision(mes);
+    $('revision').innerHTML = puntos.map((p) =>
+        '<div class="punto"><span class="' + (p.ok ? 'ok' : 'mal') + '">' + (p.ok ? '✔' : '✘') + '</span> ' + p.texto + '</div>').join('');
+}
+function pintarCerrados() {
+    $('cerrados').innerHTML = hist.map((h) =>
+        '<div class="fila"><b>' + h.mes + '</b><span class="tenue">cerrado el ' + h.cerradoEn + ' por ' + h.por + ' · ' + (h.resumen || '') + '</span></div>').join('') ||
+        '<p class="tenue">Todavía no hay meses cerrados.</p>';
+}
+(async () => {
+    try {
+        pintarIndicador();
+        sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        conta.candados = conta.candados || {};
+        conta.cierres = conta.cierres || [];
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        aft = await bd().docLeer(tokenSesion(), 'aft');
+        rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
+        hist = (await bd().docLeer(tokenSesion(), 'hist')) || [];
+        $('cMes').value = new Date().toISOString().slice(0, 7);
+        $('cVer').addEventListener('click', pintarRevision);
+        $('cMes').addEventListener('change', pintarRevision);
+        $('cCerrar').addEventListener('click', async () => {
+            const mes = $('cMes').value;
+            const puntos = revision(mes);
+            const bloqueos = puntos.filter((p) => p.bloquea && !p.ok);
+            if (bloqueos.length) { aviso('No se puede cerrar: ' + bloqueos[0].texto, 'error'); return; }
+            const asientosMes = (conta.asientos || []).filter((a) => (a.fecha || '').startsWith(mes)).length;
+            const entrada = { mes, cerradoEn: new Date().toISOString().slice(0, 10), por: sesion.username, resumen: asientosMes + ' asiento(s) en el mes' };
+            hist.push(entrada);
+            conta.candados[mes] = true;
+            conta.cierres.push(entrada);
+            await bd().docGuardar(tokenSesion(), 'hist', hist);
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            aviso('Mes ' + mes + ' cerrado');
+            pintarRevision(); pintarCerrados();
+        });
+        pintarRevision();
+        pintarCerrados();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>
