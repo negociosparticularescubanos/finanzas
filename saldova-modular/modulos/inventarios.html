@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventarios · Saldova</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 16px; color: #173A5E; background: #EAF2FA; }
+    .tarjeta { background: rgba(255,255,255,.93); border: 1px solid #8FA8C8; border-radius: 10px; padding: 16px; max-width: 920px; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(23,58,94,.15); }
+    h1 { font-size: 19px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 16px 0 8px; }
+    p { margin: 6px 0; } .tenue { color: #56708E; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+    th, td { border-bottom: 1px solid #D6E2F0; padding: 5px 7px; text-align: left; }
+    th { background: #DCE8F5; } td.num, th.num { text-align: right; }
+    tr.totales td { font-weight: 700; background: #EBF3FC; }
+    input, select { padding: 6px 8px; border: 1px solid #8FA8C8; border-radius: 5px; font: inherit; font-size: 13px; }
+    button { background: linear-gradient(#FFC266, #F48C1E); border: 1px solid #B25F00; color: #111; font-weight: 600; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+    button.secundario { background: linear-gradient(#F4F9FE, #B7D0EC); border-color: #8FA8C8; }
+    button.chico { padding: 3px 9px; font-size: 12px; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+    .ok { color: #1E7A34; font-weight: 600; } .mal { color: #B00020; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="tarjeta">
+    <h1>📦 Inventarios</h1>
+    <p>El almacén de verdad: cada entrada y salida queda en un <strong>documento</strong> con su motivo, y la existencia es la suma de esos documentos más las ventas del POS. Los productos son los mismos del Punto de Venta: lo que entra aquí se vende allá con el mismo stock.</p>
+    <h2>Documento de entrada o salida</h2>
+    <div class="fila">
+        <label>Fecha <input id="dFecha" type="date"></label>
+        <label>Tipo <select id="dTipo"><option value="entrada">Entrada</option><option value="salida">Salida</option></select></label>
+        <label>Producto <select id="dProducto"></select></label>
+        <label>Cantidad <input id="dCant" type="number" step="1" min="1" style="width:80px"></label>
+        <label>Motivo <input id="dMotivo" type="text" placeholder="Compra, merma, traslado…" style="width:190px"></label>
+        <button type="button" id="dRegistrar">Registrar documento</button>
+    </div>
+    <p class="tenue">Una salida no puede dejar el stock en negativo. Las ventas del POS ya descuentan solas: no las dupliques aquí.</p>
+</div>
+
+<div class="tarjeta">
+    <h2 style="margin-top:0">Existencias</h2>
+    <div id="existencias"><p class="tenue">Cargando…</p></div>
+    <h2>Kardex de un producto</h2>
+    <div class="fila"><label>Producto <select id="kProducto"></select></label></div>
+    <div id="kardex"><p class="tenue">Elige un producto: verás sus documentos y sus ventas en orden de fecha.</p></div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(12);
+const $ = (id) => document.getElementById(id);
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const fmt = (n) => (Number(n) || 0).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let pos = null, conta = null;
+async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
+function producto(cod) { return (pos.productos || []).find((p) => p.codigo === cod); }
+function pintar() {
+    const prods = pos.productos || [];
+    const opciones = prods.map((p) => '<option value="' + p.codigo + '">' + p.codigo + ' · ' + p.nombre + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('');
+    $('dProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
+    $('kProducto').innerHTML = '<option value="">— elige —</option>' + opciones;
+    let totalValor = 0;
+    $('existencias').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Valor a precio de venta</th><th>Estado</th></tr></thead><tbody>' +
+        (prods.map((p) => {
+            const valor = r2((Number(p.stock) || 0) * (Number(p.precio) || 0));
+            totalValor = r2(totalValor + valor);
+            const bajo = (Number(p.stock) || 0) < (Number(p.stockMin) || 0);
+            return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + (Number(p.stock) || 0) + '</td><td class="num">' + (Number(p.stockMin) || 0) + '</td><td class="num">' + fmt(valor) + '</td><td>' + (bajo ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>';
+        }).join('') || '<tr><td colspan="6" class="tenue">Sin productos todavía: créalos en el módulo Punto de Venta.</td></tr>') +
+        '<tr class="totales"><td colspan="4">VALOR TOTAL DEL INVENTARIO (a precio de venta)</td><td class="num">' + fmt(totalValor) + '</td><td></td></tr></tbody></table>';
+    pintarKardex();
+}
+function pintarKardex() {
+    const cod = $('kProducto').value;
+    if (!cod) { $('kardex').innerHTML = '<p class="tenue">Elige un producto: verás sus documentos y sus ventas en orden de fecha.</p>'; return; }
+    const movs = [];
+    for (const d of (pos.inventario || [])) if (d.codigo === cod) movs.push({ fecha: d.fecha, texto: (d.tipo === 'entrada' ? 'Entrada' : 'Salida') + ' · ' + (d.motivo || 'Documento de inventario'), cant: d.tipo === 'entrada' ? d.cant : -d.cant });
+    for (const v of (pos.ventas || [])) for (const l of (v.lineas || [])) if (l.codigo === cod) movs.push({ fecha: String(v.fecha).slice(0, 10), texto: 'Venta en el POS', cant: -l.cant });
+    movs.sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+    let saldo = 0;
+    $('kardex').innerHTML = '<table><thead><tr><th>Fecha</th><th>Movimiento</th><th class="num">Cantidad</th><th class="num">Acumulado de movimientos</th></tr></thead><tbody>' +
+        (movs.map((m) => { saldo += m.cant; return '<tr><td>' + m.fecha + '</td><td>' + m.texto + '</td><td class="num">' + (m.cant > 0 ? '+' : '') + m.cant + '</td><td class="num">' + saldo + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="tenue">Este producto aún no tiene movimientos registrados.</td></tr>') +
+        '</tbody></table><p class="tenue">El acumulado suma solo los movimientos registrados aquí (documentos y ventas); el stock real del producto es el de la tabla de Existencias.</p>';
+}
+(async () => {
+    try {
+        const s = await sesionActual();
+        if (!s) { $('existencias').innerHTML = '<p class="mal">Sin sesión: entra desde la ventana principal.</p>'; return; }
+        pos = (await bd().docLeer(tokenSesion(), 'pos')) || { productos: [], ventas: [] };
+        pos.inventario = pos.inventario || [];
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { candados: {} };
+        $('dFecha').value = new Date().toISOString().slice(0, 10);
+        $('kProducto').addEventListener('change', pintarKardex);
+        $('dRegistrar').addEventListener('click', async () => {
+            const p = producto($('dProducto').value);
+            const cant = Math.floor(Number($('dCant').value) || 0);
+            if (!p) { aviso('Elige un producto', 'error'); return; }
+            if (cant <= 0) { aviso('La cantidad debe ser mayor que cero', 'error'); return; }
+            const fecha = $('dFecha').value;
+            if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se registran documentos de inventario en un período cerrado', 'error'); return; }
+            const tipo = $('dTipo').value;
+            if (tipo === 'salida' && (Number(p.stock) || 0) < cant) { aviso('No hay stock suficiente: quedan ' + (Number(p.stock) || 0), 'error'); return; }
+            p.stock = (Number(p.stock) || 0) + (tipo === 'entrada' ? cant : -cant);
+            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo, codigo: p.codigo, nombre: p.nombre, cant, motivo: $('dMotivo').value.trim() });
+            try { await guardar(); aviso('Documento registrado: ' + tipo + ' de ' + cant + ' × ' + p.nombre + ' (stock ' + p.stock + ')'); $('dCant').value = ''; $('dMotivo').value = ''; pintar(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        pintar();
+    } catch (e) {
+        $('existencias').innerHTML = '<p class="mal">' + ((e && e.message) || e) + '</p>';
+    }
+})();
+</script>
+</body>
+</html>

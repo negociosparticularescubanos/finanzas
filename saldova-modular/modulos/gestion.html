@@ -25,6 +25,7 @@
     input.monto { width: 110px; text-align: right; }
     .tenue { color: #5A738C; font-size: 13px; }
     .rojo { color: #B23218; font-weight: 600; }
+    .verde { color: #1E7A34; font-weight: 600; }
     saldova-indicador { font-size: 15px; font-weight: 600; }
     .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
 </style>
@@ -50,6 +51,12 @@
     <h2>TeleCobranzas — cobros pendientes</h2>
     <p class="tenue">Las facturas con saldo, ordenadas por antigüedad, con la estrategia según la mora y el aviso listo para copiar y pegar en WhatsApp.</p>
     <div id="telecobranzas"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Consecutivos de facturas — detector de saltos</h2>
+    <p class="tenue">Un hueco en la numeración de las facturas es lo primero que busca una inspección: aquí se detecta solo, junto con los números repetidos.</p>
+    <div id="consecutivos"><p class="tenue">Cargando…</p></div>
 </div>
 
 <div class="tarjeta">
@@ -154,7 +161,25 @@ function pintarContratos() {
         await guardar(); pintarContratos();
     }));
 }
-function pintarTodo() { pintarFacturas(); pintarContratos(); }
+function pintarConsecutivos() {
+    const nums = [];
+    for (const f of (gestion.facturas || [])) {
+        const m = String(f.numero || '').match(/(\d+)\s*$/);
+        if (m) nums.push({ n: parseInt(m[1], 10), numero: f.numero });
+    }
+    if (!nums.length) { $('consecutivos').innerHTML = '<p class="tenue">Todavía no hay facturas con número para revisar.</p>'; return; }
+    const vistos = new Map();
+    const duplicados = [];
+    for (const x of nums) { if (vistos.has(x.n)) duplicados.push(x.numero); vistos.set(x.n, true); }
+    const ordenados = [...vistos.keys()].sort((a, b) => a - b);
+    const saltos = [];
+    for (let i = ordenados[0]; i <= ordenados[ordenados.length - 1]; i++) if (!vistos.has(i)) saltos.push(i);
+    $('consecutivos').innerHTML =
+        '<p>Facturas numeradas: <b>' + nums.length + '</b> · del ' + ordenados[0] + ' al ' + ordenados[ordenados.length - 1] + '.</p>' +
+        (saltos.length ? '<p><span class="rojo">Saltos detectados: faltan los números ' + saltos.join(', ') + '.</span> Si una factura se anuló, déjalo anotado en su contrato o en una nota: el hueco sin explicación es el problema, no el hueco.</p>' : '<p><span class="verde">Sin saltos: la numeración es continua.</span></p>') +
+        (duplicados.length ? '<p><span class="rojo">Números repetidos: ' + duplicados.join(', ') + '.</span> Dos facturas no pueden compartir número.</p>' : '');
+}
+function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(); }
 (async () => {
     try {
         pintarIndicador();

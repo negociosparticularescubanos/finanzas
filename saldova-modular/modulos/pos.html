@@ -71,6 +71,14 @@
 </div>
 
 <div class="tarjeta">
+    <h2>IPV del turno — resumen de ventas del día</h2>
+    <p class="tenue">El parte del turno: qué se vendió, cuánto y por qué vía se cobró. Es el resumen que se le entrega al relevo o al dueño al cerrar la caja.</p>
+    <div class="fila"><label>Fecha <input id="ipvFecha" type="date"></label>
+    <button type="button" id="ipvVer" class="secundario chico">Ver el IPV</button></div>
+    <div id="ipv"><p class="tenue">Elige la fecha del turno.</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Inventario ocioso (90 días sin moverse)</h2>
     <p class="tenue">Productos con stock que no se venden desde hace 90 días o más: es dinero parado. El valor se calcula a precio de venta.</p>
     <div id="ocioso"><p class="tenue">Cargando…</p></div>
@@ -146,6 +154,29 @@ function pintarOcioso() {
     }).join('') || '<p class="tenue">Nada ocioso: todo el stock se ha movido en los últimos 90 días.</p>';
     if (ociosos.length) $('ocioso').innerHTML += '<p><b>Valor total inmovilizado: ' + fmt(valor) + '</b> (a precio de venta). Valora rebajarlo, devolverlo o promocionarlo.</p>';
 }
+function pintarIPV() {
+    const fecha = $('ipvFecha').value;
+    const ventas = (pos.ventas || []).filter((v) => String(v.fecha).slice(0, 10) === fecha);
+    if (!ventas.length) { $('ipv').innerHTML = '<p class="tenue">Ese día no hubo ventas en el POS.</p>'; return; }
+    const porProducto = new Map();
+    const porMedio = new Map();
+    let total = 0;
+    for (const v of ventas) {
+        total = r2(total + (Number(v.total) || 0));
+        for (const l of (v.lineas || [])) {
+            const g = porProducto.get(l.codigo) || { nombre: l.nombre, cant: 0, importe: 0 };
+            g.cant += Number(l.cant) || 0;
+            g.importe = r2(g.importe + (Number(l.cant) || 0) * (Number(l.precio) || 0));
+            porProducto.set(l.codigo, g);
+        }
+        for (const c of (v.cobros || [])) porMedio.set(c.medio, r2((porMedio.get(c.medio) || 0) + (Number(c.monto) || 0)));
+    }
+    $('ipv').innerHTML =
+        '<table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Importe</th></tr></thead><tbody>' +
+        [...porProducto.entries()].map(([cod, g]) => '<tr><td>' + cod + ' · ' + g.nombre + '</td><td class="num">' + g.cant + '</td><td class="num">' + fmt(g.importe) + '</td></tr>').join('') +
+        '<tr class="totales"><td colspan="2">TOTAL DEL TURNO (' + ventas.length + ' venta(s))</td><td class="num">' + fmt(total) + '</td></tr></tbody></table>' +
+        '<p>Cobrado por vía: ' + [...porMedio.entries()].map(([m, v]) => '<b>' + m + '</b> ' + fmt(v)).join(' · ') + '.</p>';
+}
 function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
 (async () => {
     try {
@@ -186,12 +217,15 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             carrito = []; pintarTodo();
             aviso('Venta cobrada: ' + fmt(total));
         });
+        $('ipvFecha').value = hoy();
+        $('ipvVer').addEventListener('click', pintarIPV);
         $('vdVer').addEventListener('click', pintarVentasDia);
         $('vdFecha').addEventListener('change', pintarVentasDia);
         $('vdAsiento').addEventListener('click', async () => {
             const fecha = $('vdFecha').value;
             const pendientes = (pos.ventas || []).filter((v) => v.fecha === fecha && !v.asientoId);
             if (!pendientes.length) { aviso('No hay ventas sin asiento en ' + fecha, 'error'); return; }
+            if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('El mes de ' + fecha + ' está cerrado: no se puede crear el asiento del día en un período cerrado', 'error'); return; }
             let efectivo = 0, banco = 0;
             for (const v of pendientes) for (const c of v.cobros) {
                 if (c.medio === 'efectivo') efectivo = r2(efectivo + (Number(c.monto) || 0));

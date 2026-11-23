@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ayuda · Saldova</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 16px; color: #173A5E; background: #EAF2FA; }
+    .tarjeta { background: rgba(255,255,255,.93); border: 1px solid #8FA8C8; border-radius: 10px; padding: 16px; max-width: 880px; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(23,58,94,.15); }
+    h1 { font-size: 19px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 14px 0 6px; }
+    p, li { margin: 5px 0; font-size: 14px; line-height: 1.45; }
+    .tenue { color: #56708E; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="tarjeta">
+    <h1>❓ Ayuda — manual de Saldova</h1>
+    <p>La idea de todo el programa es una sola: <strong>el estado de cuenta del banco es la puerta de entrada</strong>. De ahí sale casi todo lo demás sin teclear dos veces. Este manual vive dentro de la app y se actualiza con ella.</p>
+
+    <h2>El flujo de cada mes</h2>
+    <ol>
+        <li>Descarga el estado de cuenta en PDF desde Virtual BANDEC (eso lo haces tú, con tus claves, en tu equipo).</li>
+        <li>En <b>Chequera y tarjetas</b> impórtalo: la app lo lee, clasifica cada operación y te enseña la vista previa antes de guardar. Lo que no entiende queda «Por clasificar» en rojo y <b>no se contabiliza</b> hasta que lo clasifiques.</li>
+        <li>En <b>Contabilidad → Bandeja</b> cada movimiento clasificado trae su asiento propuesto <b>con el motivo escrito</b>. Confírmalo, edítalo o descártalo. Con «Confirmar todos los que cuadran» los asientas en un clic.</li>
+        <li>El <b>Vector Fiscal</b>, la conciliación y los informes se alimentan solos de esos asientos y movimientos.</li>
+        <li>Al final, <b>Cierre de período</b> revisa el mes y lo bloquea: un mes cerrado ya no se puede tocar en ningún módulo.</li>
+    </ol>
+
+    <h2>Panel y base de datos</h2>
+    <p>Tu base vive en este navegador, en un archivo propio. Puedes crear varias bases con nombre (una por negocio o por etapa), exportarlas como archivo .db e importarlas en otro equipo. El PIN de creador protege crear bases nuevas. Exporta una copia antes de cambios grandes.</p>
+
+    <h2>Chequera y tarjetas</h2>
+    <p>Tres cuentas: chequera, tarjeta CUP y tarjeta USD. Importa el PDF de BANDEC, revisa la vista previa y guarda. La conciliación compara tus libros con el banco por el método del saldo ajustado: marca «en el banco» los movimientos que ya aparecen en el estado, y la app separa lo que está <b>en tránsito</b> de lo que es un error de verdad. Las transferencias entre tus propias cuentas mueven saldo pero <b>nunca cuentan como ingreso</b>.</p>
+
+    <h2>Contabilidad</h2>
+    <p>Plan de cuentas del dueño (87 cuentas) o el oficial de la Res. 494/2016 (423): el plan solo se cambia con la contabilidad vacía. Los asientos automáticos resuelven su cuenta por las equivalencias (ventas 801→900 en el plan oficial, etc.). Las <b>plantillas recurrentes</b> crean el asiento del mes con un clic (alquiler, servicios fijos). El <b>Flujo de Efectivo</b> y los <b>Cambios en el Patrimonio</b> salen de los movimientos y asientos, sin teclear nada.</p>
+
+    <h2>Fiscal · Vector y PDL</h2>
+    <p>El Vector del mes se calcula de los asientos (ventas) y de la nómina; lo pagado sale de los pagos ONAT de la Chequera. Si el negocio es TCP, la app vigila el umbral de 500 000 CUP del año (Res. 272/2024) y avisa al llegar al 80 %. Los cobros en efectivo mayores de 5 000 CUP se señalan (Res. 111/2023 del BCC). La Declaración Jurada <b>no se calcula en la app</b>: eso es un servicio aparte. Para los PDL, la ficha recoge las fuentes del art. 43.1 del Decreto 174/2026 y el fideicomiso con su comisión del 4 % (Res. 118/2026 del BCC).</p>
+
+    <h2>Nómina y Activos Fijos</h2>
+    <p>La nómina del mes crea su asiento sola (salarios, seguridad social 14 % e impuesto por la fuerza de trabajo 5 %). La depreciación de los activos fijos también, y el Cierre se niega si falta registrarla. Los porcientos viven en la propia pantalla: si la norma cambia, se cambian ahí.</p>
+
+    <h2>Gestión, Punto de Venta e Inventarios</h2>
+    <p>Las facturas con saldo alimentan <b>TeleCobranzas</b>: pendientes por antigüedad, estrategia según la mora y el aviso listo para WhatsApp. El detector de <b>consecutivos</b> avisa si falta o se repite un número de factura. El POS vende, descuenta stock y agrupa el día en un solo asiento; el <b>IPV del turno</b> resume ventas y cobros por vía. <b>Inventarios</b> registra entradas y salidas con documento y motivo, y el kardex de cada producto.</p>
+
+    <h2>Informes</h2>
+    <p>Estado de Resultados, Balance de Comprobación, <b>Balance General</b> (que debe cuadrar: Activo = Pasivo + Patrimonio) y <b>Presupuesto contra real</b> del mes. Todo sale solo de los asientos confirmados: lo que no está contabilizado no aparece.</p>
+
+    <h2>Tasas y multimoneda</h2>
+    <p>Apagada de fábrica. Si la enciendes, declaras tú el saldo en divisa y la tasa; al cambiar la tasa, la diferencia de cambio se asienta con un clic. La app nunca inventa un saldo.</p>
+
+    <h2>Gestor (solo el administrador)</h2>
+    <p>El panel del tenedor: ficha KYC de cada negocio, registro de operaciones sospechosas (se conserva 5 años) y lista de excluidos, según la Res. 86/2026. Las contraseñas de los usuarios <b>no existen en claro</b> en ninguna parte: se guardan solo sus huellas.</p>
+
+    <h2>Reglas que la app nunca rompe</h2>
+    <ul>
+        <li>Nada se contabiliza sin clasificar; lo dudoso queda en rojo, a la vista.</li>
+        <li>Un mes cerrado no se edita en ningún módulo.</li>
+        <li>El dinero del dueño no se toca: los saldos en divisa los declaras tú.</li>
+        <li>Sin llaves, sin licencias, sin vencimientos: la app abre directa a trabajar.</li>
+    </ul>
+    <p class="tenue">Saldova · Hecha para TCP, MIPYME y PDL de Cuba. Si algo de este manual no coincide con lo que ves en pantalla, manda: la pantalla — y se corrige el manual en la misma ronda.</p>
+</div>
+
+<script type="module">
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(13);
+</script>
+</body>
+</html>

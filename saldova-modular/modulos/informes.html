@@ -143,7 +143,7 @@ function pintarBalanceGeneral(porAcum) {
     const activo = sumaGrupo('activo', 'debe');
     const pasivo = sumaGrupo('pasivo', 'haber');
     const patrimonio = sumaGrupo('patrimonio', 'haber');
-    const resultado = r2(sumaGrupo('ingreso', 'haber') - sumaGrupo('gasto', 'debe'));
+    const resultado = r2(sumaGrupo('ingreso', 'haber') - sumaGrupo('gasto', 'debe') - sumaGrupo('costo', 'debe'));
     const pasivoPatrimonio = r2(pasivo + patrimonio + resultado);
     $('balanceGeneral').innerHTML =
         '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Saldo</th></tr></thead><tbody>' +

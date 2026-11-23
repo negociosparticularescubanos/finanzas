@@ -155,6 +155,7 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
         $('dAsiento').addEventListener('click', async () => {
             const mes = $('dMes').value;
             if (aft.ultimaDepreciacion && aft.ultimaDepreciacion >= mes) { aviso('La depreciación de ' + mes + ' ya está registrada (' + aft.ultimaDepreciacion + ')', 'error'); return; }
+            if (conta.candados && conta.candados[mes]) { aviso('El mes ' + mes + ' está cerrado: no se puede asentar la depreciación en un período cerrado', 'error'); return; }
             const porCuenta = new Map();
             let total = 0;
             for (const a of (aft.activos || []).filter((x) => x.estado !== 'baja')) {

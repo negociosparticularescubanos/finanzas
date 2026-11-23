@@ -148,6 +148,7 @@ function pintarNomina() {
             const nom = nominaDelMes();
             if (!nom) { aviso('Primero prepara y guarda la nómina del mes', 'error'); return; }
             if (nom.asientoId) { aviso('Esta nómina ya tiene su asiento (nº ' + nom.asientoNumero + ')', 'error'); return; }
+            if (conta.candados && conta.candados[mes]) { aviso('El mes ' + mes + ' está cerrado: no se puede asentar la nómina en un período cerrado', 'error'); return; }
             const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
             const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
             const ss = r2(bruto * 0.14), iuft = r2(bruto * 0.05), liquido = r2(bruto - imp);

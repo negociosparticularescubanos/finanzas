@@ -132,6 +132,7 @@ let movs = [];
 let cuentaActiva = 'chequera';
 let editandoId = null;
 let previaOps = null;
+let contaCandados = {};
 
 function mesActual() {
     const d = new Date();
@@ -171,7 +172,8 @@ function pintarTabla() {
             '<td class="num">' + (m.tipo === 'ingreso' ? dinero(monto) : '') + '</td>' +
             '<td class="num">' + (m.tipo === 'gasto' ? dinero(monto) : '') + '</td>' +
             '<td class="num">' + dinero(saldo) + '</td>' +
-            '<td style="white-space:nowrap"><button data-editar="' + m.id + '">Editar</button>' +
+            '<td style="white-space:nowrap"><label title="Marca si este movimiento ya apareció en el estado del banco"><input type="checkbox" data-conc="' + m.id + '"' + (m.conciliado ? ' checked' : '') + '> en el banco</label> ' +
+            '<button data-editar="' + m.id + '">Editar</button>' +
             '<button data-borrar="' + m.id + '">Borrar</button></td></tr>';
     }
     if (!delMes.length) html += '<tr><td colspan="7" class="tenue">Sin movimientos en este mes para esta cuenta. Importa el estado de cuenta o añade uno a mano.</td></tr>';
@@ -181,6 +183,12 @@ function pintarTabla() {
     $('resumenMes').textContent = delMes.length + ' movimiento(s) · saldo al cierre del mes: ' + dinero(saldo);
     document.querySelectorAll('[data-editar]').forEach((b) => { b.onclick = () => editar(b.dataset.editar); });
     document.querySelectorAll('[data-borrar]').forEach((b) => { b.onclick = () => borrar(b.dataset.borrar); });
+    document.querySelectorAll('[data-conc]').forEach((c) => { c.onchange = async () => {
+        const m = movs.find((x) => String(x.id) === String(c.dataset.conc));
+        if (!m) return;
+        m.conciliado = c.checked;
+        try { await guardar(); pintarConciliacion(); } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+    }; });
 }
 
 function pintarConciliacion() {
@@ -194,11 +202,23 @@ function pintarConciliacion() {
         if (m.fecha.slice(0, 7) <= mes) saldoLibros += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto || 0);
     }
     const dif = Math.round((saldoLibros - datos.saldoBanco) * 100) / 100;
+    let ingTransito = 0, gasTransito = 0, nIng = 0, nGas = 0;
+    for (const m of movs) {
+        if ((m.cuenta || 'chequera') !== cuentaActiva) continue;
+        if (m.fecha.slice(0, 7) > mes || m.conciliado) continue;
+        if (m.tipo === 'ingreso') { ingTransito += Number(m.monto || 0); nIng++; } else { gasTransito += Number(m.monto || 0); nGas++; }
+    }
+    const bancoAjustado = Math.round((datos.saldoBanco + ingTransito - gasTransito) * 100) / 100;
+    const difAjustada = Math.round((saldoLibros - bancoAjustado) * 100) / 100;
     $('conciliacion').innerHTML =
         'Saldo según tus libros (fin de ' + esc(mes) + '): <b>' + dinero(saldoLibros) + '</b> · ' +
         'Saldo según el banco (estado importado el ' + esc(datos.fecha || '') + '): <b>' + dinero(datos.saldoBanco) + '</b> · ' +
         'Diferencia: <b' + (Math.abs(dif) < 0.005 ? '' : ' class="rojo"') + '>' + dinero(dif) + '</b>' +
-        (Math.abs(dif) < 0.005 ? ' — la cuenta concilia.' : ' — hay diferencia: revisa si falta importar un estado o sobra un movimiento.');
+        (Math.abs(dif) < 0.005 ? ' — la cuenta concilia.' : ' — hay diferencia: revisa si falta importar un estado o sobra un movimiento.') +
+        '<br>Emparejamiento (método del saldo ajustado): marca en la tabla los movimientos que ya aparecen en el estado del banco. ' +
+        'En tránsito: <b>' + nIng + ' ingreso(s) por ' + dinero(ingTransito) + '</b> y <b>' + nGas + ' gasto(s) por ' + dinero(gasTransito) + '</b> que están en tus libros y aún no en el banco. ' +
+        'Saldo del banco ajustado: <b>' + dinero(bancoAjustado) + '</b> · Diferencia ajustada: <b' + (Math.abs(difAjustada) < 0.005 ? '' : ' class="rojo"') + '>' + dinero(difAjustada) + '</b>' +
+        (Math.abs(difAjustada) < 0.005 ? ' — conciliado: todo lo que falta está identificado en tránsito.' : ' — ni con lo de tránsito cuadra: hay un error en libros o en el estado.');
 }
 
 function editar(id) {
@@ -215,6 +235,8 @@ function editar(id) {
     $('fConcepto').focus();
 }
 async function borrar(id) {
+    const previo = movs.find((x) => String(x.id) === String(id));
+    if (previo && contaCandados[String(previo.fecha || '').slice(0, 7)]) { aviso('Ese movimiento es de un mes cerrado: no se puede borrar', 'error'); return; }
     if (!confirm('¿Borrar este movimiento?')) return;
     movs = movs.filter((x) => String(x.id) !== String(id));
     try { await guardar(); aviso('Movimiento borrado'); pintarTabla(); pintarConciliacion(); }
@@ -230,6 +252,7 @@ async function guardarMov() {
     const fecha = $('fFecha').value, concepto = $('fConcepto').value.trim(),
         tipo = $('fTipo').value, monto = parseFloat($('fMonto').value);
     if (!fecha || !concepto || !(monto > 0)) { aviso('Faltan la fecha, el concepto o un monto válido', 'error'); return; }
+    if (contaCandados[fecha.slice(0, 7)]) { aviso('El mes de ' + fecha + ' está cerrado: no se añaden ni editan movimientos en un período cerrado', 'error'); return; }
     const clasificacion = $('fClasificacion').value.trim() || 'Por clasificar';
     if (editandoId) {
         const m = movs.find((x) => String(x.id) === String(editandoId));
@@ -432,6 +455,8 @@ function pintarPrevia() {
 }
 async function importarPrevia() {
     const marcadas = new Set(Array.from(document.querySelectorAll('[data-previa]:checked')).map((c) => Number(c.dataset.previa)));
+    const enCerrado = previaOps.filter((p, i) => marcadas.has(i) && !p.duplicada && contaCandados[String(p.op.fecha || '').slice(0, 7)]);
+    if (enCerrado.length) { aviso('Hay ' + enCerrado.length + ' operación(es) de un mes ya cerrado: desmárcalas, un período cerrado no se toca', 'error'); return; }
     let n = 0;
     previaOps.forEach((p, i) => {
         if (!marcadas.has(i) || p.duplicada) return;
@@ -476,6 +501,8 @@ async function pintarIndicador() {
         }
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         movs = (await bd().docLeer(token, 'mov')) || [];
+        const contaDoc = (await bd().docLeer(token, 'conta')) || {};
+        contaCandados = contaDoc.candados || {};
         if (!Array.isArray(movs)) movs = [];
         $('mes').value = mesActual();
         $('fFecha').value = new Date().toISOString().slice(0, 10);

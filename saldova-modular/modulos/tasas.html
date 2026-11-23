@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasas y multimoneda · Saldova</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 16px; color: #173A5E; background: #EAF2FA; }
+    .tarjeta { background: rgba(255,255,255,.93); border: 1px solid #8FA8C8; border-radius: 10px; padding: 16px; max-width: 880px; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(23,58,94,.15); }
+    h1 { font-size: 19px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 16px 0 8px; }
+    p { margin: 6px 0; } .tenue { color: #56708E; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+    th, td { border-bottom: 1px solid #D6E2F0; padding: 5px 7px; text-align: left; }
+    th { background: #DCE8F5; } td.num, th.num { text-align: right; }
+    tr.totales td { font-weight: 700; background: #EBF3FC; }
+    input, select { padding: 6px 8px; border: 1px solid #8FA8C8; border-radius: 5px; font: inherit; font-size: 13px; }
+    button { background: linear-gradient(#FFC266, #F48C1E); border: 1px solid #B25F00; color: #111; font-weight: 600; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+    button.secundario { background: linear-gradient(#F4F9FE, #B7D0EC); border-color: #8FA8C8; }
+    button.chico { padding: 3px 9px; font-size: 12px; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+    .ok { color: #1E7A34; font-weight: 600; } .mal { color: #B00020; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="tarjeta">
+    <h1>💱 Tasas y multimoneda</h1>
+    <p>La multimoneda está <strong>apagada de fábrica</strong> y se enciende solo si la necesitas (decisión del dueño). El saldo en divisa lo declaras tú: la app nunca inventa un saldo. Al cambiar la tasa, la diferencia de cambio se lleva a un asiento con un clic.</p>
+    <div id="estado"><p class="tenue">Cargando…</p></div>
+    <h2>Revalorizar la divisa</h2>
+    <div class="fila">
+        <label>Nueva tasa (CUP por 1 USD) <input id="tvNueva" type="number" step="0.01" min="0" style="width:110px"></label>
+        <button type="button" id="tvCalcular" class="secundario chico">Calcular diferencia</button>
+    </div>
+    <div id="tvResultado"><p class="tenue">Escribe la nueva tasa y calcula: verás la diferencia antes de asentar nada.</p></div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(11);
+const $ = (id) => document.getElementById(id);
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const fmt = (n) => (Number(n) || 0).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let fx = null, conta = null, diferencia = 0;
+function existeCuenta(cod) { return !!cod && (conta.plan || []).some((c) => c.codigo === cod); }
+function cuentaAuto(concepto, defecto) {
+    const plan = (conta && conta.plan) || [];
+    for (const c of plan) { if (c.auto && String(c.auto).split(',').map((x) => x.trim()).includes(concepto)) return c.codigo; }
+    return existeCuenta(defecto) ? defecto : '';
+}
+function pintar() {
+    const valorCup = r2((Number(fx.saldoUsd) || 0) * (Number(fx.tasa) || 0));
+    $('estado').innerHTML =
+        '<div class="fila"><label><input type="checkbox" id="tvActiva" ' + (fx.multimoneda ? 'checked' : '') + '> Multimoneda activa</label>' +
+        '<label>Tasa vigente <input id="tvTasa" type="number" step="0.01" min="0" style="width:100px" value="' + (fx.tasa || '') + '"></label>' +
+        '<label>Saldo en divisa declarado (USD) <input id="tvSaldo" type="number" step="0.01" min="0" style="width:110px" value="' + (fx.saldoUsd || '') + '"></label>' +
+        '<button type="button" id="tvGuardar" class="secundario chico">Guardar</button></div>' +
+        '<p>Valor en CUP del saldo declarado a la tasa vigente: <strong>' + fmt(valorCup) + '</strong>. ' +
+        (fx.multimoneda ? '<span class="ok">Multimoneda encendida.</span>' : '<span class="tenue">Multimoneda apagada: la revalorización no se puede asentar.</span>') + '</p>';
+    $('tvGuardar').addEventListener('click', async () => {
+        fx.multimoneda = $('tvActiva').checked;
+        fx.tasa = Number($('tvTasa').value) || 0;
+        fx.saldoUsd = Number($('tvSaldo').value) || 0;
+        try { await bd().docGuardar(tokenSesion(), 'fx', fx); aviso('Tasas guardadas'); pintar(); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+}
+(async () => {
+    try {
+        const s = await sesionActual();
+        if (!s) { $('estado').innerHTML = '<p class="mal">Sin sesión: entra desde la ventana principal.</p>'; return; }
+        fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
+        if (typeof fx.multimoneda !== 'boolean') fx = { multimoneda: false, tasa: 0, saldoUsd: 0 };
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [], candados: {} };
+        pintar();
+        $('tvCalcular').addEventListener('click', () => {
+            const nueva = Number($('tvNueva').value) || 0;
+            if (!nueva) { aviso('Escribe la nueva tasa', 'error'); return; }
+            diferencia = r2((Number(fx.saldoUsd) || 0) * (nueva - (Number(fx.tasa) || 0)));
+            $('tvResultado').innerHTML = '<p>Saldo declarado ' + fmt(fx.saldoUsd) + ' USD × (' + fmt(nueva) + ' − ' + fmt(fx.tasa) + ') = diferencia de cambio <strong>' + fmt(diferencia) + ' CUP</strong> ' +
+                (diferencia > 0 ? '(ganancia: Debe banco en divisa 110-020, Haber ingresos financieros)' : diferencia < 0 ? '(pérdida: Debe gastos financieros, Haber banco en divisa 110-020)' : '(sin diferencia)') + '.</p>' +
+                (diferencia !== 0 ? '<button type="button" id="tvAsentar">Crear el asiento de revalorización</button>' : '');
+            const b = $('tvAsentar');
+            if (b) b.addEventListener('click', async () => {
+                if (!fx.multimoneda) { aviso('La multimoneda está apagada: enciéndela y guarda primero', 'error'); return; }
+                const hoy = new Date().toISOString().slice(0, 10);
+                if (conta.candados && conta.candados[hoy.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar la revalorización', 'error'); return; }
+                const banco = existeCuenta('110-020') ? '110-020' : '';
+                const ctaIng = cuentaAuto('ingresos_financieros', '805-000');
+                const ctaGas = cuentaAuto('gastos_financieros', '710-000');
+                const lineas = diferencia > 0
+                    ? [{ cuenta: banco, debe: diferencia, haber: 0 }, { cuenta: ctaIng, debe: 0, haber: diferencia }]
+                    : [{ cuenta: ctaGas, debe: -diferencia, haber: 0 }, { cuenta: banco, debe: 0, haber: -diferencia }];
+                if (lineas.some((l) => !l.cuenta)) { aviso('Falta alguna cuenta en el plan activo (banco en divisa o la de diferencia de cambio)', 'error'); return; }
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                conta.asientos = conta.asientos || [];
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoy, concepto: 'Revalorización de la divisa (tasa ' + fmt(fx.tasa) + ' → ' + fmt(nueva) + ')', origen: 'tasas', estado: 'confirmado', lineas });
+                fx.tasa = nueva;
+                try {
+                    await bd().docGuardar(tokenSesion(), 'conta', conta);
+                    await bd().docGuardar(tokenSesion(), 'fx', fx);
+                    aviso('Asiento nº ' + conta.seqAsiento + ' creado y tasa actualizada a ' + fmt(nueva));
+                    diferencia = 0; $('tvNueva').value = ''; $('tvResultado').innerHTML = '<p class="tenue">Revalorización asentada.</p>'; pintar();
+                } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+            });
+        });
+    } catch (e) {
+        $('estado').innerHTML = '<p class="mal">' + ((e && e.message) || e) + '</p>';
+    }
+})();
+</script>
+</body>
+</html>
