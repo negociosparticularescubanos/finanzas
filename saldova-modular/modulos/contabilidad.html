@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Contabilidad</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js", "plan": "../plan-dueno.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 110px; text-align: right; }
+    select.cuenta { max-width: 300px; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .rojo { color: #B23218; font-weight: 600; }
+    .motivo { background: #FFF6DE; border: 1px solid #E3C878; border-radius: 6px; padding: 6px 9px; font-size: 12.8px; margin: 6px 0; }
+    .propuesta { border: 1px solid #C6D9EE; border-radius: 8px; padding: 9px 11px; margin-bottom: 10px; background: #FBFDFF; }
+    .propuesta h3 { margin: 0 0 2px; font-size: 14px; color: #1A3E5E; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Contabilidad</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Bandeja de comprobantes (desde la Chequera)</h2>
+    <p class="tenue">Cada movimiento ya clasificado de la Chequera trae aquí su asiento
+       <b>propuesto y editable</b>, con el motivo a la vista. Nada entra al Mayor sin que lo confirmes.
+       Lo <span class="rojo">«Por clasificar»</span> no genera asiento: se clasifica en la Chequera.</p>
+    <div id="bandeja"><p class="tenue">Cargando…</p></div>
+    <p id="bandejaNota" class="tenue"></p>
+</div>
+
+<div class="tarjeta">
+    <h2>Asientos confirmados</h2>
+    <table><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto</th><th>Origen</th><th class="num">Debe</th><th class="num">Haber</th><th></th></tr></thead>
+    <tbody id="tablaAsientos"><tr><td colspan="7" class="tenue">Cargando…</td></tr></tbody></table>
+    <h2 style="margin-top:14px">Asiento manual</h2>
+    <div class="fila">
+        <input type="date" id="amFecha">
+        <input id="amConcepto" placeholder="Concepto del asiento" style="flex:1;min-width:200px">
+    </div>
+    <div id="amLineas"></div>
+    <div class="fila">
+        <button type="button" id="amAdd" class="secundario chico">+ Línea</button>
+        <span id="amTotales" class="tenue"></span>
+        <button type="button" id="amGuardar">Guardar asiento</button>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Balance de comprobación</h2>
+    <table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead>
+    <tbody id="tablaBalance"><tr><td colspan="5" class="tenue">Cargando…</td></tr></tbody></table>
+    <p id="balanceNota" class="tenue"></p>
+</div>
+
+<div class="tarjeta">
+    <h2>Plan de cuentas (del dueño)</h2>
+    <p class="tenue">El mismo plan de la Finanzas web. El oficial de la Res. 494/2016 se podrá cargar
+       como alternativa, con sus equivalencias, igual que en la web.</p>
+    <div id="planTxt" class="tenue">Cargando…</div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+import { PLAN_DUENO } from 'plan';
+aplicarFondo(2);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const BANCO = { chequera: '110-010', tarjeta_cup: '110-010', tarjeta_usd: '110-020' };
+let conta = null, movs = [], sesion = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+function nombreCuenta(cod) {
+    const c = (conta.plan || []).find((x) => x.codigo === cod);
+    return c ? c.nombre : '';
+}
+function opcionesCuentas(sel) {
+    return (conta.plan || []).filter((c) => c.admite).map((c) =>
+        '<option value="' + c.codigo + '"' + (c.codigo === sel ? ' selected' : '') + '>' + c.codigo + ' · ' + c.nombre + '</option>').join('');
+}
+function cuentaOnat(concepto) {
+    const t = String(concepto || '').toUpperCase();
+    if (t.includes('UTILIDAD')) return '342-000';
+    if (t.includes('INGRESOS PERSONALES')) return '345-000';
+    if (t.includes('FUERZA DE TRABAJO')) return '334-000';
+    if (t.includes('SEGURIDAD SOCIAL')) return '333-000';
+    return '341-000';
+}
+/* La propuesta de asiento de un movimiento, con su motivo visible.
+ * Devuelve null cuando no hay propuesta automática (queda listado). */
+function propuestaPara(m) {
+    const banco = BANCO[m.cuenta] || '110-010';
+    const monto = Math.abs(Number(m.monto) || 0);
+    const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
+    if (m.clase === 'transferencia') return null;
+    if (m.clase === 'contingencia') return null;
+    if (m.clase === 'qr' || /^Ventas/i.test(m.clasificacion || '')) {
+        return { lineas: [L(banco, monto), L('801-000', 0, monto)],
+            motivo: 'Cobro de una venta según el estado de cuenta: entra el dinero al banco (Debe) y se reconoce el ingreso por ventas en la 801-000 (Haber).' };
+    }
+    if (m.clase === 'onat' || /^Pago de ONAT/i.test(m.clasificacion || '')) {
+        const cta = cuentaOnat(m.concepto);
+        return { lineas: [L(cta, monto), L(banco, 0, monto)],
+            motivo: 'Pago a la ONAT según el estado: baja la obligación fiscal por pagar (Debe, cuenta propuesta ' + cta + ' según el tributo del concepto; cámbiala si el pago fue de otro tributo) y sale el dinero del banco (Haber).' };
+    }
+    if (/Comisión bancaria/i.test(m.clasificacion || '')) {
+        return { lineas: [L('710-000', monto), L(banco, 0, monto)],
+            motivo: 'Comisión del banco: gasto financiero en la 710-000 (Debe) contra el banco (Haber).' };
+    }
+    if (/^Salarios/i.test(m.clasificacion || '')) {
+        return { lineas: [L('331-000', monto), L(banco, 0, monto)],
+            motivo: 'Pago de la nómina ya devengada: baja la Nómina por Pagar 331-000 (Debe) y sale del banco (Haber). El gasto de salario se reconoce al devengar la nómina, en su módulo.' };
+    }
+    if (m.clase === 'utilidades' || /Utilidades a socios/i.test(m.clasificacion || '')) {
+        return { lineas: [L('417', monto), L(banco, 0, monto)],
+            motivo: 'Pago de utilidades a los socios: baja Dividendos y Participaciones por Pagar (417, Debe) y sale del banco (Haber). No es un gasto.' };
+    }
+    if (/Aporte de capital/i.test(m.clasificacion || '')) {
+        return { lineas: [L(banco, monto), L('501-000', 0, monto)],
+            motivo: 'Aporte del dueño o los socios: entra al banco (Debe) y sube el Capital Social / Aportes en la 501-000 (Haber). No es un ingreso de ventas.' };
+    }
+    if (/^Compra/i.test(m.clasificacion || '') || /mercanc/i.test(m.clasificacion || '')) {
+        return { lineas: [L('188-000', monto), L(banco, 0, monto)],
+            motivo: 'Compra de mercancías pagada por el banco: entra al inventario de Mercancías 188-000 (Debe) y sale del banco (Haber).' };
+    }
+    return null;
+}
+async function guardarTodo() {
+    await bd().docGuardar(tokenSesion(), 'conta', conta);
+    await bd().docGuardar(tokenSesion(), 'mov', movs);
+}
+function pintarBandeja() {
+    const caja = $('bandeja');
+    const pendientes = movs.filter((m) => !m.asientoId && !m.sinAsiento && (m.clasificacion || '') !== 'Por clasificar');
+    const propuestas = [], sinPropuesta = [];
+    for (const m of pendientes) {
+        const p = propuestaPara(m);
+        if (p) propuestas.push({ m, p }); else sinPropuesta.push(m);
+    }
+    const porClasificar = movs.filter((m) => (m.clasificacion || '') === 'Por clasificar' && !m.asientoId);
+    if (!propuestas.length) caja.innerHTML = '<p class="tenue">No hay comprobantes esperando: todo lo clasificado ya tiene su asiento.</p>';
+    else caja.innerHTML = propuestas.map(({ m, p }, i) =>
+        '<div class="propuesta" data-i="' + i + '"><h3>' + m.fecha + ' · ' + m.concepto + '</h3>' +
+        '<div class="tenue">Clasificación: <b>' + m.clasificacion + '</b> · Cuenta: ' + m.cuenta + ' · Monto: ' + fmt(m.monto) + '</div>' +
+        '<div class="motivo">Motivo: ' + p.motivo + '</div>' +
+        p.lineas.map((l) =>
+            '<div class="fila"><select class="cuenta">' + opcionesCuentas(l.cuenta) + '</select>' +
+            '<input class="monto debe" type="number" step="0.01" min="0" value="' + (l.debe || '') + '" placeholder="Debe">' +
+            '<input class="monto haber" type="number" step="0.01" min="0" value="' + (l.haber || '') + '" placeholder="Haber"></div>').join('') +
+        '<div class="fila"><button type="button" class="chico" data-acc="confirmar">Confirmar asiento</button>' +
+        '<button type="button" class="chico secundario" data-acc="descartar">Descartar</button></div></div>'
+    ).join('');
+    caja.querySelectorAll('.propuesta').forEach((div) => {
+        const { m } = propuestas[Number(div.dataset.i)];
+        div.querySelector('[data-acc="confirmar"]').addEventListener('click', async () => {
+            const lineas = [...div.querySelectorAll('.fila')].filter((f) => f.querySelector('select.cuenta')).map((f) => ({
+                cuenta: f.querySelector('select.cuenta').value,
+                debe: Number(f.querySelector('.debe').value) || 0,
+                haber: Number(f.querySelector('.haber').value) || 0,
+            })).filter((l) => l.debe > 0 || l.haber > 0);
+            const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
+            if (!lineas.length || td <= 0 || td !== th) { aviso('El asiento debe cuadrar: Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th), 'error'); return; }
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            const id = 'a' + Date.now().toString(36);
+            conta.asientos.push({ id, numero: conta.seqAsiento, fecha: m.fecha, concepto: m.concepto, origen: 'bandeja', estado: 'confirmado', movId: m.id, lineas });
+            m.asientoId = id;
+            try { await guardarTodo(); aviso('Asiento nº ' + conta.seqAsiento + ' confirmado'); pintarTodo(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        div.querySelector('[data-acc="descartar"]').addEventListener('click', async () => {
+            m.sinAsiento = true;
+            try { await bd().docGuardar(tokenSesion(), 'mov', movs); aviso('Descartado: no se generará asiento de este movimiento'); pintarTodo(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+    });
+    const notas = [];
+    if (sinPropuesta.length) notas.push(sinPropuesta.length + ' movimiento(s) clasificado(s) sin propuesta automática (transferencias entre cuentas propias, reserva de contingencia u otros): no generan asiento desde aquí.');
+    if (porClasificar.length) notas.push(porClasificar.length + ' movimiento(s) «Por clasificar» esperando en la Chequera: sin clasificar no se contabilizan.');
+    $('bandejaNota').textContent = notas.join(' ');
+}
+function pintarAsientos() {
+    const tb = $('tablaAsientos');
+    const lista = [...(conta.asientos || [])].sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+    tb.innerHTML = lista.map((a) => {
+        const td = r2(a.lineas.reduce((s, l) => s + (Number(l.debe) || 0), 0));
+        const th = r2(a.lineas.reduce((s, l) => s + (Number(l.haber) || 0), 0));
+        return '<tr><td>' + a.numero + '</td><td>' + a.fecha + '</td><td>' + a.concepto + '</td><td>' + (a.origen === 'bandeja' ? 'Bandeja' : 'Manual') + '</td>' +
+            '<td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td>' +
+            '<td><button type="button" class="chico secundario" data-borrar="' + a.id + '">Borrar</button></td></tr>';
+    }).join('') || '<tr><td colspan="7" class="tenue">Todavía no hay asientos confirmados.</td></tr>';
+    tb.querySelectorAll('[data-borrar]').forEach((b) => b.addEventListener('click', async () => {
+        const a = conta.asientos.find((x) => x.id === b.dataset.borrar);
+        if (!a || !confirm('¿Borrar el asiento nº ' + a.numero + '?')) return;
+        conta.asientos = conta.asientos.filter((x) => x.id !== a.id);
+        const m = movs.find((x) => x.id === a.movId);
+        if (m) delete m.asientoId;
+        try { await guardarTodo(); aviso('Asiento borrado'); pintarTodo(); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarBalance() {
+    const por = new Map();
+    for (const a of conta.asientos || []) for (const l of a.lineas) {
+        const g = por.get(l.cuenta) || { debe: 0, haber: 0 };
+        g.debe += Number(l.debe) || 0; g.haber += Number(l.haber) || 0;
+        por.set(l.cuenta, g);
+    }
+    let td = 0, th = 0;
+    const filas = [...por.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([cod, g]) => {
+        td += g.debe; th += g.haber;
+        const cta = (conta.plan || []).find((c) => c.codigo === cod);
+        const saldo = cta && cta.naturaleza === 'acreedora' ? g.haber - g.debe : g.debe - g.haber;
+        return '<tr><td>' + cod + '</td><td>' + nombreCuenta(cod) + '</td><td class="num">' + fmt(g.debe) + '</td><td class="num">' + fmt(g.haber) + '</td><td class="num">' + fmt(saldo) + '</td></tr>';
+    }).join('');
+    $('tablaBalance').innerHTML = (filas || '<tr><td colspan="5" class="tenue">Sin movimientos todavía.</td></tr>') +
+        '<tr class="totales"><td colspan="2">TOTALES</td><td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td><td></td></tr>';
+    $('balanceNota').textContent = por.size
+        ? (r2(td) === r2(th) ? 'El balance cuadra: el Debe total iguala al Haber total.' : 'OJO: el balance NO cuadra (Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th) + ').')
+        : '';
+}
+function lineaManual() {
+    const div = document.createElement('div');
+    div.className = 'fila';
+    div.innerHTML = '<select class="cuenta">' + opcionesCuentas('') + '</select>' +
+        '<input class="monto debe" type="number" step="0.01" min="0" placeholder="Debe">' +
+        '<input class="monto haber" type="number" step="0.01" min="0" placeholder="Haber">' +
+        '<button type="button" class="chico secundario">Quitar</button>';
+    div.querySelector('button').addEventListener('click', () => { div.remove(); totalesManual(); });
+    div.querySelectorAll('input').forEach((i) => i.addEventListener('input', totalesManual));
+    return div;
+}
+function totalesManual() {
+    let td = 0, th = 0;
+    $('amLineas').querySelectorAll('.fila').forEach((f) => {
+        td += Number(f.querySelector('.debe').value) || 0;
+        th += Number(f.querySelector('.haber').value) || 0;
+    });
+    $('amTotales').textContent = 'Debe ' + fmt(td) + ' · Haber ' + fmt(th) + (r2(td) === r2(th) && td > 0 ? ' · cuadra' : '');
+}
+function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); }
+(async () => {
+    try {
+        pintarIndicador();
+        sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        conta = await bd().docLeer(tokenSesion(), 'conta');
+        if (!conta || !Array.isArray(conta.plan)) {
+            conta = { activa: true, plan: PLAN_DUENO, planOrigen: 'dueno', asientos: [], seqAsiento: 0 };
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+        }
+        conta.asientos = conta.asientos || [];
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        $('planTxt').textContent = 'Plan del dueño: ' + conta.plan.length + ' cuentas (' + conta.plan.filter((c) => c.admite).length + ' imputables). Origen: ' + (conta.planOrigen || 'dueño') + '.';
+        $('amFecha').value = new Date().toISOString().slice(0, 10);
+        $('amLineas').appendChild(lineaManual());
+        $('amLineas').appendChild(lineaManual());
+        $('amAdd').addEventListener('click', () => $('amLineas').appendChild(lineaManual()));
+        $('amGuardar').addEventListener('click', async () => {
+            const lineas = [...$('amLineas').querySelectorAll('.fila')].map((f) => ({
+                cuenta: f.querySelector('select.cuenta').value,
+                debe: Number(f.querySelector('.debe').value) || 0,
+                haber: Number(f.querySelector('.haber').value) || 0,
+            })).filter((l) => l.debe > 0 || l.haber > 0);
+            const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
+            const concepto = $('amConcepto').value.trim();
+            if (!concepto) { aviso('El asiento necesita un concepto', 'error'); return; }
+            if (lineas.length < 2 || td <= 0 || td !== th) { aviso('El asiento manual debe tener al menos 2 líneas y cuadrar (Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th) + ')', 'error'); return; }
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: $('amFecha').value, concepto, origen: 'manual', estado: 'confirmado', lineas });
+            try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Asiento nº ' + conta.seqAsiento + ' guardado'); $('amConcepto').value = ''; pintarTodo(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        pintarTodo();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>
