@@ -8,13 +8,39 @@
 import * as Comlink from './libs/comlink.mjs';
 
 /* ---------- Base de datos local (SQLite en un Worker) ---------- */
+/* Solo la página DUEÑA (el index) crea el Worker: es la única dueña
+ * de la base (candado Web Locks). Un módulo dentro de una ventana
+ * (iframe) NO crea otro Worker: usa la base del index a través del
+ * puente de Comlink entre marcos. Un módulo abierto suelto en su
+ * propia pestaña sí crea su Worker (y si el index ya tiene la base,
+ * verá el estado «ocupada», como debe ser). */
 let _bd = null;
 export function bd() {
     if (!_bd) {
-        const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
-        _bd = Comlink.wrap(w);
+        if (window.parent !== window) {
+            _bd = Comlink.wrap(Comlink.windowEndpoint(window.parent));
+        } else {
+            const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
+            _bd = Comlink.wrap(w);
+        }
     }
     return _bd;
+}
+
+/* Lo llama SOLO el index: crea su Worker y expone la base a los
+ * módulos de las ventanas (iframes) por el puente entre marcos. */
+export function exponerBase() {
+    const duena = bd();
+    const fachada = {
+        estado: () => duena.estado(),
+        ping: () => duena.ping(),
+        tablas: () => duena.tablas(),
+        consulta: (sql, params) => duena.consulta(sql, params),
+        ejecutar: (sql) => duena.ejecutar(sql),
+        exportar: () => duena.exportar(),
+        importar: (bytes) => duena.importar(bytes),
+    };
+    Comlink.expose(fachada, Comlink.windowEndpoint(window));
 }
 
 /* ---------- Bus entre módulos y pestañas ---------- */

@@ -74,8 +74,10 @@
     </section>
 </main>
 <script type="module">
-import { bd, bus, SND, aviso } from 'nucleo';
+import { bd, bus, SND, aviso, exponerBase } from 'nucleo';
 import 'componentes';
+
+exponerBase();
 
 const MODULOS = [
     { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'icono.svg', activo: true, ancho: 860, alto: 620 },
