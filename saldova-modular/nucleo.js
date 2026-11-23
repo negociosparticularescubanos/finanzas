@@ -63,6 +63,16 @@ export function bd() {
                 ejecutar: (sql) => rpcMarco('ejecutar', [sql]),
                 exportar: () => rpcMarco('exportar'),
                 importar: (bytes) => rpcMarco('importar', [bytes]),
+                acceso: () => rpcMarco('acceso'),
+                inicializar: (datos) => rpcMarco('inicializar', [datos]),
+                entrar: (usuario, clave) => rpcMarco('entrar', [usuario, clave]),
+                sesion: (token) => rpcMarco('sesion', [token]),
+                salir: (token) => rpcMarco('salir', [token]),
+                usuarios: (token) => rpcMarco('usuarios', [token]),
+                usuarioCrear: (token, datos) => rpcMarco('usuarioCrear', [token, datos]),
+                bases: () => rpcMarco('bases'),
+                baseCrear: (datos) => rpcMarco('baseCrear', [datos]),
+                baseElegir: (nombre) => rpcMarco('baseElegir', [nombre]),
             };
         } else {
             const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
@@ -85,6 +95,16 @@ export function exponerBase() {
         ejecutar: (sql) => duena.ejecutar(sql),
         exportar: () => duena.exportar(),
         importar: (bytes) => duena.importar(bytes),
+        acceso: () => duena.acceso(),
+        inicializar: (datos) => duena.inicializar(datos),
+        entrar: (usuario, clave) => duena.entrar(usuario, clave),
+        sesion: (token) => duena.sesion(token),
+        salir: (token) => duena.salir(token),
+        usuarios: (token) => duena.usuarios(token),
+        usuarioCrear: (token, datos) => duena.usuarioCrear(token, datos),
+        bases: () => duena.bases(),
+        baseCrear: (datos) => duena.baseCrear(datos),
+        baseElegir: (nombre) => duena.baseElegir(nombre),
     };
     window.addEventListener('message', async (ev) => {
         const d = ev.data || {};
@@ -200,6 +220,17 @@ export async function comprimir(bytes) {
 export async function descomprimir(bytes) {
     const flujo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
     return new Uint8Array(await new Response(flujo).arrayBuffer());
+}
+
+/* ---------- Sesión del usuario (el token vive en el navegador;
+ * la sesión de verdad está en la tabla sesiones de la base) ------ */
+export function guardarSesion(token) { try { localStorage.setItem('saldova_sesion', token); } catch (e) {} }
+export function tokenSesion() { try { return localStorage.getItem('saldova_sesion'); } catch (e) { return null; } }
+export function borrarSesion() { try { localStorage.removeItem('saldova_sesion'); } catch (e) {} }
+export async function sesionActual() {
+    const t = tokenSesion();
+    if (!t) return null;
+    try { return await bd().sesion(t); } catch (e) { return null; }
 }
 
 /* ---------- Avisos en pantalla ---------- */

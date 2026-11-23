@@ -52,6 +52,19 @@
     .bienvenida h1 { margin: 0 0 6px; font-size: 24px; color: #1A3E5E; }
     .bienvenida p { margin: 6px 0; line-height: 1.5; }
     .bienvenida .nota { font-size: 13px; color: #5A7186; }
+    #puerta { border-top: 1px solid #C6D9EE; margin-top: 14px; padding-top: 12px; }
+    #puerta h2 { font-size: 16px; margin: 0 0 8px; color: #1A3E5E; }
+    #puerta label { display: block; font-size: 13px; margin: 8px 0 3px; color: #33536E; }
+    #puerta input, #puerta select {
+        width: 100%; padding: 7px 9px; border: 1px solid #8FA8C8; border-radius: 5px;
+        font: 14px "Segoe UI", Tahoma, Arial, sans-serif; background: #fff; color: #14324F;
+    }
+    #puerta button {
+        margin-top: 12px; padding: 8px 18px; border-radius: 5px; cursor: pointer; font-size: 14px;
+        background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B96A0B; font-weight: 600; color: #14324F;
+    }
+    #puerta button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    #puerta .error { color: #B23218; font-size: 13.5px; min-height: 18px; margin-top: 8px; }
     /* Piel Versat para las ventanas WinBox */
     .winbox { border: 1px solid #47688C; border-radius: 6px 6px 4px 4px; box-shadow: 6px 8px 22px rgba(13,38,66,.45); }
     .winbox .wb-header { background: linear-gradient(180deg, #2B5B84, #1A3E5E); border-radius: 5px 5px 0 0; }
@@ -71,13 +84,15 @@
            trabaja sin internet y el indicador de arriba a la derecha te dice si está conectada.</p>
         <p class="nota">Bloque 1 del proyecto modular: cimientos completos y el primer módulo
            (Panel y base de datos) funcionando. Los demás módulos se irán activando uno a uno.</p>
+        <div id="puerta"><p class="nota">Comprobando el acceso…</p></div>
     </section>
 </main>
 <script type="module">
-import { bd, bus, SND, aviso, exponerBase } from 'nucleo';
+import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual } from 'nucleo';
 import 'componentes';
 
 exponerBase();
+let haySesion = false;
 
 const MODULOS = [
     { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'icono.svg', activo: true, ancho: 860, alto: 620 },
@@ -99,6 +114,7 @@ const abiertas = {};
 function abrirModulo(id) {
     const m = MODULOS.find((x) => x.id === id);
     if (!m || !m.activo) return;
+    if (!haySesion) { aviso('Primero entra con tu usuario', 'error'); return; }
     if (abiertas[id]) { abiertas[id].focus(); abiertas[id].restore(); return; }
     const wb = new WinBox(m.titulo, {
         url: m.url, width: m.ancho || 820, height: m.alto || 600,
@@ -141,6 +157,87 @@ bus.addEventListener('message', (e) => {
     if (d.tipo === 'venta-cerrada') { SND.venta(); aviso('Venta cerrada en el POS'); }
     if (d.tipo === 'aviso') aviso(d.texto || 'Aviso de un módulo');
 });
+
+/* ---------- La puerta: configurar la base, entrar, salir ---------- */
+const puerta = document.getElementById('puerta');
+const errHtml = '<p class="error" id="puertaError"></p>';
+function puertaFallo(e) {
+    const el = document.getElementById('puertaError');
+    if (el) el.textContent = String((e && e.message) || e);
+    SND.error();
+}
+async function pintarPuerta() {
+    let acc;
+    try { acc = await bd().acceso(); } catch (e) { acc = null; }
+    if (!acc || acc.estado !== 'conectada') {
+        puerta.innerHTML = '<h2>Acceso</h2><p>La base local no está disponible en esta pestaña' +
+            (acc && acc.estado === 'ocupada' ? ': está abierta en otra pestaña de Saldova. Ciérrala y recarga.' : '.') + '</p>';
+        return;
+    }
+    const ses = await sesionActual();
+    if (ses) {
+        haySesion = true;
+        puerta.innerHTML = '<h2>Ya estás dentro</h2>' +
+            '<p>Sesión de <b>' + ses.username + '</b> (' + ses.role + ') · Base: <b>' + acc.activa + '</b></p>' +
+            '<button type="button" id="pSalir" class="secundario">Salir</button>' + errHtml;
+        document.getElementById('pSalir').addEventListener('click', async () => {
+            try { await bd().salir(tokenSesion()); } catch (e) {}
+            borrarSesion();
+            location.reload();
+        });
+        return;
+    }
+    if (!acc.hayUsuarios) {
+        puerta.innerHTML = '<h2>Primera vez: configura tu base</h2>' +
+            '<p class="nota">Se crea el administrador de la base y tu PIN de creador ' +
+            '(el PIN se pide para crear otras bases; guárdalo bien, no se puede recuperar).</p>' +
+            '<label>Nombre de la base<input id="pBase" value="Principal"></label>' +
+            '<label>Usuario administrador<input id="pUsuario" autocomplete="username"></label>' +
+            '<label>Contraseña (mínimo 6)<input id="pClave" type="password" autocomplete="new-password"></label>' +
+            '<label>Repite la contraseña<input id="pClave2" type="password" autocomplete="new-password"></label>' +
+            '<label>PIN de creador (4 a 12)<input id="pPin" type="password" inputmode="numeric"></label>' +
+            '<label>Repite el PIN<input id="pPin2" type="password" inputmode="numeric"></label>' +
+            '<button type="button" id="pCrear">Crear la base y entrar</button>' + errHtml;
+        document.getElementById('pCrear').addEventListener('click', async () => {
+            const base = document.getElementById('pBase').value.trim();
+            const usuario = document.getElementById('pUsuario').value.trim();
+            const clave = document.getElementById('pClave').value;
+            const pin = document.getElementById('pPin').value;
+            try {
+                if (clave !== document.getElementById('pClave2').value) throw new Error('Las contraseñas no coinciden');
+                if (pin !== document.getElementById('pPin2').value) throw new Error('Los PIN no coinciden');
+                await bd().inicializar({ base, usuario, clave, pin });
+                const s = await bd().entrar(usuario, clave);
+                guardarSesion(s.token);
+                location.reload();
+            } catch (e) { puertaFallo(e); }
+        });
+        return;
+    }
+    const opciones = acc.bases.map((b) => '<option' + (b === acc.activa ? ' selected' : '') + '>' + b + '</option>').join('');
+    puerta.innerHTML = '<h2>Entrar</h2>' +
+        (acc.bases.length > 1 ? '<label>Base<select id="pBaseSel">' + opciones + '</select></label>' : '<p class="nota">Base: <b>' + acc.activa + '</b></p>') +
+        '<label>Usuario<input id="pUsuario" autocomplete="username"></label>' +
+        '<label>Contraseña<input id="pClave" type="password" autocomplete="current-password"></label>' +
+        '<button type="button" id="pEntrar">Entrar</button>' + errHtml;
+    const sel = document.getElementById('pBaseSel');
+    if (sel) sel.addEventListener('change', async () => {
+        try { await bd().baseElegir(sel.value); location.reload(); }
+        catch (e) { puertaFallo(e); }
+    });
+    const intentar = async () => {
+        try {
+            const s = await bd().entrar(
+                document.getElementById('pUsuario').value.trim(),
+                document.getElementById('pClave').value);
+            guardarSesion(s.token);
+            location.reload();
+        } catch (e) { puertaFallo(e); }
+    };
+    document.getElementById('pEntrar').addEventListener('click', intentar);
+    document.getElementById('pClave').addEventListener('keydown', (e) => { if (e.key === 'Enter') intentar(); });
+}
+pintarPuerta();
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

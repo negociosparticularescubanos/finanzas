@@ -69,13 +69,45 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Bases de datos con nombre</h2>
+    <p id="basesDetalle" class="tenue">Comprobando…</p>
+    <div id="basesLista"></div>
+    <p><b>Crear una base nueva</b> (nace vacía, con solo su administrador; pide tu PIN de creador):</p>
+    <p>
+        <input id="nbNombre" placeholder="Nombre de la base" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <input id="nbUsuario" placeholder="Usuario administrador" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <input id="nbClave" type="password" placeholder="Contraseña (mín. 6)" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <input id="nbPin" type="password" placeholder="PIN de creador" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+    </p>
+    <button class="principal" id="btnBaseCrear">Crear base nueva</button>
+</div>
+
+<div class="tarjeta">
+    <h2>Usuarios de esta base</h2>
+    <p id="usuariosDetalle" class="tenue">Comprobando…</p>
+    <table><thead><tr><th>Usuario</th><th>Rol</th><th>Negocio</th></tr></thead>
+    <tbody id="tablaUsuarios"><tr><td colspan="3" class="tenue">Cargando…</td></tr></tbody></table>
+    <p><b>Crear usuario</b> (editor o consultor; límite: 1 de cada rol por negocio):</p>
+    <p>
+        <input id="nuUsuario" placeholder="Usuario" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <input id="nuClave" type="password" placeholder="Contraseña (mín. 6)" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+        <select id="nuRol" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+            <option value="editor">Editor (trabajador)</option>
+            <option value="consultor">Consultor</option>
+        </select>
+        <input id="nuNegocio" placeholder="Negocio" style="padding:6px 8px;border:1px solid #8FA8C8;border-radius:5px">
+    </p>
+    <button id="btnUsuarioCrear">Crear usuario</button>
+</div>
+
+<div class="tarjeta">
     <h2>Bus de módulos</h2>
     <p>Los módulos se avisan entre sí sin servidor. Este botón manda un aviso al index principal.</p>
     <button id="btnBus">Avisar al index</button>
 </div>
 
 <script type="module">
-import { bd, bus, SND, aviso, persistencia, pedirPersistencia, guardarArchivoReal, abrirArchivoReal, comprimir } from 'nucleo';
+import { bd, bus, SND, aviso, persistencia, pedirPersistencia, guardarArchivoReal, abrirArchivoReal, comprimir, tokenSesion, borrarSesion } from 'nucleo';
 import 'componentes';
 
 const ind = document.getElementById('indicador');
@@ -205,6 +237,79 @@ document.getElementById('btnImpresora').addEventListener('click', async () => {
         await puerto.close();
         aviso('Ticket de prueba enviado a la impresora');
     } catch (e) { if (e.name !== 'AbortError') aviso('Impresora: ' + e.message, 'error'); }
+});
+
+/* Bases con nombre y usuarios (la sesión se valida contra la base) */
+async function refrescarBases() {
+    const det = document.getElementById('basesDetalle');
+    try {
+        const r = await bd().bases();
+        det.textContent = 'Base activa: ' + r.activa + ' · ' + r.lista.length + ' base(s) en el registro.';
+        document.getElementById('basesLista').innerHTML = r.lista.map((b) =>
+            '<p>' + (b.activa ? '● <b>' + b.nombre + '</b> (activa)' :
+                '○ ' + b.nombre + ' <button data-base="' + b.nombre + '">Cambiar a esta base</button>') + '</p>').join('');
+        document.querySelectorAll('#basesLista button[data-base]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await bd().baseElegir(btn.dataset.base);
+                    borrarSesion();
+                    aviso('Cambiando a la base ' + btn.dataset.base + '…');
+                    if (window.parent !== window) window.parent.location.reload();
+                    else location.reload();
+                } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+            });
+        });
+    } catch (e) {
+        det.textContent = 'Sin respuesta: ' + String((e && e.message) || e);
+    }
+}
+async function refrescarUsuarios() {
+    const det = document.getElementById('usuariosDetalle');
+    const cuerpo = document.getElementById('tablaUsuarios');
+    const token = tokenSesion();
+    if (!token) {
+        det.textContent = 'Entra con tu usuario en el index para ver los usuarios.';
+        cuerpo.innerHTML = '<tr><td colspan="3" class="tenue">Sin sesión.</td></tr>';
+        return;
+    }
+    try {
+        const lista = await bd().usuarios(token);
+        det.textContent = lista.length + ' usuario(s) en esta base.';
+        cuerpo.innerHTML = lista.map((u) =>
+            '<tr><td>' + u.username + '</td><td>' + u.role + '</td><td>' + u.negocio + '</td></tr>').join('');
+    } catch (e) {
+        det.textContent = String((e && e.message) || e);
+        cuerpo.innerHTML = '<tr><td colspan="3" class="tenue">Solo el administrador ve los usuarios.</td></tr>';
+    }
+}
+refrescarBases();
+refrescarUsuarios();
+document.getElementById('btnBaseCrear').addEventListener('click', async () => {
+    try {
+        const r = await bd().baseCrear({
+            nombre: document.getElementById('nbNombre').value.trim(),
+            usuario: document.getElementById('nbUsuario').value.trim(),
+            clave: document.getElementById('nbClave').value,
+            pin: document.getElementById('nbPin').value,
+        });
+        borrarSesion();
+        aviso('Base «' + r.nombre + '» creada: entra con su administrador');
+        if (window.parent !== window) window.parent.location.reload();
+        else location.reload();
+    } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+});
+document.getElementById('btnUsuarioCrear').addEventListener('click', async () => {
+    try {
+        await bd().usuarioCrear(tokenSesion(), {
+            username: document.getElementById('nuUsuario').value.trim(),
+            clave: document.getElementById('nuClave').value,
+            role: document.getElementById('nuRol').value,
+            negocio: document.getElementById('nuNegocio').value.trim(),
+        });
+        aviso('Usuario creado');
+        refrescarUsuarios();
+        refrescar();
+    } catch (e) { aviso(String((e && e.message) || e), 'error'); }
 });
 
 document.getElementById('btnBus').addEventListener('click', () => {
