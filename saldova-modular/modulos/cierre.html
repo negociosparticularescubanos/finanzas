@@ -30,6 +30,12 @@
 <p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
 
 <div class="tarjeta">
+    <h2>Tu mes en 5 pasos — la guía sin enredos</h2>
+    <p class="tenue">No tienes que saber contabilidad: sigue los pasos en orden. La app te dice en cuál vas y qué falta; cada paso se hace en el módulo que se indica, desde la cinta de arriba.</p>
+    <div id="pasos"><p class="tenue">Elige el mes abajo y la guía se arma sola.</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Revisión del mes antes de cerrar</h2>
     <div class="fila"><input type="month" id="cMes"><button type="button" id="cVer" class="secundario chico">Revisar</button>
     <button type="button" id="cCerrar">Cerrar el mes</button></div>
@@ -94,9 +100,31 @@ function revision(mes) {
     if (yaCerrado) puntos.push({ ok: false, bloquea: true, texto: 'Este mes YA está cerrado' });
     return puntos;
 }
+function pintarPasos() {
+    const mes = $('cMes').value;
+    if (!mes) return;
+    const delMes = movs.filter((m) => (m.fecha || '').startsWith(mes));
+    const porClasificar = delMes.filter((m) => (m.clasificacion || '') === 'Por clasificar').length;
+    const sinAsiento = delMes.filter((m) => !m.asientoId && !m.sinAsiento && (m.clasificacion || '') !== 'Por clasificar' && m.clase !== 'transferencia' && m.clase !== 'contingencia').length;
+    const cerrado = hist.some((h) => h.mes === mes) || (conta.candados && conta.candados[mes]);
+    const pasos = [
+        { hecho: delMes.length > 0, texto: '<b>Paso 1 · Importa el estado de cuenta</b> en el módulo <b>Chequera</b>: todo parte del banco, no teclees lo que el banco ya te da.', falta: 'todavía no hay movimientos de ' + mes },
+        { hecho: delMes.length > 0 && porClasificar === 0, texto: '<b>Paso 2 · Clasifica lo que quedó en rojo</b> en la <b>Chequera</b>: lo que la app no entendió espera tu palabra; sin clasificar no se contabiliza.', falta: porClasificar + ' movimiento(s) «Por clasificar»' },
+        { hecho: delMes.length > 0 && porClasificar === 0 && sinAsiento === 0, texto: '<b>Paso 3 · Confirma los asientos</b> en <b>Contabilidad → Bandeja</b>: cada propuesta trae su motivo escrito; con «Confirmar todos» van en un clic.', falta: sinAsiento + ' movimiento(s) clasificados sin asiento' },
+        { hecho: !!cerrado, texto: '<b>Paso 4 · Revisa los informes que te tocan</b> en <b>Informes</b> («Tus informes según tu actor económico») y el <b>Vector</b> en Fiscal: ahí ves qué hay que presentar y pagar.', falta: 'revísalos antes de cerrar' },
+        { hecho: !!cerrado, texto: '<b>Paso 5 · Cierra el mes</b> aquí mismo, con el botón «Cerrar el mes»: el mes queda bloqueado y nadie lo toca por accidente.', falta: 'cuando los pasos 1 a 3 estén en ✔, cierra' },
+    ];
+    let actual = pasos.findIndex((p) => !p.hecho);
+    if (cerrado) actual = -1;
+    $('pasos').innerHTML = pasos.map((p, i) =>
+        '<div class="punto"><span class="' + (p.hecho ? 'ok' : (i === actual ? 'mal' : 'tenue')) + '">' + (p.hecho ? '✔' : (i + 1)) + '</span> ' + p.texto +
+        (p.hecho ? '' : ' <span class="tenue">(' + p.falta + ')</span>') + '</div>').join('') +
+        '<p class="tenue">' + (cerrado ? 'Mes cerrado: todo hecho.' : actual >= 0 ? 'Vas por el paso ' + (actual + 1) + ' de 5.' : '') + '</p>';
+}
 function pintarRevision() {
     const mes = $('cMes').value;
     if (!mes) return;
+    pintarPasos();
     const puntos = revision(mes);
     $('revision').innerHTML = puntos.map((p) =>
         '<div class="punto"><span class="' + (p.ok ? 'ok' : 'mal') + '">' + (p.ok ? '✔' : '✘') + '</span> ' + p.texto + '</div>').join('');

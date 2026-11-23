@@ -49,6 +49,12 @@
 </div>
 
 <div class="tarjeta">
+    <h2 style="margin-top:0">Tus informes según tu actor económico</h2>
+    <p class="tenue">Esto es lo que te toca presentar, explicado en palabras llanas: qué es cada informe, para quién es, cuándo vence y si ya está listo. Todo sale del mismo número: tus asientos confirmados.</p>
+    <div id="obligaciones"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
     <h2 style="margin-top:0">Presupuesto contra real del mes</h2>
     <p class="tenue">Escribe cuánto pensabas ingresar y gastar por cuenta este mes y compáralo con lo que de verdad se movió según los asientos.</p>
     <div id="presupuesto"><p class="tenue">Cargando…</p></div>
@@ -69,7 +75,7 @@ aplicarFondo(10);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, presupuesto = null;
+let conta = null, presupuesto = null, fiscal = null;
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -122,6 +128,7 @@ function pintar() {
         (filasBal || '<tr><td colspan="5" class="tenue">Sin asientos hasta ese mes.</td></tr>') +
         '<tr class="totales"><td colspan="2">TOTALES</td><td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td><td></td></tr></tbody></table>';
     pintarBalanceGeneral(porAcum);
+    pintarObligaciones(porAcum);
     pintarPresupuesto(porMes);
 }
 function pintarBalanceGeneral(porAcum) {
@@ -158,6 +165,38 @@ function pintarBalanceGeneral(porAcum) {
         '</tbody></table>' +
         '<p class="tenue">' + (r2(activo) === pasivoPatrimonio ? 'El Balance General cuadra: Activo = Pasivo + Patrimonio.' : 'OJO: el Balance General no cuadra (Activo ' + fmt(activo) + ' ≠ Pasivo + Patrimonio ' + fmt(pasivoPatrimonio) + '). Revisa los asientos: puede faltar el asiento de apertura o sobrar algún movimiento.') + '</p>';
 }
+function pintarObligaciones(porAcum) {
+    const tipo = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
+    const mes = $('iMes').value;
+    const [yy, mm] = mes.split('-').map(Number);
+    const venceVector = '20/' + String(mm === 12 ? 1 : mm + 1).padStart(2, '0') + '/' + (mm === 12 ? yy + 1 : yy);
+    const ventasAnio = [...porAcum.entries()].filter(([cod]) => cod === '801-000' || cod === '802-000')
+        .reduce((s, [, g]) => s + (g.haber - g.debe), 0);
+    const saldoReserva = (() => { const g = porAcum.get('505-000'); return g ? r2(g.haber - g.debe) : 0; })();
+    const hayAsientos = (conta.asientos || []).some((a) => String(a.fecha) <= mes + '-31');
+    const fila = (nombre, queEs, paraQuien, cuando, estado) =>
+        '<div style="border-bottom:1px solid #D6E2F0;padding:7px 0"><b>' + nombre + '</b> — ' + queEs +
+        '<br><span class="tenue">Para: ' + paraQuien + ' · Cuándo: ' + cuando + ' · Estado: </span><b>' + estado + '</b></div>';
+    let html = '';
+    html += fila('Vector Fiscal del mes', 'la hoja con cada tributo del mes: lo que debes, lo que ya pagaste por el banco y lo que falta.', 'la ONAT (se paga por el banco)', 'vence el ' + venceVector + ' (día 20 del mes siguiente)', hayAsientos ? 'se calcula solo en el módulo Fiscal' : 'sin asientos todavía en este período');
+    if (tipo === 'tcp') {
+        html += fila('Registro Control de Ingresos y Gastos', 'tu control diario de ingresos y gastos con sus justificantes (guárdalos 5 años).', 'se guarda en el negocio; la ONAT lo pide si inspecciona', 'continuo', ventasAnio <= 500000 ? 'aplica para ti: llevas ' + fmt(ventasAnio) + ' de 500,000.00 en el año' : 'ya pasaste los 500,000.00 del año: te toca contabilidad completa');
+        html += fila('Estados financieros', 'la foto completa del negocio (Balance, Resultados, Flujo y Patrimonio).', 'el banco y para ti', 'mensual y al cierre del año', ventasAnio > 500000 ? 'obligatorios para ti: están en esta misma pantalla' : 'solo si pasas el umbral; hoy no te tocan');
+        html += fila('Declaración Jurada de ingresos personales (DJ-08)', 'tu declaración anual como persona.', 'la ONAT', 'hasta el 30 de abril', 'la DJ no se calcula en la app (es el servicio aparte); tus números quedan listos aquí');
+    } else if (tipo === 'mipyme') {
+        html += fila('Estados financieros (NEC 5)', 'Balance General, Resultados, Flujo de Efectivo y Cambios en el Patrimonio: la foto oficial del negocio.', 'los socios y el banco; son la base de la declaración anual', 'mensual para gestionar y anual el oficial', hayAsientos ? 'listos en esta misma pantalla y en Contabilidad' : 'sin asientos todavía');
+        html += fila('Declaración Jurada de Utilidades', 'la declaración anual de la empresa, en digital con firma electrónica.', 'la ONAT', 'del 1.º de enero al 31 de marzo', 'no se calcula en la app (servicio aparte); sale de los estados financieros del año');
+        html += fila('Reserva para Pérdidas y Contingencias', 'el colchón obligatorio: el 10 % de la utilidad real hasta tener entre el 2 % y el 10 % de los gastos del año.', 'control interno (es obligación de la Res. 306/2023)', 'se dota al cierre del año', 'saldo hoy en la cuenta de reservas: ' + fmt(saldoReserva));
+    } else if (tipo === 'pdl') {
+        html += fila('Informe de evaluación del proyecto', 'cómo va el proyecto: las fuentes aprobadas contra lo ejecutado, la distribución y el cumplimiento.', 'el CAM que aprobó el proyecto', 'al menos cada 6 meses (toca en enero y en julio)', 'se arma desde la ficha del módulo Fiscal: estudio contra realidad');
+        html += fila('Estados financieros propios', 'la contabilidad propia del proyecto, como contribuyente independiente de sus titulares.', 'el CAM, el banco y los titulares', 'mensual y al cierre del año', hayAsientos ? 'listos en esta misma pantalla' : 'sin asientos todavía');
+        const fide = (fiscal.fuentes || []).some((f) => String(f.tipo || '').includes('Fideicomiso'));
+        if (fide) html += fila('Informe del fideicomiso', 'lo recibido del Fondo, lo ejecutado y lo que falta por reembolsar con la comisión del 4 %.', 'el banco fiduciario', 'según el contrato', 'la ficha de Fiscal lleva el control y el total a reembolsar');
+    } else {
+        html += '<p class="rojo">Todavía no has dicho qué actor económico es este negocio: ve al módulo Fiscal y elige TCP, MIPYME o PDL en «Tipo de actor», y esta lista se arma sola con lo que te toca.</p>';
+    }
+    $('obligaciones').innerHTML = html;
+}
 function pintarPresupuesto(porMes) {
     const mes = $('iMes').value;
     const partidas = (presupuesto && presupuesto[mes]) || [];
@@ -193,6 +232,7 @@ function pintarPresupuesto(porMes) {
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
         presupuesto = (await bd().docLeer(tokenSesion(), 'presupuesto')) || {};
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || null;
         $('iMes').value = new Date().toISOString().slice(0, 7);
         $('iVer').addEventListener('click', pintar);
         $('iImprimir').addEventListener('click', () => window.print());
