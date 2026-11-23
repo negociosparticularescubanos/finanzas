@@ -12,5 +12,5 @@ export const FONDOS = [
 export function aplicarFondo(indice) {
     const f = FONDOS[Math.abs(indice || 0) % FONDOS.length];
     document.body.style.background =
-        'linear-gradient(rgba(240,246,252,.90), rgba(219,232,245,.94)), url("' + f + '") center center / cover fixed no-repeat #D8E6F3';
+        'linear-gradient(rgba(243,248,253,.72), rgba(224,236,247,.80)), url("' + f + '") center center / cover fixed no-repeat #D8E6F3';
 }
