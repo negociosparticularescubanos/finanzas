@@ -163,7 +163,7 @@ function pintarContratos() {
 }
 function pintarConsecutivos() {
     const nums = [];
-    for (const f of (gestion.facturas || [])) {
+    for (const f of (conta.gestion.facturas || [])) {
         const m = String(f.numero || '').match(/(\d+)\s*$/);
         if (m) nums.push({ n: parseInt(m[1], 10), numero: f.numero });
     }

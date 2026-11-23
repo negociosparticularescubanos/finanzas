@@ -218,7 +218,9 @@ function pintarConciliacion() {
         '<br>Emparejamiento (método del saldo ajustado): marca en la tabla los movimientos que ya aparecen en el estado del banco. ' +
         'En tránsito: <b>' + nIng + ' ingreso(s) por ' + dinero(ingTransito) + '</b> y <b>' + nGas + ' gasto(s) por ' + dinero(gasTransito) + '</b> que están en tus libros y aún no en el banco. ' +
         'Saldo del banco ajustado: <b>' + dinero(bancoAjustado) + '</b> · Diferencia ajustada: <b' + (Math.abs(difAjustada) < 0.005 ? '' : ' class="rojo"') + '>' + dinero(difAjustada) + '</b>' +
-        (Math.abs(difAjustada) < 0.005 ? ' — conciliado: todo lo que falta está identificado en tránsito.' : ' — ni con lo de tránsito cuadra: hay un error en libros o en el estado.');
+        (Math.abs(difAjustada) < 0.005 ? ' — conciliado: todo lo que falta está identificado en tránsito.'
+            : Math.abs(dif) < 0.005 ? ' — ojo: los saldos simples SÍ coinciden; lo que sale como «en tránsito» probablemente ya está dentro del saldo del banco (por ejemplo el saldo inicial o movimientos de ese mismo estado sin marcar). Revisa las marcas antes de darlo por error.'
+            : ' — ni con lo de tránsito cuadra: hay un error en libros o en el estado.');
 }
 
 function editar(id) {
@@ -462,7 +464,7 @@ async function importarPrevia() {
         if (!marcadas.has(i) || p.duplicada) return;
         movs.push({ id: 'pdf' + (p.op.refC || (Date.now() + i)), fecha: p.op.fecha, concepto: p.op.concepto,
             tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
-            clase: p.clase, qr: p.qr, ref: p.op.refC || '' });
+            clase: p.clase, qr: p.qr, ref: p.op.refC || '', conciliado: true });
         n++;
     });
     if (previaOps.saldoBanco != null) {
