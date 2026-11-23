@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Fiscal</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 120px; text-align: right; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    .alerta { background: #FDECEA; border: 1px solid #D88; border-radius: 6px; padding: 8px 10px; font-size: 13.5px; margin: 6px 0; }
+    .bien { background: #EAF7EE; border: 1px solid #8C8; border-radius: 6px; padding: 8px 10px; font-size: 13.5px; margin: 6px 0; }
+    .barra { height: 16px; background: #fff; border: 1px solid #8FA8C8; border-radius: 8px; overflow: hidden; }
+    .barra > div { height: 100%; background: linear-gradient(90deg, #3A87D4, #2B78C5); }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Fiscal · Vector y obligaciones</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Datos fiscales del negocio</h2>
+    <div class="fila">
+        <label>Tipo de actor <select id="fTipo">
+            <option value="tcp">Trabajador por cuenta propia (TCP)</option>
+            <option value="mipyme">MIPYME</option>
+            <option value="pdl">Proyecto de Desarrollo Local (PDL)</option>
+        </select></label>
+        <label>NIT <input id="fNit" size="14"></label>
+        <label>Razón social <input id="fRazon" size="26"></label>
+        <label>Cuenta fiscal <input id="fCuenta" size="18"></label>
+        <button type="button" id="fGuardar">Guardar</button>
+    </div>
+    <p class="tenue">El PDL es un actor económico más, como el TCP y la MIPYME: su ficha vive aquí, en Fiscal (Decreto 174/2026).</p>
+</div>
+
+<div class="tarjeta">
+    <h2>Vector fiscal del mes</h2>
+    <div class="fila"><input type="month" id="vMes"><button type="button" id="vVer" class="secundario chico">Ver</button>
+    <label><input type="checkbox" id="vAlimentos"> Ventas de alimentos de minindustria al detalle (5 % en vez de 10 %)</label></div>
+    <div id="vector"><p class="tenue">Elige el mes.</p></div>
+    <p class="tenue">El impuesto sobre utilidades se liquida en la declaración jurada anual; esta app no la calcula: para ese servicio está el contacto del menú de la página principal.</p>
+</div>
+
+<div class="tarjeta" id="cardUmbral" style="display:none">
+    <h2>Umbral TCP — 500 000 CUP al año (Res. 272/2024)</h2>
+    <div id="umbral"></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Alerta de efectivo (Res. 111/2023 BCC)</h2>
+    <p class="tenue">Las operaciones en efectivo entre actores económicos por encima de 5 000 CUP deben bancarizarse. Aquí se revisan los cobros en efectivo registrados en el Punto de Venta.</p>
+    <div id="alertaEfectivo"><p class="tenue">Revisando…</p></div>
+</div>
+
+<div class="tarjeta" id="cardPdl" style="display:none">
+    <h2>Ficha del PDL — fuentes de financiamiento (art. 43.1, Decreto 174/2026)</h2>
+    <div id="pdlFuentes"></div>
+    <div class="fila">
+        <select id="pfTipo"></select>
+        <input id="pfMonto" class="monto" type="number" step="0.01" min="0" placeholder="Monto">
+        <select id="pfEstado"><option value="declarada">Declarada</option><option value="aprobada">Aprobada</option><option value="ejecutada">Ejecutada</option></select>
+        <button type="button" id="pfAdd" class="secundario chico">Añadir fuente</button>
+    </div>
+    <div id="pdlFideicomiso"></div>
+    <h2 style="margin-top:12px">Distribución de la utilidad del PDL</h2>
+    <div class="fila">
+        <label>Utilidad del período <input id="pdUtilidad" class="monto" type="number" step="0.01" min="0"></label>
+        <label>% retenido <input id="pdRetenido" type="number" step="0.1" min="0" max="100" value="0" style="width:70px"></label>
+        <label>% aporte al CAM <input id="pdCam" type="number" step="0.1" min="0" max="100" value="0" style="width:70px"></label>
+        <button type="button" id="pdCalc" class="secundario chico">Calcular</button>
+    </div>
+    <div id="pdlDistribucion" class="tenue">Impuesto sobre utilidades 35 % → utilidad neta → Reserva de Pérdidas y Contingencias 10 % de la neta → retenido → aporte al CAM → resto a los titulares.</div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(3);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const FUENTES = ['Fondo para el Desarrollo Local','Fondo de Fideicomiso','Fondos para proyectos de desarrollo local','Fondo del Gobierno Provincial','Fondo Nacional de Medio Ambiente','Fondo Nacional para el Desarrollo Forestal','Fondo Financiero de Ciencia e Innovación','Fondo financiero de programas de ciencia, tecnología e innovación','Fondo de la cooperación internacional','Recursos financieros propios de los actores locales','Créditos bancarios','Presupuesto del Estado','Otros recursos financieros del exterior','Cualquier otro fondo o recurso financiero'];
+const FIDEICOMISO = 'Fondo de Fideicomiso';
+let fiscal = null, conta = null, movs = [], rrhh = null, pos = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+function ventasPeriodo(desde, hasta) {
+    let s = 0;
+    for (const a of (conta && conta.asientos) || []) {
+        if (a.fecha < desde || a.fecha > hasta) continue;
+        for (const l of a.lineas) if (l.cuenta === '801-000' || l.cuenta === '802-000') s += (Number(l.haber) || 0) - (Number(l.debe) || 0);
+    }
+    return r2(s);
+}
+function pintarVector() {
+    const mes = $('vMes').value;
+    if (!mes) return;
+    const base = ventasPeriodo(mes + '-01', mes + '-31');
+    const tasaVentas = $('vAlimentos').checked ? 5 : 10;
+    const impVentas = r2(base * tasaVentas / 100);
+    const nom = (rrhh && rrhh.nominas && rrhh.nominas[mes]) || null;
+    const bruto = nom ? r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0)) : 0;
+    const iuft = r2(bruto * 0.05), ss = r2(bruto * 0.14);
+    const pagado = r2(movs.filter((m) => m.clase === 'onat' && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+    const fila = (c, b, t, imp) => '<tr><td>' + c + '</td><td class="num">' + fmt(b) + '</td><td class="num">' + t + '</td><td class="num">' + fmt(imp) + '</td></tr>';
+    $('vector').innerHTML = '<table><thead><tr><th>Tributo</th><th class="num">Base</th><th class="num">Tasa</th><th class="num">Importe</th></tr></thead><tbody>' +
+        fila('Impuesto sobre las ventas / servicios', base, tasaVentas + ' %', impVentas) +
+        (nom ? fila('Impuesto sobre la utilización de la fuerza de trabajo', bruto, '5 %', iuft) + fila('Contribución a la Seguridad Social (patronal)', bruto, '14 %', ss)
+             : '<tr><td colspan="4" class="tenue">Sin nómina registrada en ' + mes + ': los tributos de nómina saldrán cuando se haga la nómina del mes.</td></tr>') +
+        '<tr class="totales"><td colspan="3">Total a pagar del mes</td><td class="num">' + fmt(impVentas + iuft + ss) + '</td></tr>' +
+        '</tbody></table>' +
+        '<p class="tenue">Pagado por el banco en el mes según la Chequera (pagos ONAT): ' + fmt(pagado) + '. Pendiente estimado: ' + fmt(Math.max(0, impVentas + iuft + ss - pagado)) + '.</p>';
+    pintarUmbral();
+}
+function pintarUmbral() {
+    const esTcp = fiscal.meta.tipo === 'tcp';
+    $('cardUmbral').style.display = esTcp ? '' : 'none';
+    if (!esTcp) return;
+    const anio = ($('vMes').value || new Date().toISOString().slice(0, 7)).slice(0, 4);
+    const acum = ventasPeriodo(anio + '-01-01', anio + '-12-31');
+    const pct = Math.min(100, r2(acum / 500000 * 100));
+    $('umbral').innerHTML = '<p>Ingresos por ventas acumulados en ' + anio + ' (cuentas 801/802 de los asientos): <b>' + fmt(acum) + '</b> de 500 000 CUP (' + fmt(pct) + ' %).</p>' +
+        '<div class="barra"><div style="width:' + pct + '%"></div></div>' +
+        (pct >= 80 ? '<div class="alerta">Atención: ya vas por el ' + fmt(pct) + ' % del umbral de 500 000 CUP de la Res. 272/2024. Al superarlo, el TCP pasa a otro régimen de obligaciones: revísalo con tiempo.</div>'
+                   : '<div class="bien">Todavía estás por debajo del 80 % del umbral.</div>');
+}
+function pintarEfectivo() {
+    const ventas = (pos && pos.ventas) || [];
+    const malas = [];
+    for (const v of ventas) for (const c of v.cobros || []) {
+        if (c.medio === 'efectivo' && (Number(c.monto) || 0) > 5000) malas.push({ fecha: v.fecha, monto: c.monto, id: v.id });
+    }
+    $('alertaEfectivo').innerHTML = malas.length
+        ? '<div class="alerta">Hay ' + malas.length + ' cobro(s) en efectivo por encima de 5 000 CUP que debieron bancarizarse:</div>' +
+          malas.map((m) => '<p class="tenue">' + m.fecha + ' · ' + fmt(m.monto) + ' CUP en efectivo (venta ' + m.id + ')</p>').join('')
+        : '<div class="bien">Sin cobros en efectivo por encima de 5 000 CUP registrados en el Punto de Venta.</div>';
+}
+function pintarPdl() {
+    const esPdl = fiscal.meta.tipo === 'pdl';
+    $('cardPdl').style.display = esPdl ? '' : 'none';
+    if (!esPdl) return;
+    const fs = fiscal.fuentes || [];
+    $('pdlFuentes').innerHTML = fs.map((f, i) =>
+        '<div class="fila"><b>' + f.tipo + '</b><span>' + fmt(f.monto) + '</span><span class="tenue">' + f.estado + '</span>' +
+        '<button type="button" class="chico secundario" data-delf="' + i + '">Quitar</button></div>').join('') ||
+        '<p class="tenue">Sin fuentes declaradas todavía. El préstamo del banco tiene que salir del proyecto: si el documento declara crédito, ese es el del estudio.</p>';
+    $('pdlFuentes').querySelectorAll('[data-delf]').forEach((b) => b.addEventListener('click', async () => {
+        fiscal.fuentes.splice(Number(b.dataset.delf), 1);
+        await guardar(); pintarPdl();
+    }));
+    const fid = fs.filter((f) => f.tipo === FIDEICOMISO && f.estado !== 'declarada');
+    if (fid.length) {
+        const m = r2(fid.reduce((s, f) => s + (Number(f.monto) || 0), 0));
+        $('pdlFideicomiso').innerHTML = '<div class="bien">Fondo de Fideicomiso aprobado/ejecutado: ' + fmt(m) + ' · Comisión del 4 % (Res. 118/2026 BCC): ' + fmt(r2(m * 0.04)) + ' · Total a reembolsar al fondo: ' + fmt(r2(m * 1.04)) + '.</div>';
+    } else $('pdlFideicomiso').innerHTML = '';
+}
+async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal); }
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+        fiscal.meta = fiscal.meta || { tipo: 'tcp', nit: '', razon: '', cuentaFiscal: '' };
+        fiscal.fuentes = fiscal.fuentes || [];
+        conta = await bd().docLeer(tokenSesion(), 'conta');
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
+        pos = await bd().docLeer(tokenSesion(), 'pos');
+        $('fTipo').value = fiscal.meta.tipo || 'tcp';
+        $('fNit').value = fiscal.meta.nit || '';
+        $('fRazon').value = fiscal.meta.razon || '';
+        $('fCuenta').value = fiscal.meta.cuentaFiscal || '';
+        $('pfTipo').innerHTML = FUENTES.map((f) => '<option>' + f + '</option>').join('');
+        $('fGuardar').addEventListener('click', async () => {
+            fiscal.meta = { tipo: $('fTipo').value, nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() };
+            try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('vMes').value = new Date().toISOString().slice(0, 7);
+        $('vVer').addEventListener('click', pintarVector);
+        $('vAlimentos').addEventListener('change', pintarVector);
+        $('pfAdd').addEventListener('click', async () => {
+            const monto = Number($('pfMonto').value) || 0;
+            if (monto <= 0) { aviso('La fuente necesita un monto', 'error'); return; }
+            fiscal.fuentes.push({ tipo: $('pfTipo').value, monto, estado: $('pfEstado').value });
+            await guardar(); $('pfMonto').value = ''; pintarPdl(); aviso('Fuente añadida');
+        });
+        $('pdCalc').addEventListener('click', () => {
+            const u = Number($('pdUtilidad').value) || 0;
+            if (u <= 0) { aviso('Escribe la utilidad del período', 'error'); return; }
+            const imp = r2(u * 0.35), neta = r2(u - imp), reserva = r2(neta * 0.10);
+            const resto = r2(neta - reserva);
+            const ret = r2(resto * (Number($('pdRetenido').value) || 0) / 100);
+            const cam = r2(resto * (Number($('pdCam').value) || 0) / 100);
+            const titulares = r2(resto - ret - cam);
+            $('pdlDistribucion').innerHTML = 'Utilidad: ' + fmt(u) + ' → Impuesto 35 %: ' + fmt(imp) + ' → Neta: ' + fmt(neta) +
+                ' → Reserva 10 %: ' + fmt(reserva) + ' → Retenido: ' + fmt(ret) + ' → Aporte al CAM: ' + fmt(cam) +
+                ' → <b>A los titulares: ' + fmt(titulares) + '</b>.';
+        });
+        pintarVector();
+        pintarEfectivo();
+        pintarPdl();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

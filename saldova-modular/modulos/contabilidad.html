@@ -71,6 +71,31 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Asientos recurrentes</h2>
+    <p class="tenue">Plantillas de lo que se repite cada mes (alquiler, servicios, salarios…). Se crean una vez y cada mes generan su asiento con un clic.</p>
+    <div id="recurrentes"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="rcNombre" placeholder="Nombre (ej. Alquiler del local)" style="flex:1;min-width:180px">
+        <input id="rcDia" type="number" min="1" max="28" value="1" style="width:70px" title="Día del mes">
+    </div>
+    <div id="rcLineas"></div>
+    <div class="fila"><button type="button" id="rcGuardar" class="secundario chico">Guardar plantilla</button></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Flujo de efectivo del mes</h2>
+    <p class="tenue">Desde los movimientos bancarios de la Chequera (todas las cuentas): qué entró y qué salió, separado en operación y financiación. Las transferencias entre cuentas propias no se cuentan.</p>
+    <div class="fila"><input type="month" id="feMes"><button type="button" id="feVer" class="secundario chico">Ver</button></div>
+    <div id="flujoEfectivo"><p class="tenue">Elige el mes.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Estado de cambios en el patrimonio</h2>
+    <p class="tenue">Saldos acumulados de las cuentas de patrimonio según los asientos confirmados.</p>
+    <div id="cambiosPatrimonio"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Plan de cuentas (del dueño)</h2>
     <p class="tenue">El mismo plan de la Finanzas web. El oficial de la Res. 494/2016 se podrá cargar
        como alternativa, con sus equivalencias, igual que en la web.</p>
@@ -267,7 +292,72 @@ function totalesManual() {
     });
     $('amTotales').textContent = 'Debe ' + fmt(td) + ' · Haber ' + fmt(th) + (r2(td) === r2(th) && td > 0 ? ' · cuadra' : '');
 }
-function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); }
+function pintarRecurrentes() {
+    const caja = $('recurrentes');
+    const lista = conta.recurrentes || [];
+    caja.innerHTML = lista.map((r) =>
+        '<div class="fila"><b>' + r.nombre + '</b><span class="tenue">día ' + r.dia + ' de cada mes · ' +
+        r.lineas.map((l) => l.cuenta + ' ' + (l.debe ? 'D ' + fmt(l.debe) : 'H ' + fmt(l.haber))).join(' · ') + '</span>' +
+        '<button type="button" class="chico" data-gen="' + r.id + '">Crear asiento de este mes</button>' +
+        '<button type="button" class="chico secundario" data-del="' + r.id + '">Borrar</button></div>'
+    ).join('') || '<p class="tenue">Todavía no hay plantillas recurrentes.</p>';
+    caja.querySelectorAll('[data-gen]').forEach((b) => b.addEventListener('click', async () => {
+        const r = (conta.recurrentes || []).find((x) => x.id === b.dataset.gen);
+        if (!r) return;
+        const hoyD = new Date();
+        const fecha = hoyD.toISOString().slice(0, 8) + String(Math.min(r.dia, 28)).padStart(2, '0');
+        conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+        conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: r.nombre + ' (recurrente)', origen: 'manual', estado: 'confirmado', lineas: r.lineas });
+        try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Asiento nº ' + conta.seqAsiento + ' creado desde la plantilla'); pintarTodo(); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+    caja.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+        conta.recurrentes = (conta.recurrentes || []).filter((x) => x.id !== b.dataset.del);
+        try { await bd().docGuardar(tokenSesion(), 'conta', conta); pintarTodo(); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarFlujo() {
+    const mes = $('feMes').value;
+    if (!mes) return;
+    const del = movs.filter((m) => (m.fecha || '').startsWith(mes) && m.clase !== 'transferencia');
+    const antes = movs.filter((m) => (m.fecha || '') < mes + '-01' && m.clase !== 'transferencia');
+    const suma = (arr) => arr.reduce((s, m) => s + (Number(m.monto) || 0), 0);
+    const saldoIni = suma(antes);
+    const esAporte = (m) => /Aporte de capital/i.test(m.clasificacion || '');
+    const opEntra = del.filter((m) => m.tipo === 'ingreso' && !esAporte(m));
+    const opSale = del.filter((m) => m.tipo === 'gasto' && m.clase !== 'utilidades' && m.clase !== 'contingencia');
+    const finEntra = del.filter((m) => m.tipo === 'ingreso' && esAporte(m));
+    const finSale = del.filter((m) => m.tipo === 'gasto' && (m.clase === 'utilidades' || m.clase === 'contingencia'));
+    const netoOp = suma(opEntra) + suma(opSale), netoFin = suma(finEntra) + suma(finSale);
+    const fila = (txt, arr, extra) => '<tr><td>' + txt + '</td><td class="num">' + fmt(extra !== undefined ? extra : suma(arr)) + '</td></tr>';
+    $('flujoEfectivo').innerHTML = '<table><tbody>' +
+        '<tr><td>Saldo inicial del mes</td><td class="num">' + fmt(saldoIni) + '</td></tr>' +
+        fila('Entradas de operación (ventas y otros cobros)', opEntra) +
+        fila('Salidas de operación (compras, salarios, ONAT, comisiones…)', opSale) +
+        '<tr><td><b>Flujo neto de operación</b></td><td class="num"><b>' + fmt(netoOp) + '</b></td></tr>' +
+        fila('Entradas de financiación (aportes de los socios)', finEntra) +
+        fila('Salidas de financiación (utilidades, reserva)', finSale) +
+        '<tr><td><b>Flujo neto de financiación</b></td><td class="num"><b>' + fmt(netoFin) + '</b></td></tr>' +
+        '<tr class="totales"><td>Saldo final del mes</td><td class="num">' + fmt(saldoIni + netoOp + netoFin) + '</td></tr>' +
+        '</tbody></table>';
+}
+function pintarPatrimonio() {
+    const ctas = (conta.plan || []).filter((c) => c.grupo === 'patrimonio');
+    const por = new Map();
+    for (const a of conta.asientos || []) for (const l of a.lineas) {
+        if (!ctas.some((c) => c.codigo === l.cuenta)) continue;
+        por.set(l.cuenta, (por.get(l.cuenta) || 0) + (Number(l.haber) || 0) - (Number(l.debe) || 0));
+    }
+    let total = 0;
+    const filas = ctas.map((c) => {
+        const s = por.get(c.codigo) || 0; total += s;
+        return '<tr><td>' + c.codigo + '</td><td>' + c.nombre + '</td><td class="num">' + fmt(s) + '</td></tr>';
+    }).join('');
+    $('cambiosPatrimonio').innerHTML = '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Saldo</th></tr></thead><tbody>' + filas +
+        '<tr class="totales"><td colspan="2">PATRIMONIO TOTAL</td><td class="num">' + fmt(total) + '</td></tr></tbody></table>';
+}
+function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); pintarRecurrentes(); pintarPatrimonio(); }
 (async () => {
     try {
         pintarIndicador();
@@ -301,7 +391,27 @@ function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); }
             try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Asiento nº ' + conta.seqAsiento + ' guardado'); $('amConcepto').value = ''; pintarTodo(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
+        $('rcLineas').appendChild(lineaManual());
+        $('rcLineas').appendChild(lineaManual());
+        $('rcGuardar').addEventListener('click', async () => {
+            const nombre = $('rcNombre').value.trim();
+            const lineas = [...$('rcLineas').querySelectorAll('.fila')].map((f) => ({
+                cuenta: f.querySelector('select.cuenta').value,
+                debe: Number(f.querySelector('.debe').value) || 0,
+                haber: Number(f.querySelector('.haber').value) || 0,
+            })).filter((l) => l.debe > 0 || l.haber > 0);
+            const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
+            if (!nombre) { aviso('La plantilla necesita un nombre', 'error'); return; }
+            if (lineas.length < 2 || td <= 0 || td !== th) { aviso('La plantilla debe tener al menos 2 líneas y cuadrar', 'error'); return; }
+            conta.recurrentes = conta.recurrentes || [];
+            conta.recurrentes.push({ id: 'r' + Date.now().toString(36), nombre, dia: Math.min(28, Math.max(1, Number($('rcDia').value) || 1)), lineas });
+            try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Plantilla guardada'); $('rcNombre').value = ''; pintarRecurrentes(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('feMes').value = new Date().toISOString().slice(0, 7);
+        $('feVer').addEventListener('click', pintarFlujo);
         pintarTodo();
+        pintarFlujo();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }
