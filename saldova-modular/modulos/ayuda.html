@@ -20,7 +20,9 @@
     <h1>❓ Ayuda — manual de Saldova</h1>
     <p>La idea de todo el programa es una sola: <strong>el estado de cuenta del banco es la puerta de entrada</strong>. De ahí sale casi todo lo demás sin teclear dos veces. Este manual vive dentro de la app y se actualiza con ella.</p>
 
-    <h2>El flujo de cada mes</h2>
+    <h2>Cómo moverte por la app</h2>
+    <p>Al entrar ves la <b>ventana de módulos</b>: ahí están todos, con su dibujo, y también si la base está conectada (el punto verde), qué base es, la fecha contable y el precio del dólar en el banco y en el mercado informal. Desde esa ventana puedes <b>cambiar de base</b>: conectar con una existente o crear una nueva (te pide tu PIN de creador). Al abrir un módulo, los demás desaparecen de arriba y quedan solo <b>las pestañas de ese módulo</b>; al cerrarlo, vuelves a la ventana de módulos.</p>
+<h2>El flujo de cada mes</h2>
     <ol>
         <li>Descarga el estado de cuenta en PDF desde Virtual BANDEC (eso lo haces tú, con tus claves, en tu equipo).</li>
         <li>En <b>Chequera y tarjetas</b> impórtalo: la app lo lee, clasifica cada operación y te enseña la vista previa antes de guardar. Lo que no entiende queda «Por clasificar» en rojo y <b>no se contabiliza</b> hasta que lo clasifiques.</li>
@@ -68,6 +70,7 @@
 
 <script type="module">
 import 'componentes';
+import 'nucleo';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(13);
 /* Pestañas por tema (modelo .exe): cada apartado del manual es una
@@ -76,7 +79,7 @@ aplicarFondo(13);
     const estilo = document.createElement('style');
     estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 13px;cursor:pointer;font-size:13px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
     document.head.appendChild(estilo);
-    const cortos = { 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
+    const cortos = { 'Cómo moverte por la app': 'Cómo moverte', 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
     const tarjeta = document.querySelector('.tarjeta');
     const secciones = [];
     let actual = null;

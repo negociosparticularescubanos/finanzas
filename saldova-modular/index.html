@@ -70,10 +70,76 @@
     .winbox .wb-header { background: linear-gradient(180deg, #2B5B84, #1A3E5E); border-radius: 5px 5px 0 0; }
     .winbox .wb-title { font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 13.5px; }
     .winbox .wb-body { background: #D8E6F3; }
+    /* Barra del módulo abierto: solo SUS pestañas (modelo .exe) */
+    #barraModulo { position: relative; z-index: 30; display: flex; align-items: center; gap: 12px; background: linear-gradient(180deg, #2B5B84, #1A3E5E); color: #fff; padding: 6px 10px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(13,38,66,.4); }
+    #barraModulo .bm-mod { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
+    #barraModulo .bm-mod img { width: 30px; height: 30px; }
+    #barraModulo .bm-tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-end; }
+    #barraModulo .bm-tabs button { background: linear-gradient(180deg, #DCE8F5, #C6D9EE); border: 1px solid #7E9CC0; color: #14324F; border-radius: 7px 7px 0 0; padding: 7px 14px; cursor: pointer; font-size: 13.5px; }
+    #barraModulo .bm-tabs button.activa { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 700; }
+    #barraModulo .bm-cargando { color: #C6D9EE; font-size: 13px; }
+    #barraModulo .bm-der { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    #barraModulo .bm-der button { cursor: pointer; border-radius: 5px; padding: 6px 12px; font-size: 13.5px; background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; color: #14324F; }
+    #barraModulo #bmSonido { background: transparent; border: none; font-size: 16px; padding: 4px; }
+    /* Lanzador: la ventana modal de módulos al entrar y al cerrar */
+    #lanzador { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 30px 12px; }
+    .lz-ventana { background: #F4F9FE; border: 1px solid #47688C; border-radius: 10px; box-shadow: 8px 12px 34px rgba(13,38,66,.5); max-width: 920px; width: 100%; overflow: hidden; animation: lzIn .28s ease both; }
+    @keyframes lzIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+    .lz-cab { background: linear-gradient(180deg, #2B5B84, #1A3E5E); color: #fff; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .lz-cab .lz-tit { font-size: 16.5px; font-weight: 700; }
+    .lz-cab .lz-ses { color: #C6D9EE; font-size: 13px; }
+    .lz-cab .der { margin-left: auto; display: flex; gap: 8px; }
+    .lz-cab button { cursor: pointer; border-radius: 5px; padding: 6px 12px; font-size: 13.5px; background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; color: #14324F; }
+    .lz-cab #lzSonido { background: transparent; border: none; font-size: 16px; padding: 4px; }
+    .lz-info { display: flex; gap: 8px 26px; flex-wrap: wrap; padding: 11px 16px; background: #E7F0FA; border-bottom: 1px solid #C6D9EE; font-size: 14px; color: #14324F; align-items: center; }
+    .lz-info .punto { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #B9C6D2; vertical-align: -1px; margin-right: 5px; }
+    .lz-info .punto.ok { background: #2FA84F; box-shadow: 0 0 7px #2FA84F; }
+    .lz-info .punto.mal { background: #D23B2E; box-shadow: 0 0 7px #D23B2E; }
+    .lz-info button, #lzBases button { padding: 7px 14px; border-radius: 5px; cursor: pointer; font-size: 13.5px; background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B96A0B; font-weight: 600; color: #14324F; }
+    .lz-info button.secundario, #lzBases button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    .lz-info button.chico, #lzBases button.chico { padding: 4px 10px; font-size: 12.5px; }
+    .lz-info .tenue { color: #5A738C; font-size: 12.5px; }
+    .lz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 12px; padding: 16px; }
+    .lz-tile { background: linear-gradient(180deg, #FFFFFF, #E7F0FA); border: 1px solid #8FA8C8; border-radius: 10px; padding: 13px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; }
+    .lz-tile img { width: 54px; height: 54px; }
+    .lz-tile span { text-align: center; line-height: 1.2; }
+    .lz-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 9px 19px rgba(20,50,79,.3); border-color: #F48C1E; }
+    .lz-tile:hover img { animation: tileBounce .5s ease; }
+    @keyframes tileIn { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: none; } }
+    @keyframes tileBounce { 0% { transform: scale(1); } 35% { transform: scale(1.15) rotate(-3deg); } 70% { transform: scale(1.06) rotate(2deg); } 100% { transform: scale(1); } }
+    #lzBases { padding: 6px 16px 16px; }
+    #lzBases h3 { color: #1A3E5E; margin: 14px 0 6px; font-size: 15.5px; }
+    #lzBases .lz-nota { color: #5A738C; font-size: 13px; margin: 4px 0 8px; }
+    #lzBases label { display: block; font-size: 13px; margin: 8px 0 3px; color: #33536E; }
+    #lzBases input { padding: 6px 8px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 14px; width: min(340px, 92%); display: block; margin-top: 3px; background: #fff; color: #14324F; }
+    #lzBases .lz-fila { display: flex; gap: 10px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+    #lzBases .lz-error { color: #B23218; font-size: 13.5px; min-height: 18px; }
 </style>
 </head>
 <body>
 <saldova-cinta id="cinta" style="display:none"></saldova-cinta>
+<div id="barraModulo" style="display:none">
+    <span class="bm-mod"><img id="bmIcono" alt=""><b id="bmTitulo"></b></span>
+    <span class="bm-tabs" id="bmTabs"></span>
+    <span class="bm-der"><button type="button" id="bmSonido" title="Sonido">🔊</button><button type="button" id="bmCerrar">✕ Cerrar módulo</button></span>
+</div>
+<div id="lanzador" style="display:none">
+  <div class="lz-ventana">
+    <div class="lz-cab">
+        <span class="lz-tit">Saldova · Módulos</span>
+        <span class="lz-ses" id="lzSesion"></span>
+        <span class="der"><button type="button" id="lzSonido" title="Sonido">🔊</button><button type="button" id="lzSalir">Salir</button></span>
+    </div>
+    <div class="lz-info">
+        <span><span id="lzPunto" class="punto"></span><span id="lzEstado">Comprobando la base…</span></span>
+        <span>Base: <b id="lzBase">—</b> <button type="button" id="lzCambiar" class="secundario chico">Cambiar base</button></span>
+        <span>Fecha contable: <b id="lzFecha">—</b></span>
+        <span>Dólar hoy: Banco (BCC) <b id="lzBanco">—</b> · Informal (elTOQUE) <b id="lzInformal">—</b> <span id="lzTasasNota" class="tenue"></span></span>
+    </div>
+    <div id="lzModulos" class="lz-grid"></div>
+    <div id="lzBases" style="display:none"></div>
+  </div>
+</div>
 <main id="area">
     <section class="bienvenida">
         <h1>Saldova</h1>
@@ -127,22 +193,32 @@ cinta.addEventListener('alternar-sonido', () => {
 });
 
 const abiertas = {};
+let cambiandoModulo = false;
+let marcoActual = null;
+let moduloActual = null;
 function abrirModulo(id) {
     const m = MODULOS.find((x) => x.id === id);
     if (!m || !m.activo) return;
     if (!haySesion) { aviso('Primero entra con tu usuario', 'error'); return; }
     if (abiertas[id]) { abiertas[id].focus(); abiertas[id].restore(); return; }
-    const altoCinta = Math.round((document.getElementById('cinta') || {}).offsetHeight || 0);
+    /* Un solo módulo abierto a la vez, como en el .exe: al abrir uno
+     * se cierra el que hubiera, y arriba solo se ven SUS pestañas. */
+    cambiandoModulo = true;
+    Object.keys(abiertas).forEach((k) => { try { abiertas[k].close(); } catch (e) {} });
+    cambiandoModulo = false;
+    document.getElementById('lanzador').style.display = 'none';
+    barraMostrar(m);
+    const altoBarra = Math.round(document.getElementById('barraModulo').offsetHeight || 0);
     const wb = new WinBox(m.titulo, {
         url: m.url, width: m.ancho || 820, height: m.alto || 600,
-        x: 'center', y: 'center', top: altoCinta, bottom: 0, left: 0, right: 0,
+        x: 'center', y: 'center', top: altoBarra, bottom: 0, left: 0, right: 0,
         onminimize: () => SND.ventana(),
         onmaximize: () => {
             SND.ventana();
-            /* Maximizar = TODO el área de trabajo: bajo la cinta, de
-             * borde a borde, como la ventana-documento del .exe. */
+            /* Maximizar = TODO el área de trabajo: bajo la barra del
+             * módulo, de borde a borde, como la ventana del .exe. */
             requestAnimationFrame(() => {
-                const h = Math.round((document.getElementById('cinta') || {}).offsetHeight || 0);
+                const h = Math.round(document.getElementById('barraModulo').offsetHeight || 0);
                 wb.dom.style.top = h + 'px';
                 wb.dom.style.left = '0px';
                 wb.dom.style.width = window.innerWidth + 'px';
@@ -150,12 +226,212 @@ function abrirModulo(id) {
             });
         },
         onrestore: () => SND.ventana(),
-        onclose: () => { delete abiertas[id]; SND.ventana(); return false; },
+        onclose: () => {
+            delete abiertas[id];
+            SND.ventana();
+            if (!cambiandoModulo) setTimeout(() => { if (haySesion && !Object.keys(abiertas).length) volverAlLanzador(); }, 0);
+            return false;
+        },
     });
     abiertas[id] = wb;
+    marcoActual = wb.dom.querySelector('iframe');
     SND.ventana();
 }
+function barraMostrar(m) {
+    moduloActual = m;
+    document.getElementById('bmIcono').src = m.icono;
+    document.getElementById('bmTitulo').textContent = m.titulo;
+    document.getElementById('bmTabs').innerHTML = '<span class="bm-cargando">Cargando sus pestañas…</span>';
+    document.getElementById('barraModulo').style.display = '';
+}
+function barraOcultar() {
+    moduloActual = null;
+    marcoActual = null;
+    document.getElementById('barraModulo').style.display = 'none';
+    document.getElementById('bmTabs').innerHTML = '';
+}
+function pintarPestanasBarra(pestanas, activa) {
+    const c = document.getElementById('bmTabs');
+    c.innerHTML = '';
+    if (!pestanas || !pestanas.length) { c.innerHTML = '<span class="bm-cargando">Este módulo no tiene pestañas</span>'; return; }
+    pestanas.forEach((p) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = p.texto;
+        if (String(p.id) === String(activa)) b.className = 'activa';
+        b.addEventListener('click', () => { if (marcoActual) marcoActual.postMessage({ tipo: 'saldova-ir-pestana', id: p.id }, '*'); });
+        c.appendChild(b);
+    });
+}
+window.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.tipo !== 'saldova-pestanas') return;
+    if (!marcoActual || e.source !== marcoActual) return;
+    pintarPestanasBarra(d.pestanas, d.activa);
+});
+document.getElementById('bmCerrar').addEventListener('click', () => {
+    if (moduloActual && abiertas[moduloActual.id]) abiertas[moduloActual.id].close();
+});
 cinta.addEventListener('abrir-modulo', (e) => abrirModulo(e.detail.id));
+
+/* ===== El lanzador: ventana modal de módulos (sin módulo abierto) ===== */
+const fmtTasa = (n) => (Number(n) || 0).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+function ponerSonido() {
+    const t = SND.isOn() ? '🔊' : '🔇';
+    document.getElementById('bmSonido').textContent = t;
+    document.getElementById('lzSonido').textContent = t;
+}
+document.getElementById('bmSonido').addEventListener('click', () => { SND.setOn(!SND.isOn()); ponerSonido(); if (SND.isOn()) SND.ok(); });
+document.getElementById('lzSonido').addEventListener('click', () => { SND.setOn(!SND.isOn()); ponerSonido(); if (SND.isOn()) SND.ok(); });
+document.getElementById('lzSalir').addEventListener('click', async () => {
+    try { await bd().salir(tokenSesion()); } catch (e) {}
+    borrarSesion();
+    location.reload();
+});
+async function refrescarEstadoLanzador() {
+    const punto = document.getElementById('lzPunto');
+    const txt = document.getElementById('lzEstado');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') {
+            const p = await bd().ping();
+            punto.className = 'punto ' + (p.ok ? 'ok' : 'mal');
+            txt.textContent = p.ok ? 'Base local conectada' : 'Base sin respuesta';
+        } else if (est.estado === 'ocupada') {
+            punto.className = 'punto mal';
+            txt.textContent = 'Base abierta en otra pestaña';
+        } else {
+            punto.className = 'punto mal';
+            txt.textContent = 'Base no disponible (' + est.estado + ')';
+        }
+    } catch (e) {
+        punto.className = 'punto mal';
+        txt.textContent = 'Base sin respuesta';
+    }
+}
+async function refrescarFechaYTasas() {
+    const ahora = new Date();
+    let fecha = ahora.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    try {
+        const conta = (await bd().docLeer(tokenSesion(), 'conta')) || {};
+        const mesAct = ahora.toISOString().slice(0, 7);
+        if (conta.candados && conta.candados[mesAct]) fecha += ' · ojo: este mes ya está cerrado en Contabilidad';
+    } catch (e) { /* la fecha va sin el aviso */ }
+    document.getElementById('lzFecha').textContent = fecha;
+    const nota = document.getElementById('lzTasasNota');
+    try {
+        const ctl = new AbortController();
+        const to = setTimeout(() => ctl.abort(), 12000);
+        const r = await fetch('https://facticuba-tasas.magisequipo5.workers.dev/tasas', { signal: ctl.signal });
+        clearTimeout(to);
+        const j = await r.json();
+        if (!j || !j.ok) throw new Error('sin tasas');
+        const f = j.formal && j.formal.USD;
+        const i = j.informal && j.informal.USD;
+        if (f) document.getElementById('lzBanco').textContent = fmtTasa(f);
+        if (i) document.getElementById('lzInformal').textContent = fmtTasa(i);
+        try { localStorage.setItem('saldova_tasas', JSON.stringify({ f, i, ts: Date.now() })); } catch (e) {}
+        nota.textContent = '(de hoy' + (j.fechaToque ? ', elTOQUE ' + String(j.fechaToque).slice(0, 10) : '') + ')';
+    } catch (e) {
+        let puesta = false;
+        try {
+            const c = JSON.parse(localStorage.getItem('saldova_tasas') || 'null');
+            if (c && (c.f || c.i)) {
+                if (c.f) document.getElementById('lzBanco').textContent = fmtTasa(c.f);
+                if (c.i) document.getElementById('lzInformal').textContent = fmtTasa(c.i);
+                nota.textContent = '(guardadas del ' + new Date(c.ts).toLocaleDateString('es-ES') + '; ahora sin conexión)';
+                puesta = true;
+            }
+        } catch (e2) { /* sin copia guardada */ }
+        if (!puesta) nota.textContent = '(ahora sin conexión)';
+    }
+}
+function mostrarLanzador(ses, acc) {
+    document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
+    document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
+    const g = document.getElementById('lzModulos');
+    g.innerHTML = '';
+    MODULOS.filter((m) => m.activo).forEach((m, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lz-tile';
+        b.style.animationDelay = (i * 45) + 'ms';
+        const img = document.createElement('img');
+        img.src = m.icono;
+        img.alt = '';
+        const sp = document.createElement('span');
+        sp.textContent = m.titulo;
+        b.appendChild(img);
+        b.appendChild(sp);
+        b.addEventListener('click', () => abrirModulo(m.id));
+        g.appendChild(b);
+    });
+    document.getElementById('lzBases').style.display = 'none';
+    g.style.display = '';
+    document.getElementById('lanzador').style.display = '';
+    ponerSonido();
+    refrescarEstadoLanzador();
+    refrescarFechaYTasas();
+}
+function volverAlLanzador() {
+    barraOcultar();
+    sesionActual().then(async (ses) => {
+        if (!ses) { location.reload(); return; }
+        let acc = null;
+        try { acc = await bd().acceso(); } catch (e) { acc = null; }
+        mostrarLanzador(ses, acc || { activa: '' });
+    });
+}
+document.getElementById('lzCambiar').addEventListener('click', async () => {
+    const caja = document.getElementById('lzBases');
+    let acc = null;
+    try { acc = await bd().acceso(); } catch (e) { acc = null; }
+    const bases = (acc && acc.bases) || [];
+    const activa = acc && acc.activa;
+    caja.innerHTML = '<h3>Cambiar de base de datos</h3>' +
+        '<p class="lz-nota">Conectar con una existente: elige una de las bases guardadas en este navegador, o localiza un archivo .db que tengas guardado.</p>' +
+        bases.map((b) => '<div class="lz-fila"><span>' + b + (b === activa ? ' · <b>en uso</b>' : '') + '</span>' +
+            (b === activa ? '' : '<button type="button" class="secundario chico" data-usar="' + b + '">Usar esta base</button>') + '</div>').join('') +
+        '<div class="lz-fila"><button type="button" class="secundario" id="lzLocalizar">Localizar un archivo .db…</button></div>' +
+        '<h3>Crear una base nueva</h3>' +
+        '<p class="lz-nota">Te pide el PIN de creador (el que fijaste al crear la primera base) y el administrador de la base nueva. Al crearla, queda como la base en uso y entras con su administrador.</p>' +
+        '<label>Nombre de la base nueva<input id="lzNbNombre"></label>' +
+        '<label>Usuario administrador<input id="lzNbUsuario"></label>' +
+        '<label>Contraseña del administrador (mínimo 6)<input id="lzNbClave" type="password"></label>' +
+        '<label>PIN de creador<input id="lzNbPin" type="password" inputmode="numeric"></label>' +
+        '<div class="lz-fila"><button type="button" id="lzNbCrear">Crear la base nueva</button>' +
+        '<button type="button" class="secundario" id="lzVolver">Volver a los módulos</button></div>' +
+        '<p class="lz-error" id="lzError"></p>';
+    document.getElementById('lzModulos').style.display = 'none';
+    caja.style.display = '';
+    caja.querySelectorAll('[data-usar]').forEach((b) => b.addEventListener('click', async () => {
+        try { await bd().baseElegir(b.dataset.usar); location.reload(); }
+        catch (e) { document.getElementById('lzError').textContent = e.message; }
+    }));
+    document.getElementById('lzLocalizar').addEventListener('click', async () => {
+        try {
+            const bytes = await abrirArchivoReal('.db');
+            if (!bytes) return;
+            await bd().importar(bytes);
+            location.reload();
+        } catch (e) { document.getElementById('lzError').textContent = e.message; }
+    });
+    document.getElementById('lzNbCrear').addEventListener('click', async () => {
+        try {
+            await bd().baseCrear({
+                nombre: document.getElementById('lzNbNombre').value.trim(),
+                usuario: document.getElementById('lzNbUsuario').value.trim(),
+                clave: document.getElementById('lzNbClave').value,
+                pin: document.getElementById('lzNbPin').value,
+            });
+            location.reload();
+        } catch (e) { document.getElementById('lzError').textContent = e.message; }
+    });
+    document.getElementById('lzVolver').addEventListener('click', () => {
+        caja.style.display = 'none';
+        document.getElementById('lzModulos').style.display = '';
+    });
+});
 
 /* Indicador de la base: comprobado contra la base REAL (el Worker) */
 async function vigilarBase() {
@@ -205,15 +481,8 @@ async function pintarPuerta() {
     const ses = await sesionActual();
     if (ses) {
         haySesion = true;
-        cinta.style.display = '';
-        puerta.innerHTML = '<h2>Ya estás dentro</h2>' +
-            '<p>Sesión de <b>' + ses.username + '</b> (' + ses.role + ') · Base: <b>' + acc.activa + '</b></p>' +
-            '<button type="button" id="pSalir" class="secundario">Salir</button>' + errHtml;
-        document.getElementById('pSalir').addEventListener('click', async () => {
-            try { await bd().salir(tokenSesion()); } catch (e) {}
-            borrarSesion();
-            location.reload();
-        });
+        document.getElementById('area').style.display = 'none';
+        mostrarLanzador(ses, acc);
         return;
     }
     if (!acc.hayUsuarios) {

@@ -271,3 +271,42 @@ export function aviso(texto, tipo) {
     setTimeout(() => t.remove(), 4200);
     if (tipo === 'error') SND.error(); else SND.ok();
 }
+
+/* ===== Puente de pestañas con la barra del módulo (index) =====
+ * Cada módulo tiene su barra .pest-bar interna; este puente la
+ * publica al index (que la pinta arriba, junto al título del módulo)
+ * y la oculta dentro del módulo. Al pulsar una pestaña arriba, el
+ * index avisa y aquí se hace clic en el botón interno de verdad. */
+try {
+    if (window.parent !== window) {
+        let ultimaClave = '';
+        const publicarPestanas = () => {
+            const bar = document.querySelector('.pest-bar');
+            if (!bar) return;
+            const btns = [...bar.querySelectorAll('button')];
+            if (!btns.length) return;
+            const idDe = (b, i) => b.dataset.pest || b.dataset.sec || String(i);
+            const pestanas = btns.map((b, i) => ({ id: idDe(b, i), texto: b.textContent.trim() }));
+            const act = bar.querySelector('button.activa');
+            const activa = act ? idDe(act, btns.indexOf(act)) : pestanas[0].id;
+            const clave = JSON.stringify([pestanas, activa]);
+            if (clave === ultimaClave) return;
+            ultimaClave = clave;
+            window.parent.postMessage({ tipo: 'saldova-pestanas', pestanas, activa }, '*');
+            bar.style.display = 'none';
+        };
+        const obsPest = new MutationObserver(() => publicarPestanas());
+        obsPest.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        window.addEventListener('message', (e) => {
+            const d = e.data || {};
+            if (d.tipo !== 'saldova-ir-pestana') return;
+            const bar = document.querySelector('.pest-bar');
+            if (!bar) return;
+            const btns = [...bar.querySelectorAll('button')];
+            const b = btns.find((x, i) => (x.dataset.pest || x.dataset.sec || String(i)) === String(d.id));
+            if (b) b.click();
+        });
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', publicarPestanas);
+        else publicarPestanas();
+    }
+} catch (e) { /* el puente es un extra: el módulo funciona igual */ }
