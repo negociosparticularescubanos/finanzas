@@ -143,7 +143,7 @@ function pintarVacaciones() {
     const filasV = (rrhh.trabajadores || []).map((t) => {
         const v = vac[t.id] || { dias: 0, dinero: 0, disfrutes: [] };
         const disfr = (v.disfrutes || []).reduce((x, d) => x + (Number(d.dias) || 0), 0);
-        return '<tr><td>' + t.nombre + '</td><td class="num">' + fmt(v.dias) + '</td><td class="num">' + fmt(v.dinero) + '</td><td class="num">' + fmt(disf) + '</td></tr>';
+        return '<tr><td>' + t.nombre + '</td><td class="num">' + fmt(v.dias) + '</td><td class="num">' + fmt(v.dinero) + '</td><td class="num">' + fmt(disfr) + '</td></tr>';
     }).join('');
     $('vacTabla').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días acumulados</th><th class="num">Dinero acumulado</th><th class="num">Días disfrutados</th></tr></thead><tbody>' + (filasV || '<tr><td colspan="4" class="tenue">Sin trabajadores.</td></tr>') + '</tbody></table>';
     $('vacTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + t.nombre + '</option>').join('');
