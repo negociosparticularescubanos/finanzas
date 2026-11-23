@@ -177,7 +177,8 @@ function pintarObligaciones(porAcum) {
     const fila = (nombre, queEs, paraQuien, cuando, estado) =>
         '<div style="border-bottom:1px solid #D6E2F0;padding:7px 0"><b>' + nombre + '</b> — ' + queEs +
         '<br><span class="tenue">Para: ' + paraQuien + ' · Cuándo: ' + cuando + ' · Estado: </span><b>' + estado + '</b></div>';
-    let html = '';
+    const nombreActor = { tcp: 'TCP (trabajador por cuenta propia)', mipyme: 'MIPYME', pdl: 'PDL (proyecto de desarrollo local)' }[tipo] || '';
+    let html = nombreActor ? '<p>Tu actor económico, según lo guardado en Fiscal: <b>' + nombreActor + '</b>. Esta es tu lista; la de otro actor sería distinta.</p>' : '';
     html += fila('Vector Fiscal del mes', 'la hoja con cada tributo del mes: lo que debes, lo que ya pagaste por el banco y lo que falta.', 'la ONAT (se paga por el banco)', 'vence el ' + venceVector + ' (día 20 del mes siguiente)', hayAsientos ? 'se calcula solo en el módulo Fiscal' : 'sin asientos todavía en este período');
     if (tipo === 'tcp') {
         html += fila('Registro Control de Ingresos y Gastos', 'tu control diario de ingresos y gastos con sus justificantes (guárdalos 5 años).', 'se guarda en el negocio; la ONAT lo pide si inspecciona', 'continuo', ventasAnio <= 500000 ? 'aplica para ti: llevas ' + fmt(ventasAnio) + ' de 500,000.00 en el año' : 'ya pasaste los 500,000.00 del año: te toca contabilidad completa');
