@@ -43,11 +43,25 @@
     <div id="resultados"><p class="tenue">Elige el mes.</p></div>
     <h2>Balance de comprobación (acumulado hasta fin de mes)</h2>
     <div id="balance"><p class="tenue">Elige el mes.</p></div>
+    <h2>Balance General — estado de situación (al cierre del mes)</h2>
+    <div id="balanceGeneral"><p class="tenue">Elige el mes.</p></div>
     <p class="tenue">El Flujo de Efectivo y el Estado de Cambios en el Patrimonio están en el módulo Contabilidad. Estos informes salen solo de los asientos confirmados: lo que no está contabilizado no aparece.</p>
 </div>
 
+<div class="tarjeta">
+    <h2 style="margin-top:0">Presupuesto contra real del mes</h2>
+    <p class="tenue">Escribe cuánto pensabas ingresar y gastar por cuenta este mes y compáralo con lo que de verdad se movió según los asientos.</p>
+    <div id="presupuesto"><p class="tenue">Cargando…</p></div>
+    <div class="fila no-imprimir">
+        <select id="prCuenta"></select>
+        <input id="prMonto" class="monto" type="number" step="0.01" min="0" placeholder="Presupuestado" style="width:130px;padding:5px 7px;border:1px solid #8FA8C8;border-radius:5px">
+        <button type="button" id="prAdd" class="secundario chico">Añadir partida</button>
+        <button type="button" id="prGuardar">Guardar presupuesto</button>
+    </div>
+</div>
+
 <script type="module">
-import { bd, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(10);
@@ -55,7 +69,7 @@ aplicarFondo(10);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null;
+let conta = null, presupuesto = null;
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -107,7 +121,70 @@ function pintar() {
     $('balance').innerHTML = '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead><tbody>' +
         (filasBal || '<tr><td colspan="5" class="tenue">Sin asientos hasta ese mes.</td></tr>') +
         '<tr class="totales"><td colspan="2">TOTALES</td><td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td><td></td></tr></tbody></table>';
+    pintarBalanceGeneral(porAcum);
+    pintarPresupuesto(porMes);
 }
+function pintarBalanceGeneral(porAcum) {
+    const sumaGrupo = (grupo, signo) => {
+        let s = 0;
+        for (const [cod, g] of porAcum) {
+            const c = cuenta(cod);
+            if (c.grupo !== grupo) continue;
+            s += signo === 'debe' ? (g.debe - g.haber) : (g.haber - g.debe);
+        }
+        return r2(s);
+    };
+    const filasGrupo = (grupo, signo) => [...porAcum.entries()].filter(([cod]) => cuenta(cod).grupo === grupo)
+        .sort((x, y) => x[0].localeCompare(y[0]))
+        .map(([cod, g]) => {
+            const v = signo === 'debe' ? r2(g.debe - g.haber) : r2(g.haber - g.debe);
+            return '<tr><td>' + cod + '</td><td>' + cuenta(cod).nombre + '</td><td class="num">' + fmt(v) + '</td></tr>';
+        }).join('');
+    const activo = sumaGrupo('activo', 'debe');
+    const pasivo = sumaGrupo('pasivo', 'haber');
+    const patrimonio = sumaGrupo('patrimonio', 'haber');
+    const resultado = r2(sumaGrupo('ingreso', 'haber') - sumaGrupo('gasto', 'debe'));
+    const pasivoPatrimonio = r2(pasivo + patrimonio + resultado);
+    $('balanceGeneral').innerHTML =
+        '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Saldo</th></tr></thead><tbody>' +
+        '<tr class="totales"><td colspan="3">ACTIVO</td></tr>' + filasGrupo('activo', 'debe') +
+        '<tr class="totales"><td colspan="2">TOTAL ACTIVO</td><td class="num">' + fmt(activo) + '</td></tr>' +
+        '<tr class="totales"><td colspan="3">PASIVO</td></tr>' + filasGrupo('pasivo', 'haber') +
+        '<tr class="totales"><td colspan="2">TOTAL PASIVO</td><td class="num">' + fmt(pasivo) + '</td></tr>' +
+        '<tr class="totales"><td colspan="3">PATRIMONIO</td></tr>' + filasGrupo('patrimonio', 'haber') +
+        '<tr><td></td><td>Resultado acumulado de los ejercicios</td><td class="num">' + fmt(resultado) + '</td></tr>' +
+        '<tr class="totales"><td colspan="2">TOTAL PATRIMONIO (con el resultado)</td><td class="num">' + fmt(r2(patrimonio + resultado)) + '</td></tr>' +
+        '<tr class="totales"><td colspan="2">TOTAL PASIVO + PATRIMONIO</td><td class="num">' + fmt(pasivoPatrimonio) + '</td></tr>' +
+        '</tbody></table>' +
+        '<p class="tenue">' + (r2(activo) === pasivoPatrimonio ? 'El Balance General cuadra: Activo = Pasivo + Patrimonio.' : 'OJO: el Balance General no cuadra (Activo ' + fmt(activo) + ' ≠ Pasivo + Patrimonio ' + fmt(pasivoPatrimonio) + '). Revisa los asientos: puede faltar el asiento de apertura o sobrar algún movimiento.') + '</p>';
+}
+function pintarPresupuesto(porMes) {
+    const mes = $('iMes').value;
+    const partidas = (presupuesto && presupuesto[mes]) || [];
+    const realDe = (cod) => {
+        const g = porMes.get(cod);
+        if (!g) return 0;
+        const c = cuenta(cod);
+        return c.grupo === 'ingreso' ? r2(g.haber - g.debe) : r2(g.debe - g.haber);
+    };
+    $('presupuesto').innerHTML = '<table><thead><tr><th>Cuenta</th><th class="num">Presupuestado</th><th class="num">Real</th><th class="num">Diferencia</th><th></th></tr></thead><tbody>' +
+        (partidas.map((p, i) => {
+            const real = realDe(p.codigo);
+            return '<tr><td>' + p.codigo + ' ' + cuenta(p.codigo).nombre + '</td><td class="num">' + fmt(p.monto) + '</td><td class="num">' + fmt(real) + '</td><td class="num">' + fmt(r2(real - (Number(p.monto) || 0))) + '</td>' +
+                '<td><button type="button" class="chico secundario" data-delp="' + i + '">Quitar</button></td></tr>';
+        }).join('') || '<tr><td colspan="5" class="tenue">Sin partidas para ' + mes + ': añade la primera abajo.</td></tr>') +
+        '</tbody></table>';
+    $('presupuesto').querySelectorAll('[data-delp]').forEach((b) => b.addEventListener('click', () => {
+        partidas.splice(Number(b.dataset.delp), 1);
+        pintar();
+    }));
+    const sel = $('prCuenta');
+    const actual = sel.value;
+    sel.innerHTML = (conta.plan || []).filter((c) => c.admite && (c.grupo === 'ingreso' || c.grupo === 'gasto'))
+        .map((c) => '<option value="' + c.codigo + '">' + c.codigo + ' · ' + c.nombre + '</option>').join('');
+    if (actual) sel.value = actual;
+}
+
 (async () => {
     try {
         pintarIndicador();
@@ -115,9 +192,24 @@ function pintar() {
         if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
+        presupuesto = (await bd().docLeer(tokenSesion(), 'presupuesto')) || {};
         $('iMes').value = new Date().toISOString().slice(0, 7);
         $('iVer').addEventListener('click', pintar);
         $('iImprimir').addEventListener('click', () => window.print());
+        $('prAdd').addEventListener('click', () => {
+            const mes = $('iMes').value;
+            const monto = Number($('prMonto').value) || 0;
+            if (monto <= 0 || !$('prCuenta').value) { aviso('La partida necesita cuenta y monto', 'error'); return; }
+            presupuesto[mes] = presupuesto[mes] || [];
+            const ya = presupuesto[mes].find((p) => p.codigo === $('prCuenta').value);
+            if (ya) ya.monto = monto; else presupuesto[mes].push({ codigo: $('prCuenta').value, monto });
+            $('prMonto').value = '';
+            pintar();
+        });
+        $('prGuardar').addEventListener('click', async () => {
+            try { await bd().docGuardar(tokenSesion(), 'presupuesto', presupuesto); aviso('Presupuesto guardado'); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
         pintar();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);

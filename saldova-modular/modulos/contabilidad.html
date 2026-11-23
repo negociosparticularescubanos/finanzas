@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saldova — Contabilidad</title>
 <script type="importmap">
-{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js", "plan": "../plan-dueno.js" } }
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js", "plan": "../plan-dueno.js", "plan-oficial": "../plan-oficial.js" } }
 </script>
 <style>
     * { box-sizing: border-box; }
@@ -42,6 +42,8 @@
     <p class="tenue">Cada movimiento ya clasificado de la Chequera trae aquí su asiento
        <b>propuesto y editable</b>, con el motivo a la vista. Nada entra al Mayor sin que lo confirmes.
        Lo <span class="rojo">«Por clasificar»</span> no genera asiento: se clasifica en la Chequera.</p>
+    <div class="fila"><button type="button" id="confirmarTodos" class="secundario chico">Confirmar todos los que cuadran</button>
+    <span class="tenue">Un solo clic para todos los asientos propuestos que cuadran y tienen sus cuentas: los demás quedan esperándote.</span></div>
     <div id="bandeja"><p class="tenue">Cargando…</p></div>
     <p id="bandejaNota" class="tenue"></p>
 </div>
@@ -100,6 +102,11 @@
     <p class="tenue">El mismo plan de la Finanzas web. El oficial de la Res. 494/2016 se podrá cargar
        como alternativa, con sus equivalencias, igual que en la web.</p>
     <div id="planTxt" class="tenue">Cargando…</div>
+    <div class="fila">
+        <button type="button" id="planOficial" class="secundario chico">Cargar el plan oficial Res. 494/2016</button>
+        <button type="button" id="planDueno" class="secundario chico">Volver al plan del dueño</button>
+    </div>
+    <p class="tenue">El plan solo se cambia con la contabilidad vacía (sin asientos), igual que en la web: con asientos ya hechos, cambiar el plan descuadraría la historia. Al cargar el oficial, las cuentas automáticas se resuelven por las equivalencias (ventas 801→900, costo 695→810, mercancías 188→189…).</p>
 </div>
 
 <script type="module">
@@ -107,13 +114,25 @@ import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 import { PLAN_DUENO } from 'plan';
+import { PLAN_OFICIAL } from 'plan-oficial';
 aplicarFondo(2);
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const BANCO = { chequera: '110-010', tarjeta_cup: '110-010', tarjeta_usd: '110-020' };
+const CTA_AUTO_CONCEPTOS = { ventas: '801-000', ventas_servicios: '802-000', ingresos_financieros: '805-000', otros_ingresos: '810-000', gastos_financieros: '710-000', costo_ventas: '695-000', prod_proceso: '186-000', prod_terminada: '187-000', mercancias: '188-000', materias_primas: '181-000', combustible: '182-000', repuestos: '183-000', utiles: '184-000' };
+const CTA_AUTO_OFICIAL = { '900-000': 'ventas,ventas_servicios', '920-000': 'ingresos_financieros', '950-000': 'otros_ingresos', '835-000': 'gastos_financieros', '810-000': 'costo_ventas', '700-000': 'prod_proceso', '188-000': 'prod_terminada', '189-000': 'mercancias', '183-000': 'materias_primas', '184-000': 'combustible', '185-000': 'repuestos', '187-000': 'utiles' };
 let conta = null, movs = [], sesion = null;
+function existeCuenta(cod) { return !!cod && (conta.plan || []).some((c) => c.codigo === cod); }
+function cuentaAuto(concepto, defecto) {
+    const plan = conta.plan || [];
+    for (const c of plan) { if (c.auto && String(c.auto).split(',').map((x) => x.trim()).includes(concepto)) return c.codigo; }
+    const def = CTA_AUTO_CONCEPTOS[concepto];
+    if (def && plan.some((c) => c.codigo === def)) return def;
+    return existeCuenta(defecto) ? defecto : '';
+}
+function mesCerrado(fecha) { return !!(conta.candados && fecha && conta.candados[String(fecha).slice(0, 7)]); }
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -130,8 +149,9 @@ function nombreCuenta(cod) {
     return c ? c.nombre : '';
 }
 function opcionesCuentas(sel) {
-    return (conta.plan || []).filter((c) => c.admite).map((c) =>
+    const opts = (conta.plan || []).filter((c) => c.admite).map((c) =>
         '<option value="' + c.codigo + '"' + (c.codigo === sel ? ' selected' : '') + '>' + c.codigo + ' · ' + c.nombre + '</option>').join('');
+    return (sel && !existeCuenta(sel)) ? '<option value="" selected>— elige la cuenta —</option>' + opts : opts;
 }
 function cuentaOnat(concepto) {
     const t = String(concepto || '').toUpperCase();
@@ -144,39 +164,40 @@ function cuentaOnat(concepto) {
 /* La propuesta de asiento de un movimiento, con su motivo visible.
  * Devuelve null cuando no hay propuesta automática (queda listado). */
 function propuestaPara(m) {
-    const banco = BANCO[m.cuenta] || '110-010';
+    const banco = existeCuenta(BANCO[m.cuenta] || '110-010') ? (BANCO[m.cuenta] || '110-010') : '';
+    const oSi = (cod) => existeCuenta(cod) ? cod : '';
     const monto = Math.abs(Number(m.monto) || 0);
     const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
     if (m.clase === 'transferencia') return null;
     if (m.clase === 'contingencia') return null;
     if (m.clase === 'qr' || /^Ventas/i.test(m.clasificacion || '')) {
-        return { lineas: [L(banco, monto), L('801-000', 0, monto)],
-            motivo: 'Cobro de una venta según el estado de cuenta: entra el dinero al banco (Debe) y se reconoce el ingreso por ventas en la 801-000 (Haber).' };
+        return { lineas: [L(banco, monto), L(cuentaAuto('ventas', '801-000'), 0, monto)],
+            motivo: 'Cobro de una venta según el estado de cuenta: entra el dinero al banco (Debe) y se reconoce el ingreso por ventas (Haber, la cuenta de ventas del plan activo).' };
     }
     if (m.clase === 'onat' || /^Pago de ONAT/i.test(m.clasificacion || '')) {
-        const cta = cuentaOnat(m.concepto);
+        const cta = oSi(cuentaOnat(m.concepto));
         return { lineas: [L(cta, monto), L(banco, 0, monto)],
             motivo: 'Pago a la ONAT según el estado: baja la obligación fiscal por pagar (Debe, cuenta propuesta ' + cta + ' según el tributo del concepto; cámbiala si el pago fue de otro tributo) y sale el dinero del banco (Haber).' };
     }
     if (/Comisión bancaria/i.test(m.clasificacion || '')) {
-        return { lineas: [L('710-000', monto), L(banco, 0, monto)],
-            motivo: 'Comisión del banco: gasto financiero en la 710-000 (Debe) contra el banco (Haber).' };
+        return { lineas: [L(cuentaAuto('gastos_financieros', '710-000'), monto), L(banco, 0, monto)],
+            motivo: 'Comisión del banco: gasto financiero (Debe, la cuenta de gastos financieros del plan activo) contra el banco (Haber).' };
     }
     if (/^Salarios/i.test(m.clasificacion || '')) {
-        return { lineas: [L('331-000', monto), L(banco, 0, monto)],
+        return { lineas: [L(oSi('331-000'), monto), L(banco, 0, monto)],
             motivo: 'Pago de la nómina ya devengada: baja la Nómina por Pagar 331-000 (Debe) y sale del banco (Haber). El gasto de salario se reconoce al devengar la nómina, en su módulo.' };
     }
     if (m.clase === 'utilidades' || /Utilidades a socios/i.test(m.clasificacion || '')) {
-        return { lineas: [L('417', monto), L(banco, 0, monto)],
+        return { lineas: [L(oSi('417'), monto), L(banco, 0, monto)],
             motivo: 'Pago de utilidades a los socios: baja Dividendos y Participaciones por Pagar (417, Debe) y sale del banco (Haber). No es un gasto.' };
     }
     if (/Aporte de capital/i.test(m.clasificacion || '')) {
-        return { lineas: [L(banco, monto), L('501-000', 0, monto)],
+        return { lineas: [L(banco, monto), L(oSi('501-000'), 0, monto)],
             motivo: 'Aporte del dueño o los socios: entra al banco (Debe) y sube el Capital Social / Aportes en la 501-000 (Haber). No es un ingreso de ventas.' };
     }
     if (/^Compra/i.test(m.clasificacion || '') || /mercanc/i.test(m.clasificacion || '')) {
-        return { lineas: [L('188-000', monto), L(banco, 0, monto)],
-            motivo: 'Compra de mercancías pagada por el banco: entra al inventario de Mercancías 188-000 (Debe) y sale del banco (Haber).' };
+        return { lineas: [L(cuentaAuto('mercancias', '188-000'), monto), L(banco, 0, monto)],
+            motivo: 'Compra de mercancías pagada por el banco: entra al inventario de Mercancías (Debe, la cuenta de mercancías del plan activo) y sale del banco (Haber).' };
     }
     return null;
 }
@@ -214,6 +235,8 @@ function pintarBandeja() {
                 haber: Number(f.querySelector('.haber').value) || 0,
             })).filter((l) => l.debe > 0 || l.haber > 0);
             const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
+            if (lineas.some((l) => !l.cuenta)) { aviso('Falta elegir la cuenta en alguna línea', 'error'); return; }
+            if (mesCerrado(m.fecha)) { aviso('El mes de ' + m.fecha + ' está cerrado: no se puede contabilizar en un período cerrado', 'error'); return; }
             if (!lineas.length || td <= 0 || td !== th) { aviso('El asiento debe cuadrar: Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th), 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
@@ -306,6 +329,7 @@ function pintarRecurrentes() {
         if (!r) return;
         const hoyD = new Date();
         const fecha = hoyD.toISOString().slice(0, 8) + String(Math.min(r.dia, 28)).padStart(2, '0');
+        if (mesCerrado(fecha)) { aviso('Este mes está cerrado: la plantilla no puede generar asientos en un período cerrado', 'error'); return; }
         conta.seqAsiento = (conta.seqAsiento || 0) + 1;
         conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: r.nombre + ' (recurrente)', origen: 'manual', estado: 'confirmado', lineas: r.lineas });
         try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Asiento nº ' + conta.seqAsiento + ' creado desde la plantilla'); pintarTodo(); }
@@ -387,6 +411,8 @@ function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); pint
             const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
             const concepto = $('amConcepto').value.trim();
             if (!concepto) { aviso('El asiento necesita un concepto', 'error'); return; }
+            if (mesCerrado($('amFecha').value)) { aviso('Ese mes está cerrado: no se puede asentar en un período cerrado', 'error'); return; }
+            if (lineas.some((l) => !l.cuenta)) { aviso('Falta elegir la cuenta en alguna línea', 'error'); return; }
             if (lineas.length < 2 || td <= 0 || td !== th) { aviso('El asiento manual debe tener al menos 2 líneas y cuadrar (Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th) + ')', 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: $('amFecha').value, concepto, origen: 'manual', estado: 'confirmado', lineas });
@@ -408,6 +434,39 @@ function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); pint
             conta.recurrentes = conta.recurrentes || [];
             conta.recurrentes.push({ id: 'r' + Date.now().toString(36), nombre, dia: Math.min(28, Math.max(1, Number($('rcDia').value) || 1)), lineas });
             try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Plantilla guardada'); $('rcNombre').value = ''; pintarRecurrentes(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('confirmarTodos').addEventListener('click', async () => {
+            let n = 0, saltados = 0;
+            for (const m of movs) {
+                if (m.asientoId || m.sinAsiento || (m.clasificacion || '') === 'Por clasificar') continue;
+                const p = propuestaPara(m);
+                if (!p) continue;
+                const lineas = p.lineas.filter((l) => l.debe > 0 || l.haber > 0);
+                const td = r2(lineas.reduce((s, l) => s + l.debe, 0)), th = r2(lineas.reduce((s, l) => s + l.haber, 0));
+                if (!lineas.length || lineas.some((l) => !l.cuenta) || td <= 0 || td !== th || mesCerrado(m.fecha)) { saltados++; continue; }
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                const id = 'a' + Date.now().toString(36) + n;
+                conta.asientos.push({ id, numero: conta.seqAsiento, fecha: m.fecha, concepto: m.concepto, origen: 'bandeja', estado: 'confirmado', movId: m.id, lineas });
+                m.asientoId = id;
+                n++;
+            }
+            if (!n) { aviso('No había propuestas listas para confirmar de una vez' + (saltados ? ' (' + saltados + ' necesitan tu revisión)' : ''), 'error'); return; }
+            try { await guardarTodo(); aviso(n + ' asiento(s) confirmados de una vez' + (saltados ? '; ' + saltados + ' quedan para tu revisión' : '')); pintarTodo(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('planOficial').addEventListener('click', async () => {
+            if ((conta.asientos || []).length) { aviso('Con asientos ya hechos no se puede cambiar el plan: descuadraría la historia', 'error'); return; }
+            conta.plan = PLAN_OFICIAL.map((c) => ({ ...c, auto: c.auto || CTA_AUTO_OFICIAL[c.codigo] || '' }));
+            conta.planOrigen = 'oficial';
+            try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Plan oficial Res. 494/2016 cargado (' + conta.plan.length + ' cuentas)'); location.reload(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('planDueno').addEventListener('click', async () => {
+            if ((conta.asientos || []).length) { aviso('Con asientos ya hechos no se puede cambiar el plan: descuadraría la historia', 'error'); return; }
+            conta.plan = PLAN_DUENO;
+            conta.planOrigen = 'dueno';
+            try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Plan del dueño restaurado (' + conta.plan.length + ' cuentas)'); location.reload(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         $('feMes').value = new Date().toISOString().slice(0, 7);
