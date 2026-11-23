@@ -75,6 +75,7 @@ export function bd() {
                 baseElegir: (nombre) => rpcMarco('baseElegir', [nombre]),
                 docLeer: (token, slot) => rpcMarco('docLeer', [token, slot]),
                 docGuardar: (token, slot, valor) => rpcMarco('docGuardar', [token, slot, valor]),
+                trazas: (token, mes) => rpcMarco('trazas', [token, mes]),
                 negocios: (token) => rpcMarco('negocios', [token]),
                 negocioCrear: (token, nombre) => rpcMarco('negocioCrear', [token, nombre]),
             };
@@ -111,6 +112,7 @@ export function exponerBase() {
         baseElegir: (nombre) => duena.baseElegir(nombre),
         docLeer: (token, slot) => duena.docLeer(token, slot),
         docGuardar: (token, slot, valor) => duena.docGuardar(token, slot, valor),
+        trazas: (token, mes) => duena.trazas(token, mes),
         negocios: (token) => duena.negocios(token),
         negocioCrear: (token, nombre) => duena.negocioCrear(token, nombre),
     };

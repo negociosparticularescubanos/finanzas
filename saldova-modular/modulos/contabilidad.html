@@ -36,6 +36,7 @@
 <body>
 <h1>Contabilidad</h1>
 <p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+<div id="pestBar" class="pest-bar"></div>
 
 <div class="tarjeta">
     <h2>Bandeja de comprobantes (desde la Chequera)</h2>
@@ -70,6 +71,12 @@
     <table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead>
     <tbody id="tablaBalance"><tr><td colspan="5" class="tenue">Cargando…</td></tr></tbody></table>
     <p id="balanceNota" class="tenue"></p>
+    <p id="saldosInversos"></p>
+</div>
+
+<div class="tarjeta" id="tarjetaSubmayor">
+    <h2>Submayor de la cuenta</h2>
+    <div id="submayor"><p class="tenue">Toca el código de una cuenta en el Balance de comprobación y aquí ves cada asiento que la tocó, con el saldo paso a paso.</p></div>
 </div>
 
 <div class="tarjeta">
@@ -109,6 +116,12 @@
     <p class="tenue">El plan solo se cambia con la contabilidad vacía (sin asientos), igual que en la web: con asientos ya hechos, cambiar el plan descuadraría la historia. Al cargar el oficial, las cuentas automáticas se resuelven por las equivalencias (ventas 801→900, costo 695→810, mercancías 188→189…).</p>
 </div>
 
+<style>
+.pest-bar { display:flex; flex-wrap:wrap; gap:4px; margin:10px 0 12px; }
+.pest-bar button { background: linear-gradient(#DCE8F5,#C6D9EE); border:1px solid #8FA8C8; border-radius:6px 6px 0 0; padding:6px 12px; font-weight:600; color:#1A3E5E; cursor:pointer; }
+.pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
+@media print { body * { visibility: hidden; } #tarjetaSubmayor, #tarjetaSubmayor * { visibility: visible; } #tarjetaSubmayor { position: absolute; inset: 0; box-shadow: none; } }
+</style>
 <script type="module">
 import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
 import 'componentes';
@@ -118,6 +131,10 @@ import { PLAN_OFICIAL } from 'plan-oficial';
 aplicarFondo(2);
 
 const $ = (id) => document.getElementById(id);
+const PEST_GRUPOS = [['bandeja','Bandeja'],['asientos','Asientos'],['balance','Balance'],['recurrentes','Recurrentes'],['flujo','Flujo'],['patrimonio','Patrimonio'],['plan','Plan de cuentas']];
+function grupoDeTarjeta(t) { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Bandeja') === 0) return 'bandeja'; if (x.indexOf('Asientos confirmados') === 0) return 'asientos'; if (x.indexOf('Balance') === 0 || x.indexOf('Submayor') === 0) return 'balance'; if (x.indexOf('Asientos recurrentes') === 0) return 'recurrentes'; if (x.indexOf('Flujo') === 0) return 'flujo'; if (x.indexOf('Estado de cambios') === 0) return 'patrimonio'; if (x.indexOf('Plan de cuentas') === 0) return 'plan'; return 'bandeja'; }
+function cambiarPest(g) { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = grupoDeTarjeta(t) === g ? '' : 'none'; }); document.querySelectorAll('#pestBar button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); try { localStorage.setItem('saldova_pest_conta', g); } catch (e) {} }
+(function montarPest() { const bar = $('pestBar'); if (!bar) return; bar.innerHTML = PEST_GRUPOS.map((par) => '<button type="button" data-pest="' + par[0] + '">' + par[1] + '</button>').join(''); bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => cambiarPest(b.dataset.pest))); let g0 = 'bandeja'; try { g0 = localStorage.getItem('saldova_pest_conta') || 'bandeja'; } catch (e) {} cambiarPest(g0); })();
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const BANCO = { chequera: '110-010', tarjeta_cup: '110-010', tarjeta_usd: '110-020' };
@@ -288,13 +305,42 @@ function pintarBalance() {
         td += g.debe; th += g.haber;
         const cta = (conta.plan || []).find((c) => c.codigo === cod);
         const saldo = cta && cta.naturaleza === 'acreedora' ? g.haber - g.debe : g.debe - g.haber;
-        return '<tr><td>' + cod + '</td><td>' + nombreCuenta(cod) + '</td><td class="num">' + fmt(g.debe) + '</td><td class="num">' + fmt(g.haber) + '</td><td class="num">' + fmt(saldo) + '</td></tr>';
+        return '<tr><td><button type="button" class="chico secundario" data-sub="' + cod + '" title="Ver el submayor de esta cuenta">' + cod + '</button></td><td>' + nombreCuenta(cod) + '</td><td class="num">' + fmt(g.debe) + '</td><td class="num">' + fmt(g.haber) + '</td><td class="num">' + fmt(saldo) + '</td></tr>';
     }).join('');
     $('tablaBalance').innerHTML = (filas || '<tr><td colspan="5" class="tenue">Sin movimientos todavía.</td></tr>') +
         '<tr class="totales"><td colspan="2">TOTALES</td><td class="num">' + fmt(td) + '</td><td class="num">' + fmt(th) + '</td><td></td></tr>';
     $('balanceNota').textContent = por.size
         ? (r2(td) === r2(th) ? 'El balance cuadra: el Debe total iguala al Haber total.' : 'OJO: el balance NO cuadra (Debe ' + fmt(td) + ' ≠ Haber ' + fmt(th) + ').')
         : '';
+    pintarInversos(por);
+    $('tablaBalance').querySelectorAll('[data-sub]').forEach((b) => b.addEventListener('click', () => verSubmayor(b.dataset.sub)));
+}
+function pintarInversos(por) {
+    const mal = [];
+    for (const [cod, g] of por.entries()) {
+        const cta = (conta.plan || []).find((c) => c.codigo === cod);
+        if (!cta) continue;
+        const saldo = cta.naturaleza === 'acreedora' ? g.haber - g.debe : g.debe - g.haber;
+        if (saldo < -0.005) mal.push(cod + ' (' + (cta.nombre || '') + ')');
+    }
+    $('saldosInversos').innerHTML = mal.length ? '<span class="rojo">Ojo con estas cuentas: su saldo va al revés de lo normal — ' + mal.join(' · ') + '. Suele ser un asiento cruzado o una cuenta mal elegida; revísalas en el submayor (toca el código en el Balance).</span>' : '';
+}
+function verSubmayor(cod) {
+    cambiarPest('balance');
+    const cta = (conta.plan || []).find((c) => c.codigo === cod);
+    const nat = cta ? cta.naturaleza : 'deudora';
+    let saldo = 0;
+    const filas = [];
+    const orden = [...(conta.asientos || [])].sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : (a.numero || 0) - (b.numero || 0)));
+    for (const a of orden) for (const l of a.lineas) if (l.cuenta === cod) {
+        saldo += nat === 'acreedora' ? (Number(l.haber) || 0) - (Number(l.debe) || 0) : (Number(l.debe) || 0) - (Number(l.haber) || 0);
+        filas.push('<tr><td>' + a.fecha + '</td><td>' + (a.numero || '') + '</td><td>' + a.concepto + '</td><td class="num">' + (l.debe ? fmt(l.debe) : '') + '</td><td class="num">' + (l.haber ? fmt(l.haber) : '') + '</td><td class="num">' + fmt(saldo) + '</td></tr>');
+    }
+    $('submayor').innerHTML = '<p><b>' + cod + ' · ' + nombreCuenta(cod) + '</b> — cada asiento que tocó esta cuenta, con su saldo paso a paso.</p>' +
+      '<table><thead><tr><th>Fecha</th><th>Nº</th><th>Concepto</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead><tbody>' +
+      (filas.join('') || '<tr><td colspan="6" class="tenue">Esta cuenta no tiene asientos.</td></tr>') +
+      '</tbody></table><p><b>Saldo final: ' + fmt(saldo) + '</b> — tiene que ser el mismo que ves en el Balance de comprobación.</p>' +
+      '<div class="fila"><button type="button" class="secundario chico" onclick="window.print()">Imprimir submayor</button></div>';
 }
 function lineaManual() {
     const div = document.createElement('div');

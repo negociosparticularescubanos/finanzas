@@ -8,6 +8,9 @@
 { "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
 </script>
 <style>
+.pest-bar { display:flex; flex-wrap:wrap; gap:4px; margin:10px 0 12px; }
+.pest-bar button { background: linear-gradient(#DCE8F5,#C6D9EE); border:1px solid #8FA8C8; border-radius:6px 6px 0 0; padding:6px 12px; font-weight:600; color:#1A3E5E; cursor:pointer; }
+.pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
     body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; margin: 0; padding: 14px; background: #D8E6F3; }
     h1 { font-size: 19px; margin: 2px 0 10px; color: #1A3E5E; }
     .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 7px; padding: 13px 15px; margin-bottom: 12px; }
@@ -115,6 +118,28 @@
     <h2>Bus de módulos</h2>
     <p>Los módulos se avisan entre sí sin servidor. Este botón manda un aviso al index principal.</p>
     <button id="btnBus">Avisar al index</button>
+</div>
+
+
+<div class="tarjeta">
+    <h2>Datos del negocio (para facturas e informes)</h2>
+    <p class="tenue">Un solo sitio: lo que pongas aquí sale en la cabecera de los informes y de las facturas. Se guarda en los datos fiscales del negocio activo.</p>
+    <div class="fila"><input id="dnRazon" placeholder="Nombre / razón social" style="flex:1;min-width:200px"><input id="dnNit" placeholder="NIT" style="width:170px"></div>
+    <div class="fila"><input id="dnDireccion" placeholder="Dirección" style="flex:1;min-width:200px"><input id="dnTelefono" placeholder="Teléfono" style="width:170px"></div>
+    <div class="fila"><input id="dnCuenta" placeholder="Cuenta bancaria fiscal" style="flex:1;min-width:200px"><button type="button" id="dnGuardar">Guardar datos</button></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Quién hizo qué (trazas)</h2>
+    <p class="tenue">El registro de movimientos del sistema: quién entró y qué guardó cada quién. Es la base del Modo Revisión (Res. 86/2026: conservar los registros).</p>
+    <div class="fila"><input type="month" id="tzMes"><button type="button" id="tzVer" class="secundario chico">Ver trazas</button></div>
+    <div id="tzLista"><p class="tenue">Elige el mes y pulsa «Ver trazas» (sin mes: las últimas 300).</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Salvas automáticas</h2>
+    <p class="tenue">Al cerrar un mes en el módulo Cierre, la base se guarda sola en un archivo con fecha. Para restaurar una: ábrela con «Importar» en «Mi archivo de base de datos».</p>
+    <div id="salvasLista"><p class="tenue">Cargando…</p></div>
 </div>
 
 <script type="module">
@@ -354,6 +379,24 @@ document.getElementById('btnBus').addEventListener('click', () => {
     bus.postMessage({ tipo: 'aviso', texto: 'El Panel te saluda: la base y los módulos se hablan' });
     aviso('Aviso enviado al index por BroadcastChannel');
 });
+
+// --- Oleada 1: datos del negocio, trazas, salvas y pestañas del Panel ---
+const $p = (id) => document.getElementById(id);
+async function cargarDatosNegocio() { try { const f = await bd().docLeer(tokenSesion(), 'fiscal'); const m = (f && f.meta) || {}; $p('dnRazon').value = m.razon || ''; $p('dnNit').value = m.nit || ''; $p('dnDireccion').value = m.direccion || ''; $p('dnTelefono').value = m.telefono || ''; $p('dnCuenta').value = m.cuentaFiscal || ''; } catch (e) {} }
+$p('dnGuardar').addEventListener('click', async () => { try { const f = (await bd().docLeer(tokenSesion(), 'fiscal')) || { meta: {}, fuentes: [] }; f.meta = f.meta || {}; f.meta.razon = $p('dnRazon').value.trim(); f.meta.nit = $p('dnNit').value.trim(); f.meta.direccion = $p('dnDireccion').value.trim(); f.meta.telefono = $p('dnTelefono').value.trim(); f.meta.cuentaFiscal = $p('dnCuenta').value.trim(); await bd().docGuardar(tokenSesion(), 'fiscal', f); aviso('Datos del negocio guardados'); } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
+$p('tzVer').addEventListener('click', async () => { try { const filasT = await bd().trazas(tokenSesion(), $p('tzMes').value || null); $p('tzLista').innerHTML = filasT.length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + filasT.map((t) => '<tr><td>' + String(t.ts).slice(0, 16).replace('T', ' ') + '</td><td>' + t.usuario + '</td><td>' + t.accion + (t.slot ? ' · ' + t.slot : '') + '</td><td>' + (t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin movimientos registrados en ese período.</p>'; } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
+function pintarSalvas() { let lista = []; try { lista = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {} $p('salvasLista').innerHTML = lista.length ? lista.map((x) => '<div class="fila"><b>' + x.fecha + '</b><span class="tenue">salva automática al cerrar ' + x.mes + ' · archivo ' + x.archivo + '</span></div>').join('') : '<p class="tenue">Todavía no hay salvas: se crean solas al cerrar un mes en el módulo Cierre.</p>'; }
+cargarDatosNegocio(); pintarSalvas();
+(function pestPanel() {
+    const grupos = [['base', 'Base'], ['acceso', 'Acceso'], ['negocio', 'Negocio'], ['equipo', 'Equipo']];
+    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Estado de la base|Tablas de la base|Mi archivo|Salvas/.test(x)) return 'base'; if (/Bases de datos|Negocios de esta base|Usuarios de esta base|Acceso con huella/.test(x)) return 'acceso'; if (/Datos del negocio|Quién hizo qué/.test(x)) return 'negocio'; return 'equipo'; };
+    const bar = document.createElement('div'); bar.className = 'pest-bar';
+    bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
+    const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
+    const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+    bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+    ir('base');
+})();
 </script>
 </body>
 </html>

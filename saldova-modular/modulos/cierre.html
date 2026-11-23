@@ -49,7 +49,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, guardarArchivoReal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(8);
@@ -163,6 +163,15 @@ function pintarCerrados() {
             await bd().docGuardar(tokenSesion(), 'hist', hist);
             await bd().docGuardar(tokenSesion(), 'conta', conta);
             aviso('Mes ' + mes + ' cerrado');
+            try {
+                const bytesC = await bd().exportar();
+                const nombreSalva = 'saldova-salva-' + mes + '.db';
+                await guardarArchivoReal(bytesC, nombreSalva, 'Salva automática de Saldova', '.db');
+                let sv = []; try { sv = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {}
+                sv.unshift({ fecha: new Date().toISOString().slice(0, 10), mes, archivo: nombreSalva });
+                localStorage.setItem('saldova_salvas', JSON.stringify(sv.slice(0, 24)));
+                aviso('Salva automática guardada: ' + nombreSalva);
+            } catch (e) { /* la salva es un extra: el cierre ya está hecho */ }
             pintarRevision(); pintarCerrados();
         });
         pintarRevision();

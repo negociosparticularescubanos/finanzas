@@ -129,6 +129,9 @@ function sesionValida(token) {
     return u.length ? u[0] : null;
 }
 const esAdmin = (token) => { const s = sesionValida(token); return s && s.role === 'admin' ? s : null; };
+function traza(usuario, accion, negocio, slot, detalle) {
+    try { db.exec({ sql: 'INSERT INTO trazas (ts, usuario, accion, negocio, slot, detalle) VALUES (?, ?, ?, ?, ?, ?)', bind: [new Date().toISOString(), usuario || '', accion, negocio || null, slot || null, detalle || null] }); } catch (e) {}
+}
 /* Los negocios de la base viven en config ('negocios', JSON): los crea
  * el administrador general tras entrar; los usuarios cuelgan de uno. */
 function listaNegocios() {
@@ -174,10 +177,18 @@ const api = {
         const f = filas(db, 'SELECT json FROM documentos WHERE negocio = ? AND slot = ?', [s.negocio, String(slot)]);
         return f.length ? JSON.parse(f[0].json) : null;
     },
+    async trazas(token, mes) {
+        await listo;
+        const s = sesionValida(token);
+        if (!s) throw new Error('Sesión expirada');
+        if (mes) return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas WHERE ts LIKE ? ORDER BY id DESC LIMIT 300', [String(mes) + '%']);
+        return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas ORDER BY id DESC LIMIT 300', []);
+    },
     async docGuardar(token, slot, valor) {
         await listo;
         const s = sesionValida(token);
         if (!s) throw new Error('Sesión expirada');
+        if (s.role === 'consultor') throw new Error('Tu usuario es de consulta (solo lectura): no puede guardar cambios');
         const txt = JSON.stringify(valor == null ? null : valor);
         if (txt.length > 3000000) throw new Error('Documento demasiado grande');
         const ahora = new Date().toISOString();
@@ -192,6 +203,7 @@ const api = {
             }
             db.exec('COMMIT');
         } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
+        traza(s.username, 'guardar', s.negocio, String(slot), 'Documento actualizado');
         return { ok: true };
     },
     async exportar() { await listo; return poolUtil.exportFile(activaArchivo); },
@@ -257,6 +269,7 @@ const api = {
         const token = tokenNuevo();
         const ahora = Math.floor(Date.now() / 1000);
         db.exec({ sql: 'INSERT INTO sesiones (token, username, creado, expira) VALUES (?, ?, ?, ?)', bind: [token, f[0].username, ahora, ahora + 30 * 24 * 3600] });
+        traza(f[0].username, 'entrar', f[0].negocio, null, 'Entrada al sistema');
         return { token, username: f[0].username, role: f[0].role, negocio: f[0].negocio, must_change: !!f[0].must_change, base: activaNombre };
     },
     async sesion(token) { await listo; return sesionValida(token); },
@@ -287,6 +300,7 @@ const api = {
             sql: 'INSERT INTO usuarios (username, hash, role, entity_type, socios, negocio) VALUES (?, ?, ?, ?, ?, ?)',
             bind: [username, await hashSecreto(clave), role, datos.entity_type || 'tcp', datos.socios || 0, negocio],
         });
+        traza(username, 'usuario-creado', negocio, null, 'Rol ' + role + ' creado por el administrador');
         return { ok: true };
     },
     async negocios(token) {

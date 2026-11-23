@@ -53,6 +53,20 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Créditos bancarios</h2>
+    <p class="tenue">La ficha de cada crédito con su tabla de amortización: cuánto pagas cada mes, cuánto es interés y cuánto baja la deuda. El alta y el pago de la cuota hacen su asiento solos (deuda en la 410, intereses en la 710-000, banco en la 110-010).</p>
+    <div class="fila">
+        <input id="crBanco" placeholder="Banco / entidad" style="flex:1;min-width:140px">
+        <input id="crMonto" type="number" step="0.01" min="0" placeholder="Monto" style="width:130px">
+        <input id="crPlazo" type="number" min="1" max="360" placeholder="Meses" style="width:80px" title="Plazo en meses">
+        <input id="crTasa" type="number" step="0.01" min="0" placeholder="Tasa % anual" style="width:110px">
+        <input id="crInicio" type="date" title="Fecha de inicio">
+        <button type="button" id="crAdd">Registrar crédito</button>
+    </div>
+    <div id="creditos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Vector fiscal del mes</h2>
     <div class="fila"><input type="month" id="vMes"><button type="button" id="vVer" class="secundario chico">Ver</button>
     <label><input type="checkbox" id="vAlimentos"> Ventas de alimentos de minindustria al detalle (5 % en vez de 10 %)</label></div>
@@ -91,6 +105,11 @@
     <div id="pdlDistribucion" class="tenue">Impuesto sobre utilidades 35 % → utilidad neta → Reserva de Pérdidas y Contingencias 10 % de la neta → retenido → aporte al CAM → resto a los titulares.</div>
 </div>
 
+<style>
+.pest-bar { display:flex; flex-wrap:wrap; gap:4px; margin:10px 0 12px; }
+.pest-bar button { background: linear-gradient(#DCE8F5,#C6D9EE); border:1px solid #8FA8C8; border-radius:6px 6px 0 0; padding:6px 12px; font-weight:600; color:#1A3E5E; cursor:pointer; }
+.pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
+</style>
 <script type="module">
 import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
 import 'componentes';
@@ -184,6 +203,79 @@ function pintarPdl() {
         $('pdlFideicomiso').innerHTML = '<div class="bien">Fondo de Fideicomiso aprobado/ejecutado: ' + fmt(m) + ' · Comisión del 4 % (Res. 118/2026 BCC): ' + fmt(r2(m * 0.04)) + ' · Total a reembolsar al fondo: ' + fmt(r2(m * 1.04)) + '.</div>';
     } else $('pdlFideicomiso').innerHTML = '';
 }
+function amortizacion(c) {
+    const P = Number(c.monto) || 0, n = Math.max(1, parseInt(c.plazo, 10) || 1), i = (Number(c.tasa) || 0) / 100 / 12;
+    const cuota = i > 0 ? P * i / (1 - Math.pow(1 + i, -n)) : P / n;
+    let saldo = P; const filasA = [];
+    for (let k = 1; k <= n; k++) {
+        const interes = saldo * i;
+        let capital = cuota - interes;
+        if (k === n) capital = saldo;
+        saldo = Math.max(0, saldo - capital);
+        filasA.push({ k, cuota: k === n ? capital + interes : cuota, interes, capital, saldo });
+    }
+    return filasA;
+}
+async function asientoCredito(lineas, concepto) {
+    const hoyF = new Date().toISOString().slice(0, 10);
+    if (!conta) conta = { asientos: [], seqAsiento: 0, recurrentes: [], gestion: { contratos: [], facturas: [] }, candados: {} };
+    conta.candados = conta.candados || {};
+    if (conta.candados[hoyF.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar el crédito', 'error'); return 0; }
+    conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+    conta.asientos = conta.asientos || [];
+    conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoyF, concepto, origen: 'credito', estado: 'confirmado', lineas });
+    await bd().docGuardar(tokenSesion(), 'conta', conta);
+    return conta.seqAsiento;
+}
+function pintarCreditos() {
+    const lista = fiscal.creditos || [];
+    $('creditos').innerHTML = lista.map((c) => {
+        const tab = amortizacion(c);
+        const pagos = c.pagos || 0;
+        const saldoVivo = pagos >= tab.length ? 0 : (pagos === 0 ? Number(c.monto) : tab[pagos - 1].saldo);
+        const prox = tab[pagos];
+        return '<div class="propuesta"><h3>' + (c.banco || 'Crédito') + ' · ' + fmt(c.monto) + ' a ' + c.plazo + ' meses · ' + c.tasa + ' % anual · desde ' + (c.inicio || '') + '</h3>' +
+        '<p>Cuota mensual: <b>' + fmt(tab[0].cuota) + '</b> · Intereses totales: ' + fmt(tab.reduce((x, f) => x + f.interes, 0)) + ' · Pagadas: ' + pagos + ' de ' + tab.length + ' · <b>Debes todavía: ' + fmt(r2(saldoVivo)) + '</b></p>' +
+        (prox ? '<p class="tenue">Próxima cuota (nº ' + prox.k + '): interés ' + fmt(prox.interes) + ' + capital ' + fmt(prox.capital) + ' = ' + fmt(prox.cuota) + '</p>' : '<p class="bien">Crédito saldado.</p>') +
+        '<div class="fila">' +
+        (c.asientoAlta ? '' : '<button type="button" class="chico secundario" data-alta="' + c.id + '">Asiento de alta (entra el dinero)</button>') +
+        (prox ? '<button type="button" class="chico" data-pagar="' + c.id + '">Pagar la cuota nº ' + prox.k + '</button>' : '') +
+        '<button type="button" class="chico secundario" data-tabla="' + c.id + '">Ver tabla</button>' +
+        '<button type="button" class="chico secundario" data-delcred="' + c.id + '">Borrar</button></div>' +
+        '<div id="tab-' + c.id + '"></div></div>';
+    }).join('') || '<p class="tenue">Sin créditos registrados.</p>';
+    const buscar = (id) => (fiscal.creditos || []).find((x) => x.id === id);
+    $('creditos').querySelectorAll('[data-alta]').forEach((b) => b.addEventListener('click', async () => {
+        const c = buscar(b.dataset.alta); if (!c) return;
+        try { const n = await asientoCredito([{ cuenta: '110-010', debe: r2(c.monto), haber: 0 }, { cuenta: '410', debe: 0, haber: r2(c.monto) }], 'Alta del crédito ' + (c.banco || '') + ' por ' + fmt(c.monto)); if (n) { c.asientoAlta = n; await guardar(); pintarCreditos(); aviso('Asiento nº ' + n + ': el dinero del crédito entró al banco'); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+    $('creditos').querySelectorAll('[data-pagar]').forEach((b) => b.addEventListener('click', async () => {
+        const c = buscar(b.dataset.pagar); if (!c) return;
+        const tab = amortizacion(c); const f = tab[c.pagos || 0]; if (!f) return;
+        try { const n = await asientoCredito([{ cuenta: '410', debe: r2(f.capital), haber: 0 }, { cuenta: '710-000', debe: r2(f.interes), haber: 0 }, { cuenta: '110-010', debe: 0, haber: r2(f.cuota) }], 'Pago de la cuota nº ' + f.k + ' del crédito ' + (c.banco || '')); if (n) { c.pagos = (c.pagos || 0) + 1; await guardar(); pintarCreditos(); aviso('Cuota nº ' + f.k + ' pagada con el asiento nº ' + n); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+    $('creditos').querySelectorAll('[data-tabla]').forEach((b) => b.addEventListener('click', () => {
+        const c = buscar(b.dataset.tabla); if (!c) return;
+        const caja = $('tab-' + c.id);
+        if (caja.innerHTML) { caja.innerHTML = ''; return; }
+        caja.innerHTML = '<table><thead><tr><th>Cuota</th><th class="num">Importe</th><th class="num">Interés</th><th class="num">Capital</th><th class="num">Saldo</th></tr></thead><tbody>' +
+            amortizacion(c).map((f) => '<tr><td>' + f.k + '</td><td class="num">' + fmt(f.cuota) + '</td><td class="num">' + fmt(f.interes) + '</td><td class="num">' + fmt(f.capital) + '</td><td class="num">' + fmt(f.saldo) + '</td></tr>').join('') + '</tbody></table>';
+    }));
+    $('creditos').querySelectorAll('[data-delcred]').forEach((b) => b.addEventListener('click', async () => {
+        fiscal.creditos = (fiscal.creditos || []).filter((x) => x.id !== b.dataset.delcred);
+        try { await guardar(); pintarCreditos(); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
+(function pestFiscal() {
+    const grupos = [['negocio', 'Negocio'], ['impuestos', 'Impuestos'], ['pdl', 'PDL']];
+    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Datos fiscales|Créditos/.test(x)) return 'negocio'; if (/Ficha del PDL/.test(x)) return 'pdl'; return 'impuestos'; };
+    const bar = document.createElement('div'); bar.className = 'pest-bar';
+    bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
+    const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
+    const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+    bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+    ir('negocio');
+})();
 async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal); }
 (async () => {
     try {
@@ -204,10 +296,18 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal
         $('fCuenta').value = fiscal.meta.cuentaFiscal || '';
         $('pfTipo').innerHTML = FUENTES.map((f) => '<option>' + f + '</option>').join('');
         $('fGuardar').addEventListener('click', async () => {
-            fiscal.meta = { tipo: $('fTipo').value, nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() };
+            fiscal.meta = Object.assign({}, fiscal.meta, { tipo: $('fTipo').value, nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() });
             try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
+        fiscal.creditos = fiscal.creditos || [];
+        $('crAdd').addEventListener('click', async () => {
+            const monto = Number($('crMonto').value) || 0, plazo = parseInt($('crPlazo').value, 10) || 0;
+            if (monto <= 0 || plazo <= 0) { aviso('Pon el monto y el plazo del crédito', 'error'); return; }
+            fiscal.creditos.push({ id: 'cr' + Date.now().toString(36), banco: $('crBanco').value.trim(), monto, plazo, tasa: Number($('crTasa').value) || 0, inicio: $('crInicio').value || '', pagos: 0 });
+            try { await guardar(); pintarCreditos(); aviso('Crédito registrado con su tabla de amortización'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        pintarCreditos();
         $('vMes').value = new Date().toISOString().slice(0, 7);
         $('vVer').addEventListener('click', pintarVector);
         $('vAlimentos').addEventListener('change', pintarVector);

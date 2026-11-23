@@ -34,6 +34,7 @@
 </head>
 <body>
 <h1>Informes</h1>
+<p id="cabNegocio" class="tenue"></p>
 <p class="no-imprimir"><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
 
 <div class="tarjeta">
@@ -166,6 +167,8 @@ function pintarBalanceGeneral(porAcum) {
         '<p class="tenue">' + (r2(activo) === pasivoPatrimonio ? 'El Balance General cuadra: Activo = Pasivo + Patrimonio.' : 'OJO: el Balance General no cuadra (Activo ' + fmt(activo) + ' ≠ Pasivo + Patrimonio ' + fmt(pasivoPatrimonio) + '). Revisa los asientos: puede faltar el asiento de apertura o sobrar algún movimiento.') + '</p>';
 }
 function pintarObligaciones(porAcum) {
+    const cabN = $('cabNegocio');
+    if (cabN && fiscal && fiscal.meta) cabN.textContent = [fiscal.meta.razon, fiscal.meta.nit ? 'NIT ' + fiscal.meta.nit : '', fiscal.meta.direccion || ''].filter(Boolean).join(' · ');
     const tipo = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
     const mes = $('iMes').value;
     const [yy, mm] = mes.split('-').map(Number);

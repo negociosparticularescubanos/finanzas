@@ -48,11 +48,28 @@
     <h2>Nómina del mes</h2>
     <div class="fila"><input type="month" id="nMes"><button type="button" id="nPreparar" class="secundario chico">Preparar desde los trabajadores</button>
     <button type="button" id="nGuardar">Guardar nómina</button>
-    <button type="button" id="nAsiento" class="secundario chico">Generar asiento</button></div>
+    <button type="button" id="nAsiento" class="secundario chico">Generar asiento</button>
+    <button type="button" id="nDias" class="secundario chico">Brutos desde los días</button></div>
     <p class="tenue">El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto; en el asiento, ambos van a la 615-000 como aportes patronales, y quedan por pagar en la 333-000 y la 334-000.</p>
     <div id="nomina"><p class="tenue">Elige el mes y prepara la nómina.</p></div>
 </div>
 
+<div class="tarjeta">
+    <h2>Vacaciones</h2>
+    <p class="tenue">Cada nómina acumula sola el 9,09 % del bruto y los días que tocan (días trabajados ÷ 11), y el asiento lleva su provisión. Este es el submayor: lo que se le debe de vacaciones a cada trabajador.</p>
+    <div id="vacTabla"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <select id="vacTrab"></select>
+        <input id="vacDias" type="number" step="0.5" min="0" placeholder="Días a disfrutar" style="width:150px">
+        <button type="button" id="vacPagar">Registrar disfrute y pagar</button>
+    </div>
+</div>
+
+<style>
+.pest-bar { display:flex; flex-wrap:wrap; gap:4px; margin:10px 0 12px; }
+.pest-bar button { background: linear-gradient(#DCE8F5,#C6D9EE); border:1px solid #8FA8C8; border-radius:6px 6px 0 0; padding:6px 12px; font-weight:600; color:#1A3E5E; cursor:pointer; }
+.pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
+</style>
 <script type="module">
 import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
 import 'componentes';
@@ -94,23 +111,42 @@ function pintarNomina() {
     const mes = $('nMes').value;
     const nom = nominaDelMes();
     if (!nom) { $('nomina').innerHTML = '<p class="tenue">No hay nómina guardada de ' + mes + '. Pulsa «Preparar» para crearla desde los trabajadores.</p>'; return; }
-    const filas = nom.trabajadores.map((t, i) =>
-        '<tr><td>' + t.nombre + '</td>' +
+    const filas = nom.trabajadores.map((t, i) => {
+        const bruto = Number(t.bruto) || 0, imp = Number(t.impPersonal) || 0, desc = Math.min(bruto - imp, Number(t.descuento) || 0);
+        return '<tr><td>' + t.nombre + '</td>' +
+        '<td class="num"><input class="monto" data-dias="' + i + '" type="number" step="1" min="0" max="31" value="' + (t.dias == null ? 30 : t.dias) + '" title="Días trabajados en el mes"></td>' +
         '<td class="num"><input class="monto" data-bruto="' + i + '" type="number" step="0.01" min="0" value="' + t.bruto + '"></td>' +
         '<td class="num"><input class="monto" data-imp="' + i + '" type="number" step="0.01" min="0" value="' + (t.impPersonal || 0) + '"></td>' +
-        '<td class="num">' + fmt((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0)) + '</td></tr>').join('');
-    const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
-    const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
-    $('nomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Bruto</th><th class="num">Imp. personal</th><th class="num">Líquido</th></tr></thead><tbody>' + filas +
-        '<tr class="totales"><td>TOTALES</td><td class="num">' + fmt(bruto) + '</td><td class="num">' + fmt(imp) + '</td><td class="num">' + fmt(bruto - imp) + '</td></tr></tbody></table>' +
+        '<td class="num"><input class="monto" data-desc="' + i + '" type="number" step="0.01" min="0" value="' + (t.descuento || 0) + '" title="Descuento del mes (embargos, cuotas…): si no alcanza el líquido, el resto queda pendiente para el mes siguiente"></td>' +
+        '<td class="num">' + fmt(bruto - imp - desc) + '</td></tr>';
+    }).join('');
+    const bruto = r2(nom.trabajadores.reduce((x, t) => x + (Number(t.bruto) || 0), 0));
+    const imp = r2(nom.trabajadores.reduce((x, t) => x + (Number(t.impPersonal) || 0), 0));
+    const desc = r2(nom.trabajadores.reduce((x, t) => x + Math.min((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0), 0));
+    const prov = r2(bruto * 0.0909);
+    $('nomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días</th><th class="num">Bruto</th><th class="num">Imp. personal</th><th class="num">Descuento</th><th class="num">Líquido</th></tr></thead><tbody>' + filas +
+        '<tr class="totales"><td>TOTALES</td><td></td><td class="num">' + fmt(bruto) + '</td><td class="num">' + fmt(imp) + '</td><td class="num">' + fmt(desc) + '</td><td class="num">' + fmt(bruto - imp - desc) + '</td></tr></tbody></table>' +
         '<p class="tenue">Aportes del empleador sobre el bruto: Seguridad Social 14 % = ' + fmt(r2(bruto * 0.14)) + ' · IUFT 5 % = ' + fmt(r2(bruto * 0.05)) +
-        '. Costo total de la nómina: ' + fmt(r2(bruto * 1.19)) + '.' + (nom.asientoId ? ' Asiento ya generado (nº ' + nom.asientoNumero + ').' : '') + '</p>';
-    $('nomina').querySelectorAll('input[data-bruto], input[data-imp]').forEach((inp) => inp.addEventListener('change', () => {
-        const i = Number(inp.dataset.bruto !== undefined ? inp.dataset.bruto : inp.dataset.imp);
-        if (inp.dataset.bruto !== undefined) nom.trabajadores[i].bruto = Number(inp.value) || 0;
-        else nom.trabajadores[i].impPersonal = Number(inp.value) || 0;
+        '. Provisión de vacaciones (9,09 %): ' + fmt(prov) + '. Costo total de la nómina: ' + fmt(r2(bruto * 1.19 + prov)) + '.' + (nom.asientoId ? ' Asiento ya generado (nº ' + nom.asientoNumero + ').' : '') + '</p>';
+    $('nomina').querySelectorAll('input[data-bruto], input[data-imp], input[data-dias], input[data-desc]').forEach((inp) => inp.addEventListener('change', () => {
+        const ds = inp.dataset;
+        const i = Number(ds.bruto !== undefined ? ds.bruto : ds.imp !== undefined ? ds.imp : ds.dias !== undefined ? ds.dias : ds.desc);
+        if (ds.bruto !== undefined) nom.trabajadores[i].bruto = Number(inp.value) || 0;
+        else if (ds.imp !== undefined) nom.trabajadores[i].impPersonal = Number(inp.value) || 0;
+        else if (ds.dias !== undefined) nom.trabajadores[i].dias = Number(inp.value) || 0;
+        else nom.trabajadores[i].descuento = Number(inp.value) || 0;
         pintarNomina();
     }));
+}
+function pintarVacaciones() {
+    const vac = rrhh.vacaciones || {};
+    const filasV = (rrhh.trabajadores || []).map((t) => {
+        const v = vac[t.id] || { dias: 0, dinero: 0, disfrutes: [] };
+        const disfr = (v.disfrutes || []).reduce((x, d) => x + (Number(d.dias) || 0), 0);
+        return '<tr><td>' + t.nombre + '</td><td class="num">' + fmt(v.dias) + '</td><td class="num">' + fmt(v.dinero) + '</td><td class="num">' + fmt(disf) + '</td></tr>';
+    }).join('');
+    $('vacTabla').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días acumulados</th><th class="num">Dinero acumulado</th><th class="num">Días disfrutados</th></tr></thead><tbody>' + (filasV || '<tr><td colspan="4" class="tenue">Sin trabajadores.</td></tr>') + '</tbody></table>';
+    $('vacTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + t.nombre + '</option>').join('');
 }
 (async () => {
     try {
@@ -121,6 +157,8 @@ function pintarNomina() {
         rrhh = (await bd().docLeer(tokenSesion(), 'rrhh')) || {};
         rrhh.trabajadores = rrhh.trabajadores || [];
         rrhh.nominas = rrhh.nominas || {};
+        rrhh.vacaciones = rrhh.vacaciones || {};
+        rrhh.descuentos = rrhh.descuentos || {};
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
         $('tAdd').addEventListener('click', async () => {
             const nombre = $('tNombre').value.trim();
@@ -136,7 +174,7 @@ function pintarNomina() {
             const mes = $('nMes').value;
             if (!rrhh.trabajadores.length) { aviso('Primero añade los trabajadores', 'error'); return; }
             if (nominaDelMes() && !confirm('Ya hay una nómina de ' + mes + '. ¿Prepararla de nuevo desde los trabajadores?')) return;
-            rrhh.nominas[mes] = { trabajadores: rrhh.trabajadores.map((t) => ({ id: t.id, nombre: t.nombre, bruto: t.salario, impPersonal: 0 })) };
+            rrhh.nominas[mes] = { trabajadores: rrhh.trabajadores.map((t) => ({ id: t.id, nombre: t.nombre, bruto: t.salario, impPersonal: 0, dias: 30, descuento: (rrhh.descuentos && rrhh.descuentos[t.id]) || 0 })) };
             await guardar(); pintarNomina(); aviso('Nómina de ' + mes + ' preparada');
         });
         $('nGuardar').addEventListener('click', async () => {
@@ -151,22 +189,64 @@ function pintarNomina() {
             if (conta.candados && conta.candados[mes]) { aviso('El mes ' + mes + ' está cerrado: no se puede asentar la nómina en un período cerrado', 'error'); return; }
             const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
             const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
-            const ss = r2(bruto * 0.14), iuft = r2(bruto * 0.05), liquido = r2(bruto - imp);
+            const ss = r2(bruto * 0.14), iuft = r2(bruto * 0.05);
+            let descTotal = 0;
+            nom.trabajadores.forEach((t) => { const ap = Math.min((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0); t.descAplicado = r2(ap); descTotal = r2(descTotal + ap); rrhh.descuentos[t.id] = r2((Number(t.descuento) || 0) - ap); });
+            const liquido = r2(bruto - imp - descTotal);
+            const prov = r2(bruto * 0.0909);
             if (bruto <= 0) { aviso('La nómina está en cero', 'error'); return; }
             const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
             const lineas = [L('614-000', bruto), L('615-000', r2(ss + iuft)), L('331-000', 0, liquido), L('333-000', 0, ss), L('334-000', 0, iuft)];
             if (imp > 0) lineas.push(L('345-000', 0, imp));
+            if (descTotal > 0) lineas.push(L('332-000', 0, descTotal));
+            if (prov > 0) { lineas.push(L('614-000', prov)); lineas.push(L('331-000', 0, prov)); }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
             conta.asientos.push({ id, numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Nómina de ' + mes, origen: 'manual', estado: 'confirmado', lineas });
             nom.asientoId = id; nom.asientoNumero = conta.seqAsiento;
+            nom.trabajadores.forEach((t) => { const v = rrhh.vacaciones[t.id] || (rrhh.vacaciones[t.id] = { dias: 0, dinero: 0, disfrutes: [] }); v.dias = r2(v.dias + (Number(t.dias == null ? 30 : t.dias) || 0) / 11); v.dinero = r2(v.dinero + (Number(t.bruto) || 0) * 0.0909); });
             await bd().docGuardar(tokenSesion(), 'conta', conta);
             await guardar();
             aviso('Asiento nº ' + conta.seqAsiento + ' de la nómina creado en Contabilidad');
             pintarNomina();
         });
+        $('nDias').addEventListener('click', async () => {
+            const nom = nominaDelMes();
+            if (!nom) { aviso('Primero prepara la nómina del mes', 'error'); return; }
+            nom.trabajadores.forEach((t) => { const base = (rrhh.trabajadores || []).find((x) => x.id === t.id); if (base) t.bruto = r2((Number(base.salario) || 0) * (Number(t.dias == null ? 30 : t.dias) || 0) / 30); });
+            await guardar(); pintarNomina(); aviso('Brutos calculados: salario × días ÷ 30 (siguen siendo editables)');
+        });
+        $('vacPagar').addEventListener('click', async () => {
+            const idT = $('vacTrab').value; const diasD = Number($('vacDias').value) || 0;
+            const v = (rrhh.vacaciones || {})[idT];
+            if (!v || diasD <= 0) { aviso('Elige el trabajador y los días a disfrutar', 'error'); return; }
+            if (diasD > v.dias) { aviso('Solo tiene ' + fmt(v.dias) + ' días acumulados', 'error'); return; }
+            const mesHoy = new Date().toISOString().slice(0, 7);
+            if (conta.candados && conta.candados[mesHoy]) { aviso('Este mes está cerrado', 'error'); return; }
+            const pago = v.dias > 0 ? r2(v.dinero / v.dias * diasD) : 0;
+            v.dias = r2(v.dias - diasD); v.dinero = r2(v.dinero - pago);
+            v.disfrutes = v.disfrutes || []; v.disfrutes.push({ fecha: new Date().toISOString().slice(0, 10), dias: diasD, pago });
+            if (pago > 0) {
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: new Date().toISOString().slice(0, 10), concepto: 'Pago de vacaciones (' + diasD + ' días)', origen: 'manual', estado: 'confirmado', lineas: [{ cuenta: '331-000', debe: pago, haber: 0 }, { cuenta: '110-010', debe: 0, haber: pago }] });
+                await bd().docGuardar(tokenSesion(), 'conta', conta);
+            }
+            await guardar(); pintarVacaciones();
+            aviso('Vacaciones registradas: ' + diasD + ' días por ' + fmt(pago) + (pago > 0 ? ' (asiento nº ' + conta.seqAsiento + ')' : ''));
+        });
+        (function pestNomina() {
+            const grupos = [['plantilla', 'Plantilla'], ['nomina', 'Nómina'], ['vacaciones', 'Vacaciones']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Trabajadores') === 0) return 'plantilla'; if (x.indexOf('Vacaciones') === 0) return 'vacaciones'; return 'nomina'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
+            const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('nomina');
+        })();
         pintarTrabajadores();
         pintarNomina();
+        pintarVacaciones();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }
