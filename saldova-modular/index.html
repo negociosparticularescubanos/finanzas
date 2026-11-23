@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg">
 <script type="importmap">
-{ "imports": { "nucleo": "./nucleo.js", "componentes": "./componentes.js" } }
+{ "imports": { "nucleo": "./nucleo.js", "componentes": "./componentes.js", "fondos": "./fondos.js" } }
 </script>
 <script src="libs/winbox.bundle.min.js"></script>
 <style>
@@ -86,9 +86,17 @@
 </main>
 <script type="module">
 import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal } from 'nucleo';
+import { aplicarFondo } from 'fondos';
 import 'componentes';
 
 exponerBase();
+/* El fondo de atrás (donde aparecen las ventanas) también lleva las
+ * fotos de Leonardo, intercaladas en cada visita; la cinta no se toca. */
+try {
+    const turno = parseInt(localStorage.getItem('saldova_fondo_turno') || '0', 10) || 0;
+    aplicarFondo(turno % 2);
+    localStorage.setItem('saldova_fondo_turno', String(turno + 1));
+} catch (e) { /* sin fondo si el navegador lo impide */ }
 let haySesion = false;
 
 const MODULOS = [
