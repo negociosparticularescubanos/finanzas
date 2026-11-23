@@ -209,6 +209,7 @@ function pintarVacaciones() {
             await guardar();
             aviso('Asiento nº ' + conta.seqAsiento + ' de la nómina creado en Contabilidad');
             pintarNomina();
+            pintarVacaciones();
         });
         $('nDias').addEventListener('click', async () => {
             const nom = nominaDelMes();
@@ -240,7 +241,7 @@ function pintarVacaciones() {
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
             const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
-            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); if (g === 'vacaciones') pintarVacaciones(); };
             bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
             ir('nomina');
         })();
