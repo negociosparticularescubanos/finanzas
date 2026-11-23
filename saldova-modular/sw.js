@@ -1,12 +1,12 @@
 /* Saldova modular — Service Worker (PWA): todo el proyecto queda
  * guardado en el equipo y abre sin internet. Subir la versión del
  * caché al publicar cambios. */
-const CACHE = 'saldova-modular-v4';
+const CACHE = 'saldova-modular-v5';
 const ARCHIVOS = [
     './', 'index.html', 'nucleo.js', 'componentes.js', 'db-worker.mjs',
     'libs/winbox.bundle.min.js', 'libs/comlink.mjs', 'libs/comlink.js',
     'libs/sqlite3/index.mjs', 'libs/sqlite3/sqlite3-opfs-async-proxy.js', 'libs/sqlite3/sqlite3.wasm.b64',
-    'modulos/panel.html', 'sql/esquema.sql', 'sql/esquema-datos.sql',
+    'modulos/panel.html', 'modulos/chequera.html', 'sql/esquema.sql', 'sql/esquema-datos.sql',
     'manifest.webmanifest', 'icono.svg',
 ];
 

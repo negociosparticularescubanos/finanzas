@@ -73,6 +73,8 @@ export function bd() {
                 bases: () => rpcMarco('bases'),
                 baseCrear: (datos) => rpcMarco('baseCrear', [datos]),
                 baseElegir: (nombre) => rpcMarco('baseElegir', [nombre]),
+                docLeer: (token, slot) => rpcMarco('docLeer', [token, slot]),
+                docGuardar: (token, slot, valor) => rpcMarco('docGuardar', [token, slot, valor]),
             };
         } else {
             const w = new Worker(new URL('./db-worker.mjs', import.meta.url), { type: 'module' });
@@ -105,6 +107,8 @@ export function exponerBase() {
         bases: () => duena.bases(),
         baseCrear: (datos) => duena.baseCrear(datos),
         baseElegir: (nombre) => duena.baseElegir(nombre),
+        docLeer: (token, slot) => duena.docLeer(token, slot),
+        docGuardar: (token, slot, valor) => duena.docGuardar(token, slot, valor),
     };
     window.addEventListener('message', async (ev) => {
         const d = ev.data || {};

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Chequera y tarjetas</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; margin: 0; padding: 14px; background: #D8E6F3; }
+    h1 { font-size: 19px; margin: 2px 0 10px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 7px; padding: 13px 15px; margin-bottom: 12px; }
+    .tarjeta h2 { font-size: 15px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta p { margin: 5px 0; line-height: 1.45; font-size: 14px; }
+    button {
+        background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; border-radius: 5px;
+        padding: 7px 13px; cursor: pointer; font-size: 13.5px; color: #14324F; margin: 3px 4px 3px 0;
+    }
+    button:hover { filter: brightness(1.06); }
+    button.principal { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 600; }
+    button[disabled] { opacity: .5; cursor: default; }
+    table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+    th { background: #2B78C5; color: #fff; text-align: left; padding: 5px 8px; }
+    td { border-bottom: 1px solid #C6D9EE; padding: 4px 8px; vertical-align: top; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; border-top: 2px solid #2B78C5; }
+    tr.inicial td { background: #EBF3FC; font-style: italic; }
+    .rojo { color: #B23218; font-weight: 700; }
+    .tenue { color: #5A7186; font-size: 13px; }
+    .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    .campo { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+    .campo input, .campo select { padding: 6px 8px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 14px; background: #fff; }
+    .cuentas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .cuentas button.activa { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 700; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Chequera y tarjetas</h1>
+
+<div class="tarjeta">
+    <p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+    <div class="cuentas" id="cuentas"></div>
+    <div class="fila">
+        <label class="campo">Mes
+            <input type="month" id="mes">
+        </label>
+        <span class="tenue" id="resumenMes"></span>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Movimientos del mes</h2>
+    <table>
+        <thead><tr>
+            <th>Fecha</th><th>Concepto</th><th>Clasificación</th>
+            <th class="num">Ingreso</th><th class="num">Gasto</th><th class="num">Saldo</th><th></th>
+        </tr></thead>
+        <tbody id="tablaMovs"><tr><td colspan="7" class="tenue">Cargando…</td></tr></tbody>
+    </table>
+    <p class="tenue">Lo que queda <span class="rojo">«Por clasificar»</span> en rojo NO se contabiliza:
+       se clasifica aquí mismo, editando el movimiento, y la Contabilidad lo tomará ya clasificado.
+       Las transferencias entre tus cuentas mueven el saldo pero no cuentan como ingreso ni gasto.</p>
+</div>
+
+<div class="tarjeta">
+    <h2 id="formTitulo">Añadir movimiento a mano</h2>
+    <div class="fila">
+        <label class="campo">Fecha <input type="date" id="fFecha"></label>
+        <label class="campo" style="flex:1;min-width:220px">Concepto <input type="text" id="fConcepto" placeholder="Concepto del movimiento"></label>
+        <label class="campo">Tipo
+            <select id="fTipo"><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option></select>
+        </label>
+        <label class="campo">Clasificación <input type="text" id="fClasificacion" list="clases" placeholder="Por clasificar"></label>
+        <datalist id="clases">
+            <option value="Ventas"></option><option value="Compra de mercancías"></option>
+            <option value="Compra de materias primas"></option><option value="Pago de ONAT"></option>
+            <option value="Salarios"></option><option value="Seguridad Social"></option>
+            <option value="Servicios recibidos"></option><option value="Comisión bancaria"></option>
+            <option value="Transferencia entre cuentas"></option><option value="Aporte de capital"></option>
+        </datalist>
+        <label class="campo">Monto <input type="number" id="fMonto" min="0" step="0.01" style="width:130px"></label>
+        <button class="principal" id="btnGuardarMov">Guardar</button>
+        <button id="btnCancelarEd" style="display:none">Cancelar</button>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Importar el estado de cuenta (PDF de BANDEC)</h2>
+    <p>El estado que descargas de Virtual BANDEC entra tal cual: la app lo lee, clasifica lo que
+       entiende (transferencias entre tus cuentas, cobros por correo/QR, pagos de ONAT con código,
+       salarios, aportes a la reserva de contingencia y utilidades a socios) y lo demás lo deja
+       <span class="rojo">«Por clasificar»</span>. Nada se guarda sin que veas antes la vista previa,
+       y lo que ya importaste no se duplica (se reconoce por su referencia).</p>
+    <div class="fila">
+        <label class="campo">Archivo PDF del estado
+            <input type="file" id="fPdf" accept=".pdf,application/pdf">
+        </label>
+        <button class="principal" id="btnLeerPdf">Leer el PDF</button>
+        <span class="tenue" id="pdfEstado"></span>
+    </div>
+    <div id="previa"></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Conciliación bancaria</h2>
+    <p id="conciliacion" class="tenue">Cuando importes un estado, aquí verás el saldo según tus libros
+       contra el saldo según el banco y la diferencia, como pide el manual de Finanzas de Versat
+       (método del saldo ajustado).</p>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion, bus } from 'nucleo';
+import 'componentes';
+
+const $ = (id) => document.getElementById(id);
+const CUENTAS = [
+    { id: 'chequera', nombre: 'Chequera (banco CUP)' },
+    { id: 'tarjeta_cup', nombre: 'Tarjeta CUP' },
+    { id: 'tarjeta_usd', nombre: 'Tarjeta USD' },
+];
+const dinero = (n) => (n == null || isNaN(n)) ? '' :
+    Number(n).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let token = null, sesion = null;
+let movs = [];
+let cuentaActiva = 'chequera';
+let editandoId = null;
+let previaOps = null;
+
+function mesActual() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function guardar() {
+    return bd().docGuardar(token, 'mov', movs);
+}
+function claveConciliacion() { return 'saldova_conciliacion_' + cuentaActiva; }
+
+function pintarCuentas() {
+    $('cuentas').innerHTML = CUENTAS.map((c) =>
+        '<button data-cuenta="' + c.id + '"' + (c.id === cuentaActiva ? ' class="activa"' : '') + '>' + c.nombre + '</button>'
+    ).join('');
+    document.querySelectorAll('#cuentas button').forEach((b) => {
+        b.onclick = () => { cuentaActiva = b.dataset.cuenta; editandoId = null; pintarCuentas(); pintarTabla(); pintarConciliacion(); };
+    });
+}
+
+function pintarTabla() {
+    const mes = $('mes').value || mesActual();
+    const deLaCuenta = movs.filter((m) => (m.cuenta || 'chequera') === cuentaActiva)
+        .slice().sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+    let saldo = 0;
+    for (const m of deLaCuenta) { if (m.fecha.slice(0, 7) < mes) saldo += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto || 0); }
+    const delMes = deLaCuenta.filter((m) => m.fecha.slice(0, 7) === mes);
+    let html = '<tr class="inicial"><td colspan="5">Saldo inicial del mes</td><td class="num">' + dinero(saldo) + '</td><td></td></tr>';
+    let totI = 0, totG = 0;
+    for (const m of delMes) {
+        const monto = Number(m.monto || 0);
+        saldo += (m.tipo === 'ingreso' ? 1 : -1) * monto;
+        if (m.tipo === 'ingreso') totI += monto; else totG += monto;
+        const sinClase = !m.clasificacion || m.clasificacion === 'Por clasificar';
+        html += '<tr><td style="white-space:nowrap">' + esc(m.fecha) + '</td>' +
+            '<td>' + esc(m.concepto) + (m.qr ? ' <span class="tenue">(QR)</span>' : '') + '</td>' +
+            '<td' + (sinClase ? ' class="rojo"' : '') + '>' + esc(sinClase ? 'Por clasificar' : m.clasificacion) + '</td>' +
+            '<td class="num">' + (m.tipo === 'ingreso' ? dinero(monto) : '') + '</td>' +
+            '<td class="num">' + (m.tipo === 'gasto' ? dinero(monto) : '') + '</td>' +
+            '<td class="num">' + dinero(saldo) + '</td>' +
+            '<td style="white-space:nowrap"><button data-editar="' + m.id + '">Editar</button>' +
+            '<button data-borrar="' + m.id + '">Borrar</button></td></tr>';
+    }
+    if (!delMes.length) html += '<tr><td colspan="7" class="tenue">Sin movimientos en este mes para esta cuenta. Importa el estado de cuenta o añade uno a mano.</td></tr>';
+    html += '<tr class="totales"><td colspan="3">Totales del mes</td><td class="num">' + dinero(totI) +
+        '</td><td class="num">' + dinero(totG) + '</td><td class="num">' + dinero(saldo) + '</td><td></td></tr>';
+    $('tablaMovs').innerHTML = html;
+    $('resumenMes').textContent = delMes.length + ' movimiento(s) · saldo al cierre del mes: ' + dinero(saldo);
+    document.querySelectorAll('[data-editar]').forEach((b) => { b.onclick = () => editar(b.dataset.editar); });
+    document.querySelectorAll('[data-borrar]').forEach((b) => { b.onclick = () => borrar(b.dataset.borrar); });
+}
+
+function pintarConciliacion() {
+    let datos = null;
+    try { datos = JSON.parse(localStorage.getItem(claveConciliacion()) || 'null'); } catch (e) { /* nada */ }
+    if (!datos || datos.saldoBanco == null) return;
+    const mes = $('mes').value || mesActual();
+    let saldoLibros = 0;
+    for (const m of movs) {
+        if ((m.cuenta || 'chequera') !== cuentaActiva) continue;
+        if (m.fecha.slice(0, 7) <= mes) saldoLibros += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto || 0);
+    }
+    const dif = Math.round((saldoLibros - datos.saldoBanco) * 100) / 100;
+    $('conciliacion').innerHTML =
+        'Saldo según tus libros (fin de ' + esc(mes) + '): <b>' + dinero(saldoLibros) + '</b> · ' +
+        'Saldo según el banco (estado importado el ' + esc(datos.fecha || '') + '): <b>' + dinero(datos.saldoBanco) + '</b> · ' +
+        'Diferencia: <b' + (Math.abs(dif) < 0.005 ? '' : ' class="rojo"') + '>' + dinero(dif) + '</b>' +
+        (Math.abs(dif) < 0.005 ? ' — la cuenta concilia.' : ' — hay diferencia: revisa si falta importar un estado o sobra un movimiento.');
+}
+
+function editar(id) {
+    const m = movs.find((x) => String(x.id) === String(id));
+    if (!m) return;
+    editandoId = m.id;
+    $('fFecha').value = m.fecha || '';
+    $('fConcepto').value = m.concepto || '';
+    $('fTipo').value = m.tipo || 'gasto';
+    $('fClasificacion').value = (m.clasificacion === 'Por clasificar') ? '' : (m.clasificacion || '');
+    $('fMonto').value = m.monto || '';
+    $('formTitulo').textContent = 'Editar movimiento';
+    $('btnCancelarEd').style.display = '';
+    $('fConcepto').focus();
+}
+async function borrar(id) {
+    if (!confirm('¿Borrar este movimiento?')) return;
+    movs = movs.filter((x) => String(x.id) !== String(id));
+    try { await guardar(); aviso('Movimiento borrado'); pintarTabla(); pintarConciliacion(); }
+    catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
+function cancelarEd() {
+    editandoId = null;
+    $('fFecha').value = ''; $('fConcepto').value = ''; $('fClasificacion').value = ''; $('fMonto').value = '';
+    $('formTitulo').textContent = 'Añadir movimiento a mano';
+    $('btnCancelarEd').style.display = 'none';
+}
+async function guardarMov() {
+    const fecha = $('fFecha').value, concepto = $('fConcepto').value.trim(),
+        tipo = $('fTipo').value, monto = parseFloat($('fMonto').value);
+    if (!fecha || !concepto || !(monto > 0)) { aviso('Faltan la fecha, el concepto o un monto válido', 'error'); return; }
+    const clasificacion = $('fClasificacion').value.trim() || 'Por clasificar';
+    if (editandoId) {
+        const m = movs.find((x) => String(x.id) === String(editandoId));
+        if (m) Object.assign(m, { fecha, concepto, tipo, clasificacion, monto });
+    } else {
+        movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase: 'normal' });
+    }
+    try {
+        await guardar();
+        aviso(editandoId ? 'Movimiento actualizado' : 'Movimiento guardado');
+        cancelarEd(); pintarTabla(); pintarConciliacion();
+        bus.postMessage({ tipo: 'datos', slot: 'mov' });
+    } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
+
+/* ===== Lector de estados BANDEC (portado de pdf-import.js de Finanzas
+   web: mismas expresiones y mismas reglas de clasificación) ===== */
+const RE_INICIO = /^(\d{2})\/(\d{2})\/(\d{4})\s+([A-Z0-9]{13})\s+([A-Z0-9]{6,14})\s*(.*)$/;
+const RE_FIN = /(-?[\d,]+\.\d{2})\s+(Cr|Db)(?:\s+(-?[\d,]+\.\d{2}))?\s*$/;
+const RE_OMITIR = /^(Saldo (Contable|Reservado|Sobre Giro|Disponible)|Estados de Cuenta|Movimientos Tarjetas|Titular:|Tarjeta \[Cuenta\]:|Sucursal y Cuenta:|Fecha de Emisi|Rango de Fecha|Cantidad de Movimientos|Diferencia entre|FechaContab|Fecha Ref_Corriente|https?:\/\/|\d{1,2}\/\d{1,2}\/\d{2},)/;
+const normTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+function unirLinea(prev, nueva) {
+    if (/(?:^|[^A-Za-z])[A-Z]$/.test(prev) && /^[A-Z]/.test(nueva)) return prev + nueva;
+    if (/[A-Za-z]$/.test(prev) && /^[a-z]/.test(nueva)) return prev + nueva;
+    return prev + ' ' + nueva;
+}
+const limpiarConcepto = (t) => String(t).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+function fechaCalendarioOk(f) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(f || ''));
+    if (!m) return false;
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+function extraerFin(buf) {
+    if (buf.fin) return;
+    const m = RE_FIN.exec(buf.obs);
+    if (!m) return;
+    buf.fin = { monto: Math.abs(parseFloat(m[1].replace(/,/g, ''))), tipo: m[2] === 'Cr' ? 'ingreso' : 'gasto',
+        saldo: (m[3] !== undefined && m[3] !== '') ? parseFloat(m[3].replace(/,/g, '')) : null };
+    buf.obs = buf.obs.slice(0, m.index).replace(/\s+$/, '');
+}
+function cerrarBuf(buf) {
+    extraerFin(buf);
+    if (!buf.fin) return null;
+    return { fecha: buf.y + '-' + buf.mo + '-' + buf.d, refC: buf.refC, refO: buf.refO,
+        concepto: limpiarConcepto(buf.obs), monto: buf.fin.monto, tipo: buf.fin.tipo, saldo: buf.fin.saldo };
+}
+function volcarOp(buf, ops, invalidas) {
+    const p = cerrarBuf(buf);
+    if (!p) return;
+    if (fechaCalendarioOk(p.fecha)) ops.push(p); else if (invalidas) invalidas.push(p);
+}
+function parsearLineas(lineas, buf) {
+    const ops = [], invalidas = [];
+    let saldoLinea = null, saldoLineaIni = null, cantidadDeclarada = null;
+    lineas.forEach((line) => {
+        const ms = RE_INICIO.exec(line);
+        if (ms) {
+            if (buf) volcarOp(buf, ops, invalidas);
+            buf = { d: ms[1], mo: ms[2], y: ms[3], refC: ms[4], refO: ms[5], obs: ms[6] || '' };
+            extraerFin(buf);
+            return;
+        }
+        if (RE_OMITIR.test(line)) {
+            if (/^Saldo (Contable|Disponible)\b/.test(line)) {
+                const msl = /(-?[\d,]+\.\d{2})(?:\s+(?:Cr|Db))?\s*$/.exec(line);
+                if (msl) {
+                    saldoLinea = parseFloat(msl[1].replace(/,/g, ''));
+                    if (saldoLineaIni == null && /^Saldo (Contable|Disponible) Anterior\b/.test(line)) saldoLineaIni = saldoLinea;
+                }
+            }
+            const mcd = /^Cantidad de Movimientos:\s*(\d+)/.exec(line);
+            if (mcd && cantidadDeclarada == null) cantidadDeclarada = parseInt(mcd[1], 10);
+            if (buf) { volcarOp(buf, ops, invalidas); buf = null; }
+            return;
+        }
+        if (buf) { buf.obs = unirLinea(buf.obs, line); extraerFin(buf); }
+    });
+    return { ops, resto: buf, saldoLinea, saldoLineaIni, cantidadDeclarada, invalidas };
+}
+/* Clasificación (reglas de Leonardo, 2026-10-24/25): transferencia entre
+   cuentas propias (mueve saldo, no es ingreso), cobro por correo = venta
+   QR (801), ONAT solo con código de tributo en el concepto, y en gastos:
+   contingencia / utilidades / salario. Lo demás: «Por clasificar». */
+function clasificar(op) {
+    const t = normTxt(op.concepto || '');
+    const r = { clase: 'normal', qr: false, clasificacion: 'Por clasificar' };
+    if (/transferencia entre cuentas|traspaso entre cuentas/.test(t)) { r.clase = 'transferencia'; r.clasificacion = 'Transferencia entre cuentas'; }
+    const esCorreo = /credito recibido por correo electronico/.test(t) ||
+        t.replace(/\s/g, '').includes('creditorecibidoporcorreoelectronico');
+    if (/comercio electronico/.test(t) || esCorreo) r.qr = true;
+    const codigos = (String(op.concepto || '').match(/\d+/g) || []).filter((x) => x.length === 6 || x.length === 7);
+    if (codigos.length && (/\bonat\b/.test(t) || /tributo|impuesto|aporte/.test(t))) {
+        r.clase = 'onat'; r.clasificacion = 'Pago de ONAT (cód. ' + codigos[0] + ')';
+    }
+    if (r.clase === 'transferencia') r.qr = false;
+    if (op.tipo === 'gasto' && r.clase === 'normal') {
+        if (/contingencia/.test(t)) r.clasificacion = 'Reserva de contingencia (no es gasto)';
+        else if (/dividendo/.test(t) || (/utilidad/.test(t) && /socio/.test(t))) r.clasificacion = 'Utilidades a socios (no es gasto)';
+        else if (/salario|nomina/.test(t)) r.clasificacion = 'Salarios';
+    }
+    if (esCorreo && op.tipo === 'ingreso' && r.clase === 'normal') r.clasificacion = 'Ventas (cobro por correo/QR)';
+    if (/comision/.test(t) && op.tipo === 'gasto' && r.clase === 'normal') r.clasificacion = 'Comisión bancaria';
+    r.qr = r.qr && r.clase !== 'transferencia';
+    return r;
+}
+async function lineasDePagina(pdf, n) {
+    const page = await pdf.getPage(n);
+    const tc = await page.getTextContent();
+    const grupos = [];
+    tc.items.forEach((it) => {
+        const y = Math.round(it.transform[5]), x = it.transform[4];
+        let g = null;
+        for (let i = 0; i < grupos.length; i++) { if (Math.abs(grupos[i].y - y) <= 3) { g = grupos[i]; break; } }
+        if (!g) { g = { y, items: [] }; grupos.push(g); }
+        g.items.push({ x, str: it.str });
+    });
+    grupos.sort((a, b) => b.y - a.y);
+    return grupos.map((g) => {
+        g.items.sort((a, b) => a.x - b.x);
+        return g.items.map((i) => i.str).join(' ').replace(/\s+/g, ' ').trim();
+    }).filter((s) => s.length > 0);
+}
+let pdfjsPromesa = null;
+function cargarPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve();
+    if (!pdfjsPromesa) {
+        pdfjsPromesa = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; resolve(); };
+            s.onerror = () => { pdfjsPromesa = null; reject(new Error('No se pudo cargar el lector de PDF (hace falta conexión)')); };
+            document.head.appendChild(s);
+        });
+    }
+    return pdfjsPromesa;
+}
+async function leerPdf() {
+    const f = $('fPdf').files && $('fPdf').files[0];
+    if (!f) { aviso('Elige primero el archivo PDF del estado', 'error'); return; }
+    $('pdfEstado').textContent = 'Leyendo el PDF…';
+    try {
+        await cargarPdfJs();
+        const pdf = await window.pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+        let ops = [], invalidas = [], buf = null, saldoLinea = null, cantidadDeclarada = null;
+        for (let n = 1; n <= pdf.numPages; n++) {
+            const r = parsearLineas(await lineasDePagina(pdf, n), buf);
+            ops = ops.concat(r.ops); invalidas = invalidas.concat(r.invalidas); buf = r.resto;
+            if (r.saldoLinea != null) saldoLinea = r.saldoLinea;
+            if (r.cantidadDeclarada != null) cantidadDeclarada = r.cantidadDeclarada;
+        }
+        if (buf) { const p = cerrarBuf(buf); if (p) { if (fechaCalendarioOk(p.fecha)) ops.push(p); else invalidas.push(p); } }
+        if (!ops.length && !invalidas.length) throw new Error('No se encontraron operaciones con el formato de BANDEC en este PDF');
+        const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
+        previaOps = ops.map((op) => {
+            const c = clasificar(op);
+            return { op, clase: c.clase, qr: c.qr, clasificacion: c.clasificacion,
+                duplicada: refs.has(op.refC) || movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === op.monto && (m.cuenta || 'chequera') === cuentaActiva) };
+        });
+        const saldoBanco = (ops.length && ops[ops.length - 1].saldo != null) ? ops[ops.length - 1].saldo : saldoLinea;
+        previaOps.saldoBanco = saldoBanco;
+        previaOps.invalidas = invalidas;
+        previaOps.cantidadDeclarada = cantidadDeclarada;
+        pintarPrevia();
+        $('pdfEstado').textContent = 'Leídas ' + ops.length + ' operaciones' +
+            (cantidadDeclarada != null ? ' (el banco declara ' + cantidadDeclarada + ')' : '') +
+            (invalidas.length ? ' · ' + invalidas.length + ' con fecha inválida (cuarentena)' : '') + '. Revisa la vista previa.';
+    } catch (e) {
+        $('pdfEstado').textContent = '';
+        aviso('No se pudo leer el PDF: ' + e.message, 'error');
+    }
+}
+function pintarPrevia() {
+    if (!previaOps) { $('previa').innerHTML = ''; return; }
+    let html = '<table style="margin-top:10px"><thead><tr><th>Fecha</th><th>Concepto</th><th>Clasificación propuesta</th>' +
+        '<th class="num">Ingreso</th><th class="num">Gasto</th><th></th></tr></thead><tbody>';
+    previaOps.forEach((p, i) => {
+        html += '<tr' + (p.duplicada ? ' style="opacity:.55"' : '') + '><td style="white-space:nowrap">' + esc(p.op.fecha) + '</td>' +
+            '<td>' + esc(p.op.concepto) + '</td>' +
+            '<td' + (p.clasificacion === 'Por clasificar' ? ' class="rojo"' : '') + '>' + esc(p.clasificacion) + (p.qr ? ' · QR' : '') + '</td>' +
+            '<td class="num">' + (p.op.tipo === 'ingreso' ? dinero(p.op.monto) : '') + '</td>' +
+            '<td class="num">' + (p.op.tipo === 'gasto' ? dinero(p.op.monto) : '') + '</td>' +
+            '<td>' + (p.duplicada ? '<span class="tenue">ya importada</span>' :
+                '<label><input type="checkbox" data-previa="' + i + '" checked> Importar</label>') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    if (previaOps.invalidas && previaOps.invalidas.length) {
+        html += '<p class="rojo">En cuarentena (fecha que no existe en el calendario, no se importan): ' +
+            previaOps.invalidas.map((p) => esc(p.fecha)).join(', ') + '</p>';
+    }
+    html += '<p><button class="principal" id="btnImportarPrevia">Importar lo marcado a «' +
+        esc(CUENTAS.find((c) => c.id === cuentaActiva).nombre) + '»</button> ' +
+        '<button id="btnDescartarPrevia">Descartar</button></p>';
+    $('previa').innerHTML = html;
+    $('btnDescartarPrevia').onclick = () => { previaOps = null; pintarPrevia(); };
+    $('btnImportarPrevia').onclick = importarPrevia;
+}
+async function importarPrevia() {
+    const marcadas = new Set(Array.from(document.querySelectorAll('[data-previa]:checked')).map((c) => Number(c.dataset.previa)));
+    let n = 0;
+    previaOps.forEach((p, i) => {
+        if (!marcadas.has(i) || p.duplicada) return;
+        movs.push({ id: 'pdf' + (p.op.refC || (Date.now() + i)), fecha: p.op.fecha, concepto: p.op.concepto,
+            tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
+            clase: p.clase, qr: p.qr, ref: p.op.refC || '' });
+        n++;
+    });
+    if (previaOps.saldoBanco != null) {
+        try { localStorage.setItem(claveConciliacion(), JSON.stringify({ saldoBanco: previaOps.saldoBanco, fecha: new Date().toISOString().slice(0, 10) })); } catch (e) { /* nada */ }
+    }
+    previaOps = null; pintarPrevia();
+    if (!n) { aviso('No había operaciones nuevas marcadas', 'error'); return; }
+    try {
+        await guardar();
+        aviso('Importadas ' + n + ' operaciones del estado de cuenta');
+        pintarTabla(); pintarConciliacion();
+        bus.postMessage({ tipo: 'datos', slot: 'mov' });
+    } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
+
+/* ===== Arranque ===== */
+(async () => {
+    try {
+        sesion = await sesionActual();
+        token = tokenSesion();
+        if (!sesion || !token) {
+            $('sesionTxt').textContent = 'Sin sesión: entra primero con tu usuario en la ventana principal.';
+            $('tablaMovs').innerHTML = '<tr><td colspan="7" class="tenue">Sin sesión no se muestran movimientos.</td></tr>';
+            return;
+        }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        movs = (await bd().docLeer(token, 'mov')) || [];
+        if (!Array.isArray(movs)) movs = [];
+        $('mes').value = mesActual();
+        $('fFecha').value = new Date().toISOString().slice(0, 10);
+        pintarCuentas(); pintarTabla(); pintarConciliacion();
+        $('mes').onchange = () => { pintarTabla(); pintarConciliacion(); };
+        $('btnGuardarMov').onclick = guardarMov;
+        $('btnCancelarEd').onclick = cancelarEd;
+        $('btnLeerPdf').onclick = leerPdf;
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error al cargar: ' + e.message;
+    }
+})();
+</script>
+</body>
+</html>

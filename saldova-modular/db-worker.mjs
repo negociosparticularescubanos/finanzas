@@ -150,6 +150,36 @@ const api = {
     },
     async consulta(sql, params) { await listo; return filas(db, sql, params); },
     async ejecutar(sql) { await listo; db.exec(sql); return { ok: true }; },
+    /* Documentos por (negocio, slot): el contrato de datos de Saldova.
+       El negocio sale de la sesión, nunca del cliente. Al guardar se
+       deja la foto anterior en documentos_respaldo, como el escritorio. */
+    async docLeer(token, slot) {
+        await listo;
+        const s = sesionValida(token);
+        if (!s) throw new Error('Sesión expirada');
+        const f = filas(db, 'SELECT json FROM documentos WHERE negocio = ? AND slot = ?', [s.negocio, String(slot)]);
+        return f.length ? JSON.parse(f[0].json) : null;
+    },
+    async docGuardar(token, slot, valor) {
+        await listo;
+        const s = sesionValida(token);
+        if (!s) throw new Error('Sesión expirada');
+        const txt = JSON.stringify(valor == null ? null : valor);
+        if (txt.length > 3000000) throw new Error('Documento demasiado grande');
+        const ahora = new Date().toISOString();
+        const f = filas(db, 'SELECT json, version FROM documentos WHERE negocio = ? AND slot = ?', [s.negocio, String(slot)]);
+        db.exec('BEGIN');
+        try {
+            if (f.length) {
+                db.exec({ sql: 'INSERT OR REPLACE INTO documentos_respaldo (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, ?, ?)', bind: [s.negocio, String(slot), f[0].json, f[0].version, ahora] });
+                db.exec({ sql: 'UPDATE documentos SET json = ?, version = version + 1, actualizado = ? WHERE negocio = ? AND slot = ?', bind: [txt, ahora, s.negocio, String(slot)] });
+            } else {
+                db.exec({ sql: 'INSERT INTO documentos (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, 1, ?)', bind: [s.negocio, String(slot), txt, ahora] });
+            }
+            db.exec('COMMIT');
+        } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
+        return { ok: true };
+    },
     async exportar() { await listo; return poolUtil.exportFile(activaArchivo); },
     async importar(bytes) {
         await listo;
