@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saldova — Chequera y tarjetas</title>
 <script type="importmap">
-{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js" } }
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
 </script>
 <style>
     body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; margin: 0; padding: 14px; background: #D8E6F3; }
@@ -114,6 +114,8 @@
 <script type="module">
 import { bd, aviso, sesionActual, tokenSesion, bus } from 'nucleo';
 import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(1);
 
 const $ = (id) => document.getElementById(id);
 const CUENTAS = [
