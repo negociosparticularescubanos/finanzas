@@ -137,6 +137,18 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Exportar para revisar (Auditoría)</h2>
+    <p>El paquete del revisor: eliges el mes y la app junta en una sola hoja los asientos de ese mes con sus líneas y las trazas de quién hizo qué, lista para imprimir o guardar como PDF, y también en Excel (CSV). Es lo que se le entrega al consultor o a una revisión (Res. 86/2026): los números y su rastro, sin tener que abrir la base.</p>
+    <div class="fila">
+        <label>Mes <input type="month" id="auMes"></label>
+        <button type="button" id="auVer" class="secundario chico">Preparar el paquete de revisión</button>
+        <button type="button" id="auCsv" class="secundario chico">Descargar los asientos en Excel (CSV)</button>
+        <button type="button" id="auImprimir">Imprimir el paquete</button>
+    </div>
+    <div id="auResultado"><p class="tenue">Elige el mes y prepara el paquete.</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Salvas automáticas</h2>
     <p class="tenue">Al cerrar un mes en el módulo Cierre, la base se guarda sola en un archivo con fecha. Para restaurar una: ábrela con «Importar» en «Mi archivo de base de datos».</p>
     <div id="salvasLista"><p class="tenue">Cargando…</p></div>
@@ -389,13 +401,71 @@ function pintarSalvas() { let lista = []; try { lista = JSON.parse(localStorage.
 cargarDatosNegocio(); pintarSalvas();
 (function pestPanel() {
     const grupos = [['base', 'Base'], ['acceso', 'Acceso'], ['negocio', 'Negocio'], ['equipo', 'Equipo']];
-    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Estado de la base|Tablas de la base|Mi archivo|Salvas/.test(x)) return 'base'; if (/Bases de datos|Negocios de esta base|Usuarios de esta base|Acceso con huella/.test(x)) return 'acceso'; if (/Datos del negocio|Quién hizo qué/.test(x)) return 'negocio'; return 'equipo'; };
+    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Estado de la base|Tablas de la base|Mi archivo|Salvas/.test(x)) return 'base'; if (/Bases de datos|Negocios de esta base|Usuarios de esta base|Acceso con huella/.test(x)) return 'acceso'; if (/Datos del negocio|Quién hizo qué|Exportar para revisar/.test(x)) return 'negocio'; return 'equipo'; };
     const bar = document.createElement('div'); bar.className = 'pest-bar';
     bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
     const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
     const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
     bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
     ir('base');
+})();
+</script>
+<script type="module">
+import { bd, aviso, tokenSesion, descargarCSV } from 'nucleo';
+const $p = (id) => document.getElementById(id);
+const fmtp = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2p = (n) => Math.round((Number(n) || 0) * 100) / 100;
+let auConta = null;
+async function auCargar() {
+    if (!auConta) auConta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [] };
+    return auConta;
+}
+function auAsientosDelMes(mes) {
+    return (auConta.asientos || []).filter((a) => String(a.fecha || '').slice(0, 7) === mes).sort((x, y) => (x.numero || 0) - (y.numero || 0));
+}
+(async () => {
+    try {
+        const tarjeta = $p('auResultado').closest('.tarjeta');
+        tarjeta.id = 'tarjetaAuditoria';
+        const estilo = document.createElement('style');
+        estilo.textContent = '@media print{body>*:not(#tarjetaAuditoria){display:none!important}#tarjetaAuditoria{display:block!important;border:none}}';
+        document.head.appendChild(estilo);
+        $p('auMes').value = new Date().toISOString().slice(0, 7);
+        $p('auVer').addEventListener('click', async () => {
+            const mes = $p('auMes').value;
+            if (!mes) { aviso('Elige el mes del paquete', 'error'); return; }
+            await auCargar();
+            const lista = auAsientosDelMes(mes);
+            let tD = 0, tH = 0;
+            const filas = lista.map((a) => {
+                const d = r2p((a.lineas || []).reduce((sx, l) => sx + (Number(l.debe) || 0), 0));
+                const h = r2p((a.lineas || []).reduce((sx, l) => sx + (Number(l.haber) || 0), 0));
+                tD = r2p(tD + d); tH = r2p(tH + h);
+                return '<tr><td>' + a.numero + '</td><td>' + a.fecha + '</td><td>' + a.concepto + '<br><span style="color:#5A738C">' + (a.lineas || []).map((l) => l.cuenta + ' D ' + fmtp(l.debe) + ' / H ' + fmtp(l.haber)).join(' · ') + '</span></td><td class="num">' + fmtp(d) + '</td><td class="num">' + fmtp(h) + '</td></tr>';
+            }).join('');
+            let trazasHtml = '';
+            try {
+                const tz = await bd().trazas(tokenSesion(), mes);
+                trazasHtml = '<h3 style="margin:14px 0 6px">Quién hizo qué en ' + mes + '</h3>' + ((tz || []).length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + tz.map((t) => '<tr><td>' + String(t.ts || '').replace('T', ' ').slice(0, 16) + '</td><td>' + (t.usuario || '') + '</td><td>' + (t.accion || '') + (t.slot ? ' · ' + t.slot : '') + '</td><td>' + (t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p>Sin trazas registradas en ese mes.</p>');
+            } catch (e) { trazasHtml = '<p>No se pudieron leer las trazas: ' + String((e && e.message) || e) + '</p>'; }
+            $p('auResultado').innerHTML = '<h3 style="margin:10px 0 6px">Paquete de revisión de ' + mes + '</h3>' +
+                '<table><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto y líneas</th><th class="num">Debe</th><th class="num">Haber</th></tr></thead><tbody>' +
+                (filas || '<tr><td colspan="5">Sin asientos en ese mes.</td></tr>') +
+                '<tr class="totales"><td colspan="3">' + lista.length + ' asiento(s)</td><td class="num">' + fmtp(tD) + '</td><td class="num">' + fmtp(tH) + '</td></tr></tbody></table>' + trazasHtml +
+                '<p style="color:#5A738C;font-size:12.5px">Generado por Saldova para revisión: asientos confirmados y trazas del sistema (Res. 86/2026).</p>';
+        });
+        $p('auCsv').addEventListener('click', async () => {
+            const mes = $p('auMes').value;
+            if (!mes) { aviso('Elige el mes del paquete', 'error'); return; }
+            await auCargar();
+            const filas = [['Nº', 'Fecha', 'Concepto', 'Cuenta', 'Debe', 'Haber']];
+            for (const a of auAsientosDelMes(mes)) for (const l of (a.lineas || [])) filas.push([a.numero, a.fecha, a.concepto, l.cuenta, (Number(l.debe) || 0).toFixed(2), (Number(l.haber) || 0).toFixed(2)]);
+            if (filas.length === 1) { aviso('No hay asientos en ' + mes + ' para descargar', 'error'); return; }
+            descargarCSV('asientos-' + mes + '.csv', filas);
+            aviso('Asientos de ' + mes + ' descargados en CSV');
+        });
+        $p('auImprimir').addEventListener('click', () => window.print());
+    } catch (e) { /* la tarjeta es un extra del Panel */ }
 })();
 </script>
 </body>

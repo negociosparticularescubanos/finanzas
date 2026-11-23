@@ -70,6 +70,35 @@
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(13);
+/* Pestañas por tema (modelo .exe): cada apartado del manual es una
+ * pestaña; se ve uno cada vez, nada de manual en cascada. */
+(() => {
+    const estilo = document.createElement('style');
+    estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 13px;cursor:pointer;font-size:13px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+    document.head.appendChild(estilo);
+    const cortos = { 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
+    const tarjeta = document.querySelector('.tarjeta');
+    const secciones = [];
+    let actual = null;
+    [...tarjeta.childNodes].forEach((nodo) => {
+        if (nodo.nodeType === 1 && nodo.tagName === 'H2') {
+            actual = { titulo: nodo.textContent.trim(), nodos: [nodo] };
+            secciones.push(actual);
+        } else if (actual) {
+            actual.nodos.push(nodo);
+        }
+    });
+    if (!secciones.length) return;
+    const bar = document.createElement('div'); bar.className = 'pest-bar';
+    bar.innerHTML = secciones.map((sec, i) => '<button type="button" data-sec="' + i + '">' + (cortos[sec.titulo] || sec.titulo) + '</button>').join('');
+    tarjeta.parentNode.insertBefore(bar, tarjeta);
+    const ir = (i) => {
+        secciones.forEach((sec, j) => sec.nodos.forEach((n) => { if (n.nodeType === 1) n.style.display = i === j ? '' : 'none'; }));
+        bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', Number(b.dataset.sec) === i));
+    };
+    bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(Number(b.dataset.sec))));
+    ir(0);
+})();
 </script>
 </body>
 </html>
