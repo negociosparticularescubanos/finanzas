@@ -60,6 +60,26 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Ofertas — cotizaciones que se vuelven factura</h2>
+    <p class="tenue">La oferta es el documento previo: se le presenta al cliente con sus renglones y su total, sin tocar la contabilidad ni los consecutivos. Cuando el cliente acepta, «Convertir en factura» hereda todo — cliente, renglones y total — y la factura nace con el siguiente número libre, lista en Facturas y en TeleCobranzas.</p>
+    <div class="fila">
+        <input id="oCliente" placeholder="Cliente" style="min-width:170px">
+        <label>Fecha <input id="oFecha" type="date"></label>
+        <label>Válida hasta <input id="oVence" type="date"></label>
+    </div>
+    <div id="oLineas"><p class="tenue">Sin renglones: añade el primero.</p></div>
+    <div class="fila">
+        <input id="oDesc" placeholder="Descripción del renglón" style="min-width:200px">
+        <input id="oCant" type="number" step="1" min="1" value="1" style="width:70px">
+        <input id="oPrecio" class="monto" type="number" step="0.01" min="0" placeholder="Precio">
+        <button type="button" id="oAddLinea" class="secundario chico">Añadir renglón</button>
+        <span id="oTotal" style="font-weight:700"></span>
+        <button type="button" id="oAdd">Guardar la oferta</button>
+    </div>
+    <div id="ofertas"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
     <h2>Contratos</h2>
     <div id="contratos"><p class="tenue">Cargando…</p></div>
     <div class="fila">
@@ -179,6 +199,40 @@ function pintarConsecutivos() {
         (saltos.length ? '<p><span class="rojo">Saltos detectados: faltan los números ' + saltos.join(', ') + '.</span> Si una factura se anuló, déjalo anotado en su contrato o en una nota: el hueco sin explicación es el problema, no el hueco.</p>' : '<p><span class="verde">Sin saltos: la numeración es continua.</span></p>') +
         (duplicados.length ? '<p><span class="rojo">Números repetidos: ' + duplicados.join(', ') + '.</span> Dos facturas no pueden compartir número.</p>' : '');
 }
+let ofertaLineas = [];
+function pintarOfertaEditor() {
+    const total = r2(ofertaLineas.reduce((sx, l) => sx + l.cant * l.precio, 0));
+    $('oLineas').innerHTML = ofertaLineas.map((l, i) =>
+        '<div class="fila"><span>' + l.descripcion + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
+        '<button type="button" class="chico secundario" data-oq="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Sin renglones: añade el primero.</p>';
+    $('oTotal').textContent = ofertaLineas.length ? 'Total de la oferta: ' + fmt(total) : '';
+    $('oLineas').querySelectorAll('[data-oq]').forEach((b) => b.addEventListener('click', () => { ofertaLineas.splice(Number(b.dataset.oq), 1); pintarOfertaEditor(); }));
+}
+function pintarOfertas() {
+    const lista = [...(conta.gestion.ofertas || [])].reverse();
+    $('ofertas').innerHTML = lista.map((o) =>
+        '<div class="fila"><b>Oferta ' + o.numero + '</b><span>' + o.cliente + '</span><span class="tenue">' + o.fecha + (o.vigencia ? ' · válida hasta ' + o.vigencia : '') + ' · ' + (o.lineas || []).map((l) => l.descripcion + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(o.total) + '</b>' +
+        (o.estado === 'convertida' ? '<span class="verde">Convertida en la factura ' + (o.facturaNumero || '') + '</span>' : '<button type="button" class="chico" data-convertir="' + o.id + '">Convertir en factura</button>') +
+        ' <button type="button" class="chico secundario" data-delo="' + o.id + '">Borrar</button></div>').join('') ||
+        '<p class="tenue">Sin ofertas todavía.</p>';
+    $('ofertas').querySelectorAll('[data-convertir]').forEach((b) => b.addEventListener('click', async () => {
+        const o = conta.gestion.ofertas.find((x) => x.id === b.dataset.convertir);
+        if (!o || o.estado === 'convertida') return;
+        let maxNum = 0;
+        for (const f of conta.gestion.facturas) { const n = parseInt(String(f.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
+        const numero = String(maxNum + 1);
+        const vence = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        const fac = { id: 'f' + Date.now().toString(36), numero, cliente: o.cliente, fecha: hoy(), vencimiento: vence, total: o.total, cobros: [], origen: 'oferta', ofertaId: o.id, lineas: o.lineas };
+        conta.gestion.facturas.push(fac);
+        o.estado = 'convertida'; o.facturaId = fac.id; o.facturaNumero = numero;
+        await guardar(); pintarTodo(); pintarOfertas();
+        aviso('Oferta ' + o.numero + ' convertida en la factura nº ' + numero + ' por ' + fmt(o.total) + ': ya está en Facturas y TeleCobranzas');
+    }));
+    $('ofertas').querySelectorAll('[data-delo]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.ofertas = conta.gestion.ofertas.filter((x) => x.id !== b.dataset.delo);
+        await guardar(); pintarOfertas();
+    }));
+}
 function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(); }
 (async () => {
     try {
@@ -190,6 +244,29 @@ function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(
         conta.gestion = conta.gestion || { contratos: [], facturas: [] };
         conta.gestion.facturas = conta.gestion.facturas || [];
         conta.gestion.contratos = conta.gestion.contratos || [];
+        conta.gestion.ofertas = conta.gestion.ofertas || [];
+        $('oFecha').value = hoy();
+        $('oVence').value = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+        $('oAddLinea').addEventListener('click', () => {
+            const descripcion = $('oDesc').value.trim(), cant = Math.max(1, Number($('oCant').value) || 1), precio = Number($('oPrecio').value) || 0;
+            if (!descripcion || precio <= 0) { aviso('El renglón necesita descripción y precio', 'error'); return; }
+            ofertaLineas.push({ descripcion, cant, precio });
+            $('oDesc').value = ''; $('oPrecio').value = ''; $('oCant').value = 1;
+            pintarOfertaEditor();
+        });
+        $('oAdd').addEventListener('click', async () => {
+            const cliente = $('oCliente').value.trim();
+            if (!cliente) { aviso('La oferta necesita el cliente', 'error'); return; }
+            if (!ofertaLineas.length) { aviso('La oferta necesita al menos un renglón', 'error'); return; }
+            const total = r2(ofertaLineas.reduce((sx, l) => sx + l.cant * l.precio, 0));
+            let maxOf = 0;
+            for (const o of conta.gestion.ofertas) { const n = parseInt(String(o.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxOf) maxOf = n; }
+            conta.gestion.ofertas.push({ id: 'of' + Date.now().toString(36), numero: 'OF-' + (maxOf + 1), cliente, fecha: $('oFecha').value, vigencia: $('oVence').value, lineas: [...ofertaLineas], total, estado: 'vigente' });
+            await guardar();
+            ofertaLineas = []; $('oCliente').value = '';
+            pintarOfertaEditor(); pintarOfertas();
+            aviso('Oferta OF-' + (maxOf + 1) + ' guardada por ' + fmt(total));
+        });
         $('fFecha').value = hoy();
         $('fVence').value = hoy();
         $('fAdd').addEventListener('click', async () => {
@@ -207,6 +284,23 @@ function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(
             pintarContratos(); aviso('Contrato añadido');
         });
         pintarTodo();
+        pintarOfertaEditor();
+        pintarOfertas();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['facturas', 'Facturas y cobros'], ['ofertas', 'Ofertas'], ['contratos', 'Contratos']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Ofertas') === 0) return 'ofertas'; if (x.indexOf('Contratos') === 0) return 'contratos'; return 'facturas'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('facturas');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

@@ -42,7 +42,8 @@
     </div>
     <div id="carrito"><p class="tenue">Venta vacía.</p></div>
     <div class="fila">
-        <label>Medio de cobro <select id="vMedio"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="qr">QR / Transferencia</option></select></label>
+        <label>Medio de cobro <select id="vMedio"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="qr">QR / Transferencia</option><option value="credito">A crédito (crea su factura)</option></select></label>
+        <input id="vCliente" placeholder="Cliente (solo si es a crédito)" style="min-width:180px">
         <span id="vTotal" style="font-weight:700"></span>
         <button type="button" id="vCobrar">Cobrar</button>
     </div>
@@ -54,7 +55,16 @@
     <div class="fila"><input type="date" id="vdFecha"><button type="button" id="vdVer" class="secundario chico">Ver</button>
     <button type="button" id="vdAsiento">Generar el asiento del día</button></div>
     <div id="ventasDia"><p class="tenue">Elige la fecha.</p></div>
-    <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja (101-010), la tarjeta y el QR al Banco (110-010), contra Ventas (801-000). Cada venta entra una sola vez.</p>
+    <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja (101-010), la tarjeta y el QR al Banco (110-010), lo vendido a crédito a Cuentas por Cobrar (131-000), contra Ventas (801-000), ya neto de las devoluciones del día. Cada venta entra una sola vez.</p>
+</div>
+
+<div class="tarjeta">
+    <h2>Devoluciones</h2>
+    <p class="tenue">Cuando un cliente devuelve mercancía, se registra desde su venta: el stock se repone solo, queda el documento de entrada en Inventarios y el día (IPV y asiento) se ajusta solo. Si la venta ya tenía asiento, se crea el asiento de ajuste; si no, el asiento del día sale neto.</p>
+    <div class="fila"><label>Venta <select id="dvVenta" style="min-width:280px"></select></label></div>
+    <div id="dvLineas"><p class="tenue">Elige la venta: marcas cuántas unidades de cada renglón devuelve el cliente.</p></div>
+    <div class="fila"><button type="button" id="dvRegistrar">Registrar la devolución</button></div>
+    <div id="dvLista"></div>
 </div>
 
 <div class="tarjeta">
@@ -64,6 +74,7 @@
         <input id="pCodigo" placeholder="Código" size="9">
         <input id="pNombre" placeholder="Nombre del producto" style="min-width:190px">
         <input id="pPrecio" class="monto" type="number" step="0.01" min="0" placeholder="Precio">
+        <input id="pCosto" class="monto" type="number" step="0.01" min="0" placeholder="Costo">
         <input id="pStock" type="number" step="1" min="0" placeholder="Stock" style="width:80px">
         <input id="pMin" type="number" step="1" min="0" placeholder="Mínimo" style="width:80px">
         <button type="button" id="pAdd" class="secundario chico">Añadir producto</button>
@@ -76,6 +87,18 @@
     <div class="fila"><label>Fecha <input id="ipvFecha" type="date"></label>
     <button type="button" id="ipvVer" class="secundario chico">Ver el IPV</button></div>
     <div id="ipv"><p class="tenue">Elige la fecha del turno.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Arqueo del turno — cierre de caja</h2>
+    <p class="tenue">Al cerrar el turno se cuenta el efectivo y se compara con lo que la caja debe tener según el POS (fondo inicial + cobrado en efectivo − devoluciones en efectivo). La diferencia queda registrada con fecha y responsable: es el control que pide cualquier revisión.</p>
+    <div class="fila"><label>Fecha <input type="date" id="arqFecha"></label>
+    <label>Fondo inicial <input id="arqFondo" class="monto" type="number" step="0.01" min="0" value="0"></label>
+    <label>Efectivo contado <input id="arqContado" class="monto" type="number" step="0.01" min="0" placeholder="Lo contado"></label>
+    <button type="button" id="arqVer" class="secundario chico">Calcular el arqueo</button>
+    <button type="button" id="arqCerrar">Cerrar el turno y registrar</button></div>
+    <div id="arqueo"></div>
+    <div id="arqLista"></div>
 </div>
 
 <div class="tarjeta">
@@ -110,12 +133,15 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
 function pintarProductos() {
     const lista = pos.productos || [];
     $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + p.codigo + ' · ' + p.nombre + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
-    const filas = lista.map((p) =>
-        '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + fmt(p.precio) + '</td>' +
+    const filas = lista.map((p) => {
+        const costo = Number(p.costo) || 0;
+        const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
+        return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + fmt(p.precio) + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
         '<td class="num">' + (p.stock <= (p.stockMin || 0) ? '<span class="rojo">' + p.stock + '</span>' : p.stock) + '</td>' +
-        '<td><button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>').join('');
-    $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
-        (filas || '<tr><td colspan="5" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
+        '<td><button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>';
+    }).join('');
+    $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Costo</th><th class="num">Margen</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="7" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
     $('productos').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         pos.productos = pos.productos.filter((p) => p.id !== b.dataset.del);
         await guardar(); pintarTodo();
@@ -134,9 +160,11 @@ function pintarVentasDia() {
     const fecha = $('vdFecha').value;
     const ventas = (pos.ventas || []).filter((v) => v.fecha === fecha);
     const total = r2(ventas.reduce((s, v) => s + (Number(v.total) || 0), 0));
-    $('ventasDia').innerHTML = ventas.map((v) =>
-        '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
-        '<span class="tenue">' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ') + (v.asientoId ? ' · ya en el asiento del día' : '') + '</span></div>').join('') ||
+    $('ventasDia').innerHTML = ventas.map((v) => {
+        const dev = r2((pos.devoluciones || []).filter((d) => d.ventaId === v.id).reduce((sx, d) => sx + (Number(d.total) || 0), 0));
+        return '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
+        '<span class="tenue">' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ') + (v.asientoId ? ' · ya en el asiento del día' : '') + (dev > 0 ? ' · <span class="rojo">devuelto: −' + fmt(dev) + '</span>' : '') + '</span></div>';
+    }).join('') ||
         '<p class="tenue">Sin ventas en ' + fecha + '.</p>';
     if (ventas.length) $('ventasDia').innerHTML += '<p><b>Total del día: ' + fmt(total) + '</b> · Sin asiento todavía: ' + ventas.filter((v) => !v.asientoId).length + ' venta(s).</p>';
 }
@@ -171,11 +199,65 @@ function pintarIPV() {
         }
         for (const c of (v.cobros || [])) porMedio.set(c.medio, r2((porMedio.get(c.medio) || 0) + (Number(c.monto) || 0)));
     }
+    const devs = (pos.devoluciones || []).filter((d) => String(d.fecha).slice(0, 10) === fecha);
+    let totalDev = 0;
+    for (const d of devs) {
+        totalDev = r2(totalDev + (Number(d.total) || 0));
+        for (const l of (d.lineas || [])) {
+            const g = porProducto.get(l.codigo);
+            if (g) { g.cant -= Number(l.cant) || 0; g.importe = r2(g.importe - (Number(l.cant) || 0) * (Number(l.precio) || 0)); }
+        }
+        porMedio.set(d.medio, r2((porMedio.get(d.medio) || 0) - (Number(d.total) || 0)));
+    }
     $('ipv').innerHTML =
-        '<table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Importe</th></tr></thead><tbody>' +
+        '<table><thead><tr><th>Producto</th><th class="num">Cantidad neta</th><th class="num">Importe neto</th></tr></thead><tbody>' +
         [...porProducto.entries()].map(([cod, g]) => '<tr><td>' + cod + ' · ' + g.nombre + '</td><td class="num">' + g.cant + '</td><td class="num">' + fmt(g.importe) + '</td></tr>').join('') +
-        '<tr class="totales"><td colspan="2">TOTAL DEL TURNO (' + ventas.length + ' venta(s))</td><td class="num">' + fmt(total) + '</td></tr></tbody></table>' +
-        '<p>Cobrado por vía: ' + [...porMedio.entries()].map(([m, v]) => '<b>' + m + '</b> ' + fmt(v)).join(' · ') + '.</p>';
+        '<tr class="totales"><td colspan="2">TOTAL NETO DEL TURNO (' + ventas.length + ' venta(s))</td><td class="num">' + fmt(r2(total - totalDev)) + '</td></tr></tbody></table>' +
+        (totalDev > 0 ? '<p>Devoluciones del día: <b>−' + fmt(totalDev) + '</b> (el bruto vendido fue ' + fmt(total) + ').</p>' : '') +
+        '<p>Cobrado por vía (neto): ' + [...porMedio.entries()].map(([m, v]) => '<b>' + m + '</b> ' + fmt(v)).join(' · ') + '.</p>';
+}
+function pintarDevoluciones() {
+    const ventas = [...(pos.ventas || [])].reverse();
+    $('dvVenta').innerHTML = ventas.map((v) => '<option value="' + v.id + '">' + v.id + ' · ' + v.fecha + ' · ' + fmt(v.total) + ' · ' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</option>').join('') || '<option value="">Sin ventas todavía</option>';
+    pintarDvLineas();
+    const devs = [...(pos.devoluciones || [])].reverse().slice(0, 8);
+    $('dvLista').innerHTML = devs.length ? '<p style="margin-top:10px"><b>Últimas devoluciones:</b></p>' + devs.map((d) =>
+        '<div class="fila"><span>' + d.fecha + '</span><span class="tenue">venta ' + d.ventaId + ' · ' + d.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + ' · vía ' + d.medio + (d.asientoId ? ' · con su asiento' : ' · se neta en el asiento del día') + '</span><b>−' + fmt(d.total) + '</b></div>').join('') : '';
+}
+function pintarDvLineas() {
+    const v = (pos.ventas || []).find((x) => x.id === $('dvVenta').value);
+    if (!v) { $('dvLineas').innerHTML = '<p class="tenue">Sin ventas: primero vende algo en el POS.</p>'; return; }
+    $('dvLineas').innerHTML = v.lineas.map((l) => {
+        const disp = (Number(l.cant) || 0) - (Number(l.devueltas) || 0);
+        return '<div class="fila"><span>' + l.nombre + '</span><span class="tenue">vendidas ' + l.cant + ' · ya devueltas ' + (Number(l.devueltas) || 0) + ' · quedan ' + disp + '</span>' +
+        '<label>Devuelve <input type="number" step="1" min="0" max="' + disp + '" value="0" style="width:70px" data-dv="' + l.codigo + '"></label></div>';
+    }).join('');
+}
+function calcArqueo() {
+    const fecha = $('arqFecha').value;
+    let cobradoEf = 0;
+    for (const v of (pos.ventas || [])) if (String(v.fecha).slice(0, 10) === fecha) for (const c of (v.cobros || [])) if (c.medio === 'efectivo') cobradoEf = r2(cobradoEf + (Number(c.monto) || 0));
+    let devueltoEf = 0;
+    for (const d of (pos.devoluciones || [])) if (String(d.fecha).slice(0, 10) === fecha && d.medio === 'efectivo') devueltoEf = r2(devueltoEf + (Number(d.total) || 0));
+    const fondo = Number($('arqFondo').value) || 0;
+    const esperado = r2(fondo + cobradoEf - devueltoEf);
+    return { fecha, fondo, cobradoEf, devueltoEf, esperado };
+}
+function pintarArqueo() {
+    const a = calcArqueo();
+    const contadoTxt = $('arqContado').value;
+    let difHtml = '<p class="tenue">Escribe el efectivo contado y pulsa «Cerrar el turno» para registrar el arqueo con su diferencia.</p>';
+    if (contadoTxt !== '') {
+        const dif = r2((Number(contadoTxt) || 0) - a.esperado);
+        difHtml = '<p>Diferencia: <b class="' + (dif === 0 ? '' : 'rojo') + '">' + (dif > 0 ? '+' : '') + fmt(dif) + '</b>' + (dif === 0 ? ' — la caja cuadra.' : ' — queda registrada en el arqueo; el dueño decide su ajuste.') + '</p>';
+    }
+    $('arqueo').innerHTML = '<p>En caja debe haber: fondo ' + fmt(a.fondo) + ' + cobrado en efectivo ' + fmt(a.cobradoEf) + ' − devoluciones en efectivo ' + fmt(a.devueltoEf) + ' = <b>' + fmt(a.esperado) + '</b>.</p>' + difHtml;
+    pintarArqueos();
+}
+function pintarArqueos() {
+    const lista = [...(pos.arqueos || [])].reverse().slice(0, 8);
+    $('arqLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Arqueos registrados:</b></p>' + lista.map((a) =>
+        '<div class="fila"><span>' + a.fecha + '</span><span class="tenue">esperado ' + fmt(a.esperado) + ' · contado ' + fmt(a.contado) + ' · por ' + a.por + '</span><b class="' + (a.diferencia === 0 ? '' : 'rojo') + '">diferencia ' + (a.diferencia > 0 ? '+' : '') + fmt(a.diferencia) + '</b></div>').join('') : '';
 }
 function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
 (async () => {
@@ -187,13 +269,16 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         pos = (await bd().docLeer(tokenSesion(), 'pos')) || {};
         pos.productos = pos.productos || [];
         pos.ventas = pos.ventas || [];
+        pos.devoluciones = pos.devoluciones || [];
+        pos.arqueos = pos.arqueos || [];
+        pos.inventario = pos.inventario || [];
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
         $('vdFecha').value = hoy();
         $('pAdd').addEventListener('click', async () => {
             const codigo = $('pCodigo').value.trim(), nombre = $('pNombre').value.trim(), precio = Number($('pPrecio').value) || 0;
             if (!codigo || !nombre || precio <= 0) { aviso('El producto necesita código, nombre y precio', 'error'); return; }
-            pos.productos.push({ id: 'p' + Date.now().toString(36), codigo, nombre, precio, stock: Number($('pStock').value) || 0, stockMin: Number($('pMin').value) || 0, fechaAlta: hoy() });
-            await guardar(); $('pCodigo').value = $('pNombre').value = $('pPrecio').value = $('pStock').value = $('pMin').value = '';
+            pos.productos.push({ id: 'p' + Date.now().toString(36), codigo, nombre, precio, costo: Number($('pCosto').value) || 0, stock: Number($('pStock').value) || 0, stockMin: Number($('pMin').value) || 0, fechaAlta: hoy() });
+            await guardar(); $('pCodigo').value = $('pNombre').value = $('pPrecio').value = $('pCosto').value = $('pStock').value = $('pMin').value = '';
             pintarTodo(); aviso('Producto añadido');
         });
         $('vAdd').addEventListener('click', () => {
@@ -206,16 +291,32 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         });
         $('vCobrar').addEventListener('click', async () => {
             if (!carrito.length) { aviso('La venta está vacía', 'error'); return; }
+            const medioSel = $('vMedio').value;
+            const clienteCred = $('vCliente').value.trim();
+            if (medioSel === 'credito' && !clienteCred) { aviso('Una venta a crédito necesita el nombre del cliente: su factura sale sola y entra en TeleCobranzas', 'error'); return; }
             const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
             for (const l of carrito) {
                 const p = pos.productos.find((x) => x.codigo === l.codigo);
                 if (p && (Number(p.stock) || 0) < l.cant) { aviso('No hay stock suficiente de ' + l.nombre, 'error'); return; }
             }
             for (const l of carrito) { const p = pos.productos.find((x) => x.codigo === l.codigo); if (p) p.stock = (Number(p.stock) || 0) - l.cant; }
-            pos.ventas.push({ id: 'V' + Date.now().toString(36).toUpperCase(), fecha: hoy(), total, lineas: [...carrito], cobros: [{ medio: $('vMedio').value, monto: total }] });
+            const ventaNueva = { id: 'V' + Date.now().toString(36).toUpperCase(), fecha: hoy(), total, lineas: [...carrito], cobros: [{ medio: medioSel, monto: total }] };
+            pos.ventas.push(ventaNueva);
+            let avisoExtra = '';
+            if (medioSel === 'credito') {
+                conta.gestion = conta.gestion || { contratos: [], facturas: [] };
+                conta.gestion.facturas = conta.gestion.facturas || [];
+                let maxNum = 0;
+                for (const f of conta.gestion.facturas) { const n = parseInt(String(f.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
+                const vence = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+                conta.gestion.facturas.push({ id: 'f' + Date.now().toString(36), numero: String(maxNum + 1), cliente: clienteCred, fecha: hoy(), vencimiento: vence, total, cobros: [], origen: 'pos', ventaId: ventaNueva.id });
+                await bd().docGuardar(tokenSesion(), 'conta', conta);
+                avisoExtra = ' · Factura nº ' + (maxNum + 1) + ' creada para ' + clienteCred + ' (vence ' + vence + '): ya está en Gestión y TeleCobranzas';
+                $('vCliente').value = '';
+            }
             await guardar();
-            carrito = []; pintarTodo();
-            aviso('Venta cobrada: ' + fmt(total));
+            carrito = []; pintarTodo(); pintarDevoluciones();
+            aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
         });
         $('ipvFecha').value = hoy();
         $('ipvVer').addEventListener('click', pintarIPV);
@@ -226,28 +327,124 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             const pendientes = (pos.ventas || []).filter((v) => v.fecha === fecha && !v.asientoId);
             if (!pendientes.length) { aviso('No hay ventas sin asiento en ' + fecha, 'error'); return; }
             if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('El mes de ' + fecha + ' está cerrado: no se puede crear el asiento del día en un período cerrado', 'error'); return; }
-            let efectivo = 0, banco = 0;
-            for (const v of pendientes) for (const c of v.cobros) {
-                if (c.medio === 'efectivo') efectivo = r2(efectivo + (Number(c.monto) || 0));
-                else banco = r2(banco + (Number(c.monto) || 0));
+            let efectivo = 0, banco = 0, creditoC = 0;
+            const devsNetas = [];
+            for (const v of pendientes) {
+                const resta = new Map();
+                for (const d of (pos.devoluciones || []).filter((x) => x.ventaId === v.id && !x.asientoId)) {
+                    resta.set(d.medio, r2((resta.get(d.medio) || 0) + (Number(d.total) || 0)));
+                    devsNetas.push(d);
+                }
+                for (const c of v.cobros) {
+                    let m = r2((Number(c.monto) || 0) - (resta.get(c.medio) || 0));
+                    if (m < 0) m = 0;
+                    if (c.medio === 'efectivo') efectivo = r2(efectivo + m);
+                    else if (c.medio === 'credito') creditoC = r2(creditoC + m);
+                    else banco = r2(banco + m);
+                }
             }
-            const total = r2(efectivo + banco);
+            const total = r2(efectivo + banco + creditoC);
+            if (total <= 0) {
+                for (const v of pendientes) v.asientoId = 'sin-asiento';
+                for (const d of devsNetas) d.asientoId = 'sin-asiento';
+                await guardar();
+                aviso('Las ventas de ' + fecha + ' quedaron anuladas por sus devoluciones: no hay asiento que generar', 'error');
+                pintarVentasDia(); pintarDevoluciones();
+                return;
+            }
             const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
             const lineas = [];
             if (efectivo > 0) lineas.push(L('101-010', efectivo));
             if (banco > 0) lineas.push(L('110-010', banco));
+            if (creditoC > 0) lineas.push(L('131-000', creditoC));
             lineas.push(L('801-000', 0, total));
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
             conta.asientos.push({ id, numero: conta.seqAsiento, fecha, concepto: 'Ventas del POS de ' + fecha + ' (asiento del día)', origen: 'manual', estado: 'confirmado', lineas });
             for (const v of pendientes) v.asientoId = id;
+            for (const d of devsNetas) d.asientoId = id;
             pos.asientoDia = fecha;
             await bd().docGuardar(tokenSesion(), 'conta', conta);
             await guardar();
             aviso('Asiento del día nº ' + conta.seqAsiento + ' creado por ' + fmt(total));
             pintarVentasDia();
         });
+        $('dvVenta').addEventListener('change', pintarDvLineas);
+        $('dvRegistrar').addEventListener('click', async () => {
+            const v = (pos.ventas || []).find((x) => x.id === $('dvVenta').value);
+            if (!v) { aviso('Elige la venta de la devolución', 'error'); return; }
+            const lineasDev = [];
+            let total = 0, okCant = true;
+            $('dvLineas').querySelectorAll('[data-dv]').forEach((inp) => {
+                const cant = Math.floor(Number(inp.value) || 0);
+                if (cant <= 0) return;
+                const l = v.lineas.find((x) => x.codigo === inp.dataset.dv);
+                if (!l) return;
+                if (cant > (Number(l.cant) || 0) - (Number(l.devueltas) || 0)) okCant = false;
+                lineasDev.push({ codigo: l.codigo, nombre: l.nombre, cant, precio: l.precio });
+                total = r2(total + cant * (Number(l.precio) || 0));
+            });
+            if (!lineasDev.length) { aviso('Marca al menos una unidad a devolver', 'error'); return; }
+            if (!okCant) { aviso('No se puede devolver más de lo vendido y no devuelto', 'error'); return; }
+            const medio = (v.cobros && v.cobros[0] && v.cobros[0].medio) || 'efectivo';
+            const fHoy = hoy();
+            if (v.asientoId && conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
+            for (const ld of lineasDev) {
+                const l = v.lineas.find((x) => x.codigo === ld.codigo);
+                l.devueltas = (Number(l.devueltas) || 0) + ld.cant;
+                const p = pos.productos.find((x) => x.codigo === ld.codigo);
+                if (p) p.stock = (Number(p.stock) || 0) + ld.cant;
+                pos.inventario.push({ id: 'd' + Date.now().toString(36) + ld.codigo, fecha: fHoy, tipo: 'entrada', codigo: ld.codigo, nombre: ld.nombre, cant: ld.cant, motivo: 'Devolución de la venta ' + v.id });
+            }
+            const dev = { id: 'dv' + Date.now().toString(36), fecha: fHoy, ventaId: v.id, lineas: lineasDev, total, medio };
+            pos.devoluciones.push(dev);
+            let extra = ' Se neta en el asiento del día de la venta.';
+            if (v.asientoId) {
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                const idA = 'a' + Date.now().toString(36);
+                const cuentaH = medio === 'efectivo' ? '101-010' : (medio === 'credito' ? '131-000' : '110-010');
+                conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha: fHoy, concepto: 'Devolución de la venta ' + v.id + ' del POS', origen: 'manual', estado: 'confirmado', lineas: [{ cuenta: '801-000', debe: total, haber: 0 }, { cuenta: cuentaH, debe: 0, haber: total }] });
+                dev.asientoId = idA;
+                await bd().docGuardar(tokenSesion(), 'conta', conta);
+                extra = ' Asiento de ajuste nº ' + conta.seqAsiento + ' creado.';
+            }
+            await guardar();
+            pintarTodo(); pintarDevoluciones();
+            aviso('Devolución registrada por ' + fmt(total) + ': el stock quedó repuesto.' + extra);
+        });
+        $('arqFecha').value = hoy();
+        $('arqVer').addEventListener('click', pintarArqueo);
+        $('arqFecha').addEventListener('change', pintarArqueo);
+        $('arqFondo').addEventListener('input', pintarArqueo);
+        $('arqContado').addEventListener('input', pintarArqueo);
+        $('arqCerrar').addEventListener('click', async () => {
+            if ($('arqContado').value === '') { aviso('Escribe el efectivo contado para cerrar el turno', 'error'); return; }
+            const a = calcArqueo();
+            const contado = Number($('arqContado').value) || 0;
+            const diferencia = r2(contado - a.esperado);
+            pos.arqueos.push({ id: 'arq' + Date.now().toString(36), fecha: a.fecha, fondo: a.fondo, esperado: a.esperado, contado, diferencia, por: sesion.username });
+            await guardar();
+            pintarArqueos();
+            aviso('Arqueo del ' + a.fecha + ' registrado: diferencia ' + (diferencia > 0 ? '+' : '') + fmt(diferencia) + (diferencia === 0 ? ' — la caja cuadra' : ''));
+        });
         pintarTodo();
+        pintarDevoluciones();
+        pintarArqueo();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['vender', 'Vender'], ['ventas', 'Ventas y caja'], ['productos', 'Productos']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Vender') === 0) return 'vender'; if (x.indexOf('Productos') === 0 || x.indexOf('Inventario ocioso') === 0) return 'productos'; return 'ventas'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('vender');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

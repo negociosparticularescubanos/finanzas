@@ -34,10 +34,24 @@
         <label>Tipo <select id="dTipo"><option value="entrada">Entrada</option><option value="salida">Salida</option></select></label>
         <label>Producto <select id="dProducto"></select></label>
         <label>Cantidad <input id="dCant" type="number" step="1" min="1" style="width:80px"></label>
+        <label>Costo unitario (solo entradas) <input id="dCosto" type="number" step="0.01" min="0" style="width:100px" placeholder="0.00"></label>
         <label>Motivo <input id="dMotivo" type="text" placeholder="Compra, merma, traslado…" style="width:190px"></label>
         <button type="button" id="dRegistrar">Registrar documento</button>
     </div>
-    <p class="tenue">Una salida no puede dejar el stock en negativo. Las ventas del POS ya descuentan solas: no las dupliques aquí.</p>
+    <p class="tenue">Una salida no puede dejar el stock en negativo. Las ventas del POS ya descuentan solas: no las dupliques aquí. Al entrar mercancía con su costo, el costo del producto pasa a ser el <strong>promedio ponderado</strong> de lo que había y lo que entra: así el inventario se valora a costo real y el POS enseña el margen de cada producto.</p>
+</div>
+
+<div class="tarjeta">
+    <h2 style="margin-top:0">Conteo físico guiado</h2>
+    <p>Contar a ciegas es contar bien: la hoja nace <strong>sin enseñar el stock según libros</strong>, para que nadie ajuste el conteo a lo que dice el papel. Al terminar, la app compara, enseña las diferencias y propone los documentos de ajuste con su asiento (el sobrante a Otros Ingresos 810-000 y el faltante a Pérdidas 720-000, valorados al costo promedio).</p>
+    <div class="fila">
+        <label>Fecha del conteo <input id="cFecha" type="date"></label>
+        <label><input type="checkbox" id="cMostrar"> Mostrar el stock según libros mientras cuento</label>
+        <button type="button" id="cHoja" class="secundario">Preparar la hoja de conteo</button>
+        <button type="button" id="cComparar">Comparar y proponer el ajuste</button>
+    </div>
+    <div id="conteo"><p class="tenue">Pulsa «Preparar la hoja de conteo» y escribe lo contado de cada producto.</p></div>
+    <div id="ajuste"></div>
 </div>
 
 <div class="tarjeta">
@@ -63,15 +77,17 @@ function pintar() {
     const opciones = prods.map((p) => '<option value="' + p.codigo + '">' + p.codigo + ' · ' + p.nombre + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('');
     $('dProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
     $('kProducto').innerHTML = '<option value="">— elige —</option>' + opciones;
-    let totalValor = 0;
-    $('existencias').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Valor a precio de venta</th><th>Estado</th></tr></thead><tbody>' +
+    let totalValor = 0, totalCosto = 0;
+    $('existencias').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Costo prom.</th><th class="num">Valor a costo</th><th class="num">Valor a precio de venta</th><th>Estado</th></tr></thead><tbody>' +
         (prods.map((p) => {
             const valor = r2((Number(p.stock) || 0) * (Number(p.precio) || 0));
+            const valorCosto = r2((Number(p.stock) || 0) * (Number(p.costo) || 0));
             totalValor = r2(totalValor + valor);
+            totalCosto = r2(totalCosto + valorCosto);
             const bajo = (Number(p.stock) || 0) < (Number(p.stockMin) || 0);
-            return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + (Number(p.stock) || 0) + '</td><td class="num">' + (Number(p.stockMin) || 0) + '</td><td class="num">' + fmt(valor) + '</td><td>' + (bajo ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>';
-        }).join('') || '<tr><td colspan="6" class="tenue">Sin productos todavía: créalos en el módulo Punto de Venta.</td></tr>') +
-        '<tr class="totales"><td colspan="4">VALOR TOTAL DEL INVENTARIO (a precio de venta)</td><td class="num">' + fmt(totalValor) + '</td><td></td></tr></tbody></table>';
+            return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + (Number(p.stock) || 0) + '</td><td class="num">' + (Number(p.stockMin) || 0) + '</td><td class="num">' + ((Number(p.costo) || 0) > 0 ? fmt(p.costo) : '—') + '</td><td class="num">' + fmt(valorCosto) + '</td><td class="num">' + fmt(valor) + '</td><td>' + (bajo ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>';
+        }).join('') || '<tr><td colspan="8" class="tenue">Sin productos todavía: créalos en el módulo Punto de Venta.</td></tr>') +
+        '<tr class="totales"><td colspan="5">VALOR TOTAL DEL INVENTARIO</td><td class="num">' + fmt(totalCosto) + ' (a costo)</td><td class="num">' + fmt(totalValor) + ' (a precio)</td><td></td></tr></tbody></table>';
     pintarKardex();
 }
 function pintarKardex() {
@@ -86,6 +102,75 @@ function pintarKardex() {
         (movs.map((m) => { saldo += m.cant; return '<tr><td>' + m.fecha + '</td><td>' + m.texto + '</td><td class="num">' + (m.cant > 0 ? '+' : '') + m.cant + '</td><td class="num">' + saldo + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="tenue">Este producto aún no tiene movimientos registrados.</td></tr>') +
         '</tbody></table><p class="tenue">El acumulado suma solo los movimientos registrados aquí (documentos y ventas); el stock real del producto es el de la tabla de Existencias.</p>';
 }
+let diferenciasConteo = [];
+function pintarHojaConteo() {
+    const mostrar = $('cMostrar').checked;
+    const prods = pos.productos || [];
+    $('conteo').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th>' + (mostrar ? '<th class="num">Según libros</th>' : '') + '<th class="num">Contado</th></tr></thead><tbody>' +
+        (prods.map((p) => '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td>' + (mostrar ? '<td class="num">' + (Number(p.stock) || 0) + '</td>' : '') +
+            '<td class="num"><input type="number" step="1" min="0" style="width:90px" data-conteo="' + p.codigo + '" placeholder="—"></td></tr>').join('') ||
+            '<tr><td colspan="4" class="tenue">Sin productos: créalos en el Punto de Venta.</td></tr>') + '</tbody></table>' +
+        '<p class="tenue">Deja en blanco lo que no contaste: solo entra en la comparación lo contado.</p>';
+    $('ajuste').innerHTML = '';
+    diferenciasConteo = [];
+}
+function pintarComparacion() {
+    diferenciasConteo = [];
+    const filas = [];
+    $('conteo').querySelectorAll('[data-conteo]').forEach((inp) => {
+        if (inp.value === '') return;
+        const p = producto(inp.dataset.conteo);
+        if (!p) return;
+        const contado = Math.floor(Number(inp.value) || 0);
+        const libros = Number(p.stock) || 0;
+        const dif = contado - libros;
+        if (dif === 0) { filas.push('<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + libros + '</td><td class="num">' + contado + '</td><td><span class="ok">Cuadra</span></td><td class="num">0,00</td></tr>'); return; }
+        const valor = r2(Math.abs(dif) * (Number(p.costo) || 0));
+        diferenciasConteo.push({ codigo: p.codigo, nombre: p.nombre, dif, valor });
+        filas.push('<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + libros + '</td><td class="num">' + contado + '</td><td>' + (dif > 0 ? '<span class="ok">Sobrante +' + dif + '</span>' : '<span class="mal">Faltante ' + dif + '</span>') + '</td><td class="num">' + fmt(valor) + ' (a costo)</td></tr>');
+    });
+    if (!filas.length) { $('ajuste').innerHTML = '<p class="tenue">No contaste ningún producto todavía.</p>'; return; }
+    let sobra = 0, falta = 0;
+    for (const d of diferenciasConteo) { if (d.dif > 0) sobra = r2(sobra + d.valor); else falta = r2(falta + d.valor); }
+    $('ajuste').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Según libros</th><th class="num">Contado</th><th>Diferencia</th><th class="num">Valor</th></tr></thead><tbody>' + filas.join('') + '</tbody></table>' +
+        (diferenciasConteo.length
+            ? '<p>Ajuste propuesto: ' + diferenciasConteo.length + ' documento(s) de inventario' + (sobra > 0 ? ' · sobrantes por ' + fmt(sobra) + ' a Otros Ingresos (810-000)' : '') + (falta > 0 ? ' · faltantes por ' + fmt(falta) + ' a Pérdidas (720-000)' : '') + ', contra Mercancías (188-000).</p><div class="fila"><button type="button" id="cAplicar">Aplicar los ajustes propuestos</button></div>'
+            : '<p class="ok">Sin diferencias: el conteo cuadra con los libros.</p>');
+    const btn = $('cAplicar');
+    if (btn) btn.addEventListener('click', aplicarAjustes);
+}
+async function aplicarAjustes() {
+    const fecha = $('cFecha').value;
+    if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se aplica el ajuste en un período cerrado', 'error'); return; }
+    let sobra = 0, falta = 0;
+    for (const d of diferenciasConteo) {
+        const p = producto(d.codigo);
+        if (!p) continue;
+        p.stock = (Number(p.stock) || 0) + d.dif;
+        pos.inventario.push({ id: 'd' + Date.now().toString(36) + d.codigo, fecha, tipo: d.dif > 0 ? 'entrada' : 'salida', codigo: d.codigo, nombre: d.nombre, cant: Math.abs(d.dif), motivo: 'Ajuste por conteo físico del ' + fecha + (d.dif > 0 ? ' (sobrante)' : ' (faltante)') });
+        if (d.dif > 0) sobra = r2(sobra + d.valor); else falta = r2(falta + d.valor);
+    }
+    let asientoTxt = '';
+    const totalAsiento = r2(sobra + falta);
+    if (totalAsiento > 0) {
+        conta.asientos = conta.asientos || [];
+        conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+        const lineas = [];
+        if (sobra > 0) { lineas.push({ cuenta: '188-000', debe: sobra, haber: 0 }); lineas.push({ cuenta: '810-000', debe: 0, haber: sobra }); }
+        if (falta > 0) { lineas.push({ cuenta: '720-000', debe: falta, haber: 0 }); lineas.push({ cuenta: '188-000', debe: 0, haber: falta }); }
+        conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: 'Ajuste de inventario por conteo físico del ' + fecha, origen: 'manual', estado: 'confirmado', lineas });
+        await bd().docGuardar(tokenSesion(), 'conta', conta);
+        asientoTxt = ' Asiento nº ' + conta.seqAsiento + ' creado en Contabilidad.';
+    } else {
+        asientoTxt = ' Sin asiento: los productos con diferencia no tienen costo registrado, así que el ajuste mueve solo unidades.';
+    }
+    await guardar();
+    aviso('Ajustes aplicados: el stock ya es el contado.' + asientoTxt);
+    diferenciasConteo = [];
+    $('ajuste').innerHTML = '';
+    pintar();
+    pintarHojaConteo();
+}
 (async () => {
     try {
         const s = await sesionActual();
@@ -94,7 +179,11 @@ function pintarKardex() {
         pos.inventario = pos.inventario || [];
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { candados: {} };
         $('dFecha').value = new Date().toISOString().slice(0, 10);
+        $('cFecha').value = new Date().toISOString().slice(0, 10);
         $('kProducto').addEventListener('change', pintarKardex);
+        $('cHoja').addEventListener('click', pintarHojaConteo);
+        $('cMostrar').addEventListener('change', () => { if ($('conteo').querySelector('[data-conteo]')) pintarHojaConteo(); });
+        $('cComparar').addEventListener('click', pintarComparacion);
         $('dRegistrar').addEventListener('click', async () => {
             const p = producto($('dProducto').value);
             const cant = Math.floor(Number($('dCant').value) || 0);
@@ -104,12 +193,34 @@ function pintarKardex() {
             if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se registran documentos de inventario en un período cerrado', 'error'); return; }
             const tipo = $('dTipo').value;
             if (tipo === 'salida' && (Number(p.stock) || 0) < cant) { aviso('No hay stock suficiente: quedan ' + (Number(p.stock) || 0), 'error'); return; }
+            const costoEnt = Number($('dCosto').value) || 0;
+            let avisoCosto = '';
+            if (tipo === 'entrada' && costoEnt > 0) {
+                const antes = Number(p.stock) || 0, costoAntes = Number(p.costo) || 0;
+                p.costo = r2(((antes * costoAntes) + (cant * costoEnt)) / ((antes + cant) || 1));
+                avisoCosto = ' Costo promedio actualizado: ' + fmt(p.costo) + '.';
+            }
             p.stock = (Number(p.stock) || 0) + (tipo === 'entrada' ? cant : -cant);
-            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo, codigo: p.codigo, nombre: p.nombre, cant, motivo: $('dMotivo').value.trim() });
-            try { await guardar(); aviso('Documento registrado: ' + tipo + ' de ' + cant + ' × ' + p.nombre + ' (stock ' + p.stock + ')'); $('dCant').value = ''; $('dMotivo').value = ''; pintar(); }
+            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo, codigo: p.codigo, nombre: p.nombre, cant, motivo: $('dMotivo').value.trim(), costo: tipo === 'entrada' ? costoEnt : 0 });
+            try { await guardar(); aviso('Documento registrado: ' + tipo + ' de ' + cant + ' × ' + p.nombre + ' (stock ' + p.stock + ').' + avisoCosto); $('dCant').value = ''; $('dMotivo').value = ''; $('dCosto').value = ''; pintar(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         pintar();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 auto 12px;max-width:920px}.pest-bar button{background:linear-gradient(#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#173A5E;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['docs', 'Documentos y existencias'], ['conteo', 'Conteo físico']];
+            const de = (t) => { const h = t.querySelector('h2'); return (h && h.textContent.indexOf('Conteo físico') === 0) ? 'conteo' : 'docs'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('docs');
+        })();
     } catch (e) {
         $('existencias').innerHTML = '<p class="mal">' + ((e && e.message) || e) + '</p>';
     }

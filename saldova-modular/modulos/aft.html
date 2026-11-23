@@ -54,6 +54,26 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Bajas de activos</h2>
+    <p class="tenue">Dar de baja no es borrar: el activo sale de los libros con su motivo y su asiento — se cancela su costo contra la depreciación acumulada, lo cobrado entra al banco si fue venta, y la diferencia va a Otros Ingresos (810-000) si se ganó o a Pérdidas (720-000) si se perdió. El historial queda abajo y la tarjeta del activo se puede imprimir en cualquier momento.</p>
+    <div class="fila">
+        <label>Activo <select id="bActivo" style="min-width:200px"></select></label>
+        <label>Motivo <select id="bMotivo"><option value="venta">Venta</option><option value="rotura">Rotura / fin de vida útil</option><option value="perdida">Pérdida o robo</option><option value="donacion">Donación</option></select></label>
+        <label>Fecha <input id="bFecha" type="date"></label>
+        <label>Precio de venta <input id="bPrecio" class="monto" type="number" step="0.01" min="0" value="0"></label>
+        <button type="button" id="bDar">Dar de baja con su asiento</button>
+    </div>
+    <div id="bajas"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta" id="tarjetaActivo" style="display:none">
+    <h2>Tarjeta del activo</h2>
+    <div id="tarjetaCuerpo"></div>
+    <div class="fila"><button type="button" id="tImprimir">Imprimir la tarjeta</button>
+    <button type="button" id="tCerrar" class="secundario">Cerrar</button></div>
+</div>
+
+<div class="tarjeta">
     <h2>Depreciación del mes</h2>
     <div class="fila"><input type="month" id="dMes"><button type="button" id="dVer" class="secundario chico">Ver</button>
     <button type="button" id="dAsiento">Generar asiento del mes</button></div>
@@ -71,6 +91,8 @@ const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const ACUM = { edificios: '251-000', transporte: '252-000', maquinaria: '253-000', computacion: '253-000', muebles: '253-000' };
+const ACT = { edificios: '241-000', transporte: '242-000', maquinaria: '243-000', computacion: '244-000', muebles: '245-000' };
+const MOTIVO_NOMBRE = { venta: 'Venta', rotura: 'Rotura / fin de vida útil', perdida: 'Pérdida o robo', donacion: 'Donación' };
 const CAT_NOMBRE = { edificios: 'Edificios', transporte: 'Transporte', maquinaria: 'Maquinaria y equipos', computacion: 'Computación', muebles: 'Muebles y enseres' };
 let aft = null, conta = null;
 
@@ -101,19 +123,47 @@ function pintarActivos() {
     let tc = 0, ta = 0;
     const filas = lista.map((a) => {
         const acum = depAcumulada(a, mes);
-        tc += Number(a.costo) || 0; ta += acum;
-        return '<tr><td>' + (a.codigo || '') + '</td><td>' + a.nombre + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td>' +
+        const esBaja = a.estado === 'baja';
+        if (!esBaja) { tc += Number(a.costo) || 0; ta += acum; }
+        return '<tr' + (esBaja ? ' style="opacity:.65"' : '') + '><td>' + (a.codigo || '') + '</td><td>' + a.nombre + (esBaja ? ' <b>(de baja: ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ', ' + ((a.baja && a.baja.fecha) || '') + ')</b>' : '') + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td>' +
             '<td class="num">' + fmt(a.costo) + '</td><td class="num">' + fmt(a.tasa) + ' %</td><td>' + (a.fechaServicio || '') + '</td>' +
             '<td class="num">' + fmt(acum) + '</td><td class="num">' + fmt((Number(a.costo) || 0) - acum) + '</td>' +
-            '<td><button type="button" class="chico secundario" data-del="' + a.id + '">Quitar</button></td></tr>';
+            '<td>' + (esBaja ? '' : '<button type="button" class="chico secundario" data-del="' + a.id + '">Quitar</button> ') +
+            '<button type="button" class="chico secundario" data-tarjeta="' + a.id + '">Tarjeta</button></td></tr>';
     }).join('');
     $('activos').innerHTML = '<table><thead><tr><th>Cód.</th><th>Activo</th><th>Categoría</th><th class="num">Costo</th><th class="num">Tasa</th><th>En servicio</th><th class="num">Dep. acumulada</th><th class="num">Valor en libros</th><th></th></tr></thead><tbody>' +
         (filas || '<tr><td colspan="9" class="tenue">Sin activos todavía.</td></tr>') +
         '<tr class="totales"><td colspan="3">TOTALES</td><td class="num">' + fmt(tc) + '</td><td></td><td></td><td class="num">' + fmt(ta) + '</td><td class="num">' + fmt(tc - ta) + '</td><td></td></tr></tbody></table>';
     $('activos').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         aft.activos = aft.activos.filter((a) => a.id !== b.dataset.del);
-        await guardar(); pintarTodo(); aviso('Activo quitado');
+        await guardar(); pintarTodo(); pintarBajas(); aviso('Activo quitado');
     }));
+    $('activos').querySelectorAll('[data-tarjeta]').forEach((b) => b.addEventListener('click', () => verTarjeta(b.dataset.tarjeta)));
+}
+function verTarjeta(id) {
+    const a = (aft.activos || []).find((x) => x.id === id);
+    if (!a) return;
+    const mes = new Date().toISOString().slice(0, 7);
+    const acum = depAcumulada(a, mes);
+    $('tarjetaCuerpo').innerHTML =
+        '<h3 style="margin:4px 0">TARJETA DE ACTIVO FIJO — ' + a.nombre + '</h3>' +
+        '<table><tbody>' +
+        '<tr><td><b>Código</b></td><td>' + (a.codigo || '—') + '</td><td><b>Categoría</b></td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td></tr>' +
+        '<tr><td><b>Costo de adquisición</b></td><td>' + fmt(a.costo) + '</td><td><b>En servicio desde</b></td><td>' + (a.fechaServicio || '—') + '</td></tr>' +
+        '<tr><td><b>Tasa anual</b></td><td>' + fmt(a.tasa) + ' %</td><td><b>Cuenta / Acumulada</b></td><td>' + (ACT[a.categoria] || '') + ' / ' + (ACUM[a.categoria] || '') + '</td></tr>' +
+        '<tr><td><b>Depreciación acumulada</b></td><td>' + fmt(acum) + '</td><td><b>Valor en libros hoy</b></td><td><b>' + fmt((Number(a.costo) || 0) - acum) + '</b></td></tr>' +
+        '<tr><td><b>Estado</b></td><td colspan="3">' + (a.estado === 'baja' ? 'DE BAJA — ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' el ' + ((a.baja && a.baja.fecha) || '') + (a.baja && a.baja.precio ? ' por ' + fmt(a.baja.precio) : '') : 'En explotación') + '</td></tr>' +
+        '</tbody></table>' +
+        '<p class="tenue">Documento de control del activo: consérvalo con su factura de compra y, si se da de baja, con el acta del motivo.</p>';
+    $('tarjetaActivo').style.display = '';
+    $('tarjetaActivo').scrollIntoView({ behavior: 'smooth' });
+}
+function pintarBajas() {
+    const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
+    $('bActivo').innerHTML = activos.map((a) => '<option value="' + a.id + '">' + (a.codigo || '') + ' · ' + a.nombre + ' · costo ' + fmt(a.costo) + '</option>').join('') || '<option value="">Sin activos en explotación</option>';
+    const bajas = (aft.activos || []).filter((a) => a.estado === 'baja');
+    $('bajas').innerHTML = bajas.length ? '<p style="margin-top:8px"><b>Historial de bajas:</b></p>' + bajas.map((a) =>
+        '<div class="fila"><span>' + ((a.baja && a.baja.fecha) || '') + '</span><b>' + a.nombre + '</b><span class="tenue">' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' · costo ' + fmt(a.costo) + (a.baja && a.baja.precio ? ' · vendido por ' + fmt(a.baja.precio) : '') + (a.baja && a.baja.asientoNumero ? ' · asiento nº ' + a.baja.asientoNumero : '') + '</span></div>').join('') : '<p class="tenue">Todavía no hay bajas registradas.</p>';
 }
 function pintarDepreciacion() {
     const mes = $('dMes').value;
@@ -175,7 +225,58 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
             aviso('Asiento nº ' + conta.seqAsiento + ' de depreciación creado');
             pintarTodo();
         });
+        $('bFecha').value = new Date().toISOString().slice(0, 10);
+        $('tCerrar').addEventListener('click', () => { $('tarjetaActivo').style.display = 'none'; });
+        $('tImprimir').addEventListener('click', () => window.print());
+        $('bDar').addEventListener('click', async () => {
+            const a = (aft.activos || []).find((x) => x.id === $('bActivo').value);
+            if (!a) { aviso('Elige el activo a dar de baja', 'error'); return; }
+            const fecha = $('bFecha').value, motivo = $('bMotivo').value, precio = Number($('bPrecio').value) || 0;
+            if (!fecha) { aviso('La baja necesita su fecha', 'error'); return; }
+            if (conta.candados && conta.candados[fecha.slice(0, 7)]) { aviso('El mes de la baja está cerrado: no se puede crear su asiento', 'error'); return; }
+            if (motivo === 'venta' && precio <= 0) { aviso('Una baja por venta necesita el precio cobrado', 'error'); return; }
+            const costo = Number(a.costo) || 0;
+            const acum = depAcumulada(a, fecha.slice(0, 7));
+            const libros = r2(costo - acum);
+            const lineas = [];
+            if (acum > 0) lineas.push({ cuenta: ACUM[a.categoria] || '253-000', debe: acum, haber: 0 });
+            if (motivo === 'venta') {
+                lineas.push({ cuenta: '110-010', debe: precio, haber: 0 });
+                if (precio > libros) lineas.push({ cuenta: '810-000', debe: 0, haber: r2(precio - libros) });
+                if (precio < libros) lineas.push({ cuenta: '720-000', debe: r2(libros - precio), haber: 0 });
+            } else if (libros > 0) {
+                lineas.push({ cuenta: '720-000', debe: libros, haber: 0 });
+            }
+            lineas.push({ cuenta: ACT[a.categoria] || '243-000', debe: 0, haber: costo });
+            const dTot = r2(lineas.reduce((sx, l) => sx + l.debe, 0)), hTot = r2(lineas.reduce((sx, l) => sx + l.haber, 0));
+            if (Math.abs(dTot - hTot) > 0.005) { aviso('El asiento de la baja no cuadra: revísalo antes de seguir', 'error'); return; }
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            const idA = 'a' + Date.now().toString(36);
+            conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha, concepto: 'Baja del activo ' + a.nombre + ' (' + (MOTIVO_NOMBRE[motivo] || motivo) + ')', origen: 'manual', estado: 'confirmado', lineas });
+            a.estado = 'baja';
+            a.baja = { fecha, motivo, precio: motivo === 'venta' ? precio : 0, asientoId: idA, asientoNumero: conta.seqAsiento };
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            await guardar();
+            pintarTodo(); pintarBajas();
+            aviso('Baja registrada con el asiento nº ' + conta.seqAsiento + ': ' + a.nombre + ' salió de los libros (valor en libros ' + fmt(libros) + ')');
+        });
         pintarTodo();
+        pintarBajas();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}@media print{body>*:not(#tarjetaActivo){display:none!important}#tarjetaActivo{display:block!important;border:none}}';
+            document.head.appendChild(estilo);
+            const grupos = [['activos', 'Activos'], ['bajas', 'Bajas'], ['depreciacion', 'Depreciación']];
+            const de = (t) => { if (t.id === 'tarjetaActivo') return 'activos'; const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Bajas') === 0) return 'bajas'; if (x.indexOf('Depreciación') === 0) return 'depreciacion'; return 'activos'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { if (t.id === 'tarjetaActivo') return; t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('activos');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }
