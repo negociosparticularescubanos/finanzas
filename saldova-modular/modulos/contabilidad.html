@@ -322,15 +322,17 @@ function pintarFlujo() {
     if (!mes) return;
     const del = movs.filter((m) => (m.fecha || '').startsWith(mes) && m.clase !== 'transferencia');
     const antes = movs.filter((m) => (m.fecha || '') < mes + '-01' && m.clase !== 'transferencia');
-    const suma = (arr) => arr.reduce((s, m) => s + (Number(m.monto) || 0), 0);
-    const saldoIni = suma(antes);
+    /* Los montos se guardan en positivo: el signo lo da el tipo. */
+    const mag = (arr) => arr.reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0);
+    const firmado = (arr) => arr.reduce((s, m) => s + (m.tipo === 'gasto' ? -Math.abs(Number(m.monto) || 0) : Math.abs(Number(m.monto) || 0)), 0);
+    const saldoIni = firmado(antes);
     const esAporte = (m) => /Aporte de capital/i.test(m.clasificacion || '');
     const opEntra = del.filter((m) => m.tipo === 'ingreso' && !esAporte(m));
     const opSale = del.filter((m) => m.tipo === 'gasto' && m.clase !== 'utilidades' && m.clase !== 'contingencia');
     const finEntra = del.filter((m) => m.tipo === 'ingreso' && esAporte(m));
     const finSale = del.filter((m) => m.tipo === 'gasto' && (m.clase === 'utilidades' || m.clase === 'contingencia'));
-    const netoOp = suma(opEntra) + suma(opSale), netoFin = suma(finEntra) + suma(finSale);
-    const fila = (txt, arr, extra) => '<tr><td>' + txt + '</td><td class="num">' + fmt(extra !== undefined ? extra : suma(arr)) + '</td></tr>';
+    const netoOp = mag(opEntra) - mag(opSale), netoFin = mag(finEntra) - mag(finSale);
+    const fila = (txt, arr) => '<tr><td>' + txt + '</td><td class="num">' + fmt(mag(arr)) + '</td></tr>';
     $('flujoEfectivo').innerHTML = '<table><tbody>' +
         '<tr><td>Saldo inicial del mes</td><td class="num">' + fmt(saldoIni) + '</td></tr>' +
         fila('Entradas de operación (ventas y otros cobros)', opEntra) +

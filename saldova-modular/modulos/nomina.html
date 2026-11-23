@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Nómina</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 0 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #B9CFE8; padding: 4px 7px; font-size: 13px; text-align: left; }
+    th { background: linear-gradient(180deg, #3A87D4, #2B78C5); color: #fff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.totales td { background: #DCE8F5; font-weight: 700; }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    input.monto { width: 110px; text-align: right; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Nómina</h1>
+<p><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="tarjeta">
+    <h2>Trabajadores</h2>
+    <div id="trabajadores"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="tNombre" placeholder="Nombre y apellidos" style="min-width:200px">
+        <input id="tCi" placeholder="Carné de identidad" size="13">
+        <input id="tCargo" placeholder="Cargo" size="16">
+        <input id="tSalario" class="monto" type="number" step="0.01" min="0" placeholder="Salario">
+        <button type="button" id="tAdd" class="secundario chico">Añadir trabajador</button>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Nómina del mes</h2>
+    <div class="fila"><input type="month" id="nMes"><button type="button" id="nPreparar" class="secundario chico">Preparar desde los trabajadores</button>
+    <button type="button" id="nGuardar">Guardar nómina</button>
+    <button type="button" id="nAsiento" class="secundario chico">Generar asiento</button></div>
+    <p class="tenue">El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto; en el asiento, ambos van a la 615-000 como aportes patronales, y quedan por pagar en la 333-000 y la 334-000.</p>
+    <div id="nomina"><p class="tenue">Elige el mes y prepara la nómina.</p></div>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(4);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+let rrhh = null, conta = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+async function guardar() { await bd().docGuardar(tokenSesion(), 'rrhh', rrhh); }
+function pintarTrabajadores() {
+    const lista = rrhh.trabajadores || [];
+    $('trabajadores').innerHTML = lista.map((t) =>
+        '<div class="fila"><b>' + t.nombre + '</b><span class="tenue">' + (t.cargo || '') + ' · CI ' + (t.ci || '') + ' · Salario ' + fmt(t.salario) + '</span>' +
+        '<button type="button" class="chico secundario" data-del="' + t.id + '">Quitar</button></div>').join('') ||
+        '<p class="tenue">Sin trabajadores todavía.</p>';
+    $('trabajadores').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+        rrhh.trabajadores = rrhh.trabajadores.filter((t) => t.id !== b.dataset.del);
+        await guardar(); pintarTrabajadores(); aviso('Trabajador quitado');
+    }));
+}
+function nominaDelMes() {
+    const mes = $('nMes').value;
+    return (rrhh.nominas && rrhh.nominas[mes]) || null;
+}
+function pintarNomina() {
+    const mes = $('nMes').value;
+    const nom = nominaDelMes();
+    if (!nom) { $('nomina').innerHTML = '<p class="tenue">No hay nómina guardada de ' + mes + '. Pulsa «Preparar» para crearla desde los trabajadores.</p>'; return; }
+    const filas = nom.trabajadores.map((t, i) =>
+        '<tr><td>' + t.nombre + '</td>' +
+        '<td class="num"><input class="monto" data-bruto="' + i + '" type="number" step="0.01" min="0" value="' + t.bruto + '"></td>' +
+        '<td class="num"><input class="monto" data-imp="' + i + '" type="number" step="0.01" min="0" value="' + (t.impPersonal || 0) + '"></td>' +
+        '<td class="num">' + fmt((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0)) + '</td></tr>').join('');
+    const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
+    const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
+    $('nomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Bruto</th><th class="num">Imp. personal</th><th class="num">Líquido</th></tr></thead><tbody>' + filas +
+        '<tr class="totales"><td>TOTALES</td><td class="num">' + fmt(bruto) + '</td><td class="num">' + fmt(imp) + '</td><td class="num">' + fmt(bruto - imp) + '</td></tr></tbody></table>' +
+        '<p class="tenue">Aportes del empleador sobre el bruto: Seguridad Social 14 % = ' + fmt(r2(bruto * 0.14)) + ' · IUFT 5 % = ' + fmt(r2(bruto * 0.05)) +
+        '. Costo total de la nómina: ' + fmt(r2(bruto * 1.19)) + '.' + (nom.asientoId ? ' Asiento ya generado (nº ' + nom.asientoNumero + ').' : '') + '</p>';
+    $('nomina').querySelectorAll('input[data-bruto], input[data-imp]').forEach((inp) => inp.addEventListener('change', () => {
+        const i = Number(inp.dataset.bruto !== undefined ? inp.dataset.bruto : inp.dataset.imp);
+        if (inp.dataset.bruto !== undefined) nom.trabajadores[i].bruto = Number(inp.value) || 0;
+        else nom.trabajadores[i].impPersonal = Number(inp.value) || 0;
+        pintarNomina();
+    }));
+}
+(async () => {
+    try {
+        pintarIndicador();
+        const sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        rrhh = (await bd().docLeer(tokenSesion(), 'rrhh')) || {};
+        rrhh.trabajadores = rrhh.trabajadores || [];
+        rrhh.nominas = rrhh.nominas || {};
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        $('tAdd').addEventListener('click', async () => {
+            const nombre = $('tNombre').value.trim();
+            const salario = Number($('tSalario').value) || 0;
+            if (!nombre || salario <= 0) { aviso('El trabajador necesita nombre y salario', 'error'); return; }
+            rrhh.trabajadores.push({ id: 't' + Date.now().toString(36), nombre, ci: $('tCi').value.trim(), cargo: $('tCargo').value.trim(), salario });
+            await guardar(); $('tNombre').value = $('tCi').value = $('tCargo').value = $('tSalario').value = '';
+            pintarTrabajadores(); aviso('Trabajador añadido');
+        });
+        $('nMes').value = new Date().toISOString().slice(0, 7);
+        $('nMes').addEventListener('change', pintarNomina);
+        $('nPreparar').addEventListener('click', async () => {
+            const mes = $('nMes').value;
+            if (!rrhh.trabajadores.length) { aviso('Primero añade los trabajadores', 'error'); return; }
+            if (nominaDelMes() && !confirm('Ya hay una nómina de ' + mes + '. ¿Prepararla de nuevo desde los trabajadores?')) return;
+            rrhh.nominas[mes] = { trabajadores: rrhh.trabajadores.map((t) => ({ id: t.id, nombre: t.nombre, bruto: t.salario, impPersonal: 0 })) };
+            await guardar(); pintarNomina(); aviso('Nómina de ' + mes + ' preparada');
+        });
+        $('nGuardar').addEventListener('click', async () => {
+            if (!nominaDelMes()) { aviso('No hay nómina preparada en este mes', 'error'); return; }
+            await guardar(); aviso('Nómina guardada');
+        });
+        $('nAsiento').addEventListener('click', async () => {
+            const mes = $('nMes').value;
+            const nom = nominaDelMes();
+            if (!nom) { aviso('Primero prepara y guarda la nómina del mes', 'error'); return; }
+            if (nom.asientoId) { aviso('Esta nómina ya tiene su asiento (nº ' + nom.asientoNumero + ')', 'error'); return; }
+            const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
+            const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
+            const ss = r2(bruto * 0.14), iuft = r2(bruto * 0.05), liquido = r2(bruto - imp);
+            if (bruto <= 0) { aviso('La nómina está en cero', 'error'); return; }
+            const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
+            const lineas = [L('614-000', bruto), L('615-000', r2(ss + iuft)), L('331-000', 0, liquido), L('333-000', 0, ss), L('334-000', 0, iuft)];
+            if (imp > 0) lineas.push(L('345-000', 0, imp));
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            const id = 'a' + Date.now().toString(36);
+            conta.asientos.push({ id, numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Nómina de ' + mes, origen: 'manual', estado: 'confirmado', lineas });
+            nom.asientoId = id; nom.asientoNumero = conta.seqAsiento;
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            await guardar();
+            aviso('Asiento nº ' + conta.seqAsiento + ' de la nómina creado en Contabilidad');
+            pintarNomina();
+        });
+        pintarTrabajadores();
+        pintarNomina();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>
