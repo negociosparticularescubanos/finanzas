@@ -105,7 +105,7 @@
 </div>
 
 <div class="tarjeta">
-    <h2>Plan de cuentas (del dueño)</h2>
+    <h2 id="planH2">Plan de cuentas (del dueño)</h2>
     <p class="tenue">El mismo plan de la Finanzas web. El oficial de la Res. 494/2016 se podrá cargar
        como alternativa, con sus equivalencias, igual que en la web.</p>
     <div id="planTxt" class="tenue">Cargando…</div>
@@ -156,7 +156,7 @@ function nombreCuenta(cod) {
 }
 function opcionesCuentas(sel) {
     const opts = (conta.plan || []).filter((c) => c.admite).map((c) =>
-        '<option value="' + c.codigo + '"' + (c.codigo === sel ? ' selected' : '') + '>' + c.codigo + ' · ' + c.nombre + '</option>').join('');
+        '<option value="' + c.codigo + '"' + (c.codigo === sel ? ' selected' : '') + '>' + c.codigo + ' · ' + c.nombre.replace(/ \(rango [^)]+\)$/, '') + '</option>').join('');
     return (sel && !existeCuenta(conta.plan, sel)) ? '<option value="" selected>— elige la cuenta —</option>' + opts : opts;
 }
 function cuentaOnat(concepto) {
@@ -267,7 +267,9 @@ function pintarBandeja() {
 }
 function pintarAsientos() {
     const tb = $('tablaAsientos');
-    const lista = [...(conta.asientos || [])].sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+    /* F10: por número de asiento, no por fecha: antes, dos asientos
+     * del mismo día salían en el orden en que se pintaron (1,2,3,4,7,8,5,6). */
+    const lista = [...(conta.asientos || [])].sort((a, b) => (a.numero || 0) - (b.numero || 0));
     tb.innerHTML = lista.map((a) => {
         const td = r2(a.lineas.reduce((s, l) => s + (Number(l.debe) || 0), 0));
         const th = r2(a.lineas.reduce((s, l) => s + (Number(l.haber) || 0), 0));
@@ -437,7 +439,10 @@ function pintarTodo() { pintarBandeja(); pintarAsientos(); pintarBalance(); pint
         }
         conta.asientos = conta.asientos || [];
         movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
-        $('planTxt').textContent = 'Plan del dueño: ' + conta.plan.length + ' cuentas (' + conta.plan.filter((c) => c.admite).length + ' imputables). Origen: ' + (conta.planOrigen || 'dueño') + '.';
+        /* F10: el rótulo dice qué plan está cargado; antes decía
+         * «Plan del dueño» hasta con el oficial. */
+        $('planTxt').textContent = 'Plan ' + (conta.planOrigen === 'oficial' ? 'oficial (Res. 494/2016)' : 'del dueño') + ': ' + conta.plan.length + ' cuentas (' + conta.plan.filter((c) => c.admite).length + ' imputables).';
+        $('planH2').textContent = 'Plan de cuentas (' + (conta.planOrigen === 'oficial' ? 'oficial · Res. 494/2016' : 'del dueño') + ')';
         $('amFecha').value = hoyLocal();
         $('amLineas').appendChild(lineaManual());
         $('amLineas').appendChild(lineaManual());

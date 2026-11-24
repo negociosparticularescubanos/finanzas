@@ -185,14 +185,21 @@ export const hayArchivosReales = () => 'showSaveFilePicker' in window;
 
 export async function guardarArchivoReal(bytes, nombreSugerido, descripcion, extension) {
     if (hayArchivosReales()) {
-        const handle = await window.showSaveFilePicker({
-            suggestedName: nombreSugerido,
-            types: [{ description: descripcion || 'Archivo', accept: { 'application/octet-stream': [extension || '.db'] } }],
-        });
-        const w = await handle.createWritable();
-        await w.write(bytes);
-        await w.close();
-        return 'archivo';
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: nombreSugerido,
+                types: [{ description: descripcion || 'Archivo', accept: { 'application/octet-stream': [extension || '.db'] } }],
+            });
+            const w = await handle.createWritable();
+            await w.write(bytes);
+            await w.close();
+            return 'archivo';
+        } catch (e) {
+            /* Si el usuario canceló, no hacer nada más; si el selector
+             * existe pero falla (navegador sin cabeza, contexto no
+             * permitido), caer a la descarga normal (F1). */
+            if (e && e.name === 'AbortError') throw e;
+        }
     }
     const url = URL.createObjectURL(new Blob([bytes]));
     const a = document.createElement('a');
@@ -203,11 +210,17 @@ export async function guardarArchivoReal(bytes, nombreSugerido, descripcion, ext
 
 export async function abrirArchivoReal(extension) {
     if ('showOpenFilePicker' in window) {
-        const [handle] = await window.showOpenFilePicker({
-            types: [{ description: 'Base de datos Saldova', accept: { 'application/octet-stream': [extension || '.db'] } }],
-        });
-        const file = await handle.getFile();
-        return new Uint8Array(await file.arrayBuffer());
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [{ description: 'Base de datos Saldova', accept: { 'application/octet-stream': [extension || '.db'] } }],
+            });
+            const file = await handle.getFile();
+            return new Uint8Array(await file.arrayBuffer());
+        } catch (e) {
+            /* Si el usuario canceló, no hacer nada más; si el selector
+             * existe pero falla, caer al <input type=file> (F1). */
+            if (e && e.name === 'AbortError') throw e;
+        }
     }
     return new Promise((resolve, reject) => {
         const inp = document.createElement('input');
@@ -375,7 +388,7 @@ export function aviso(texto, tipo) {
     if (!caja) {
         caja = document.createElement('div');
         caja.id = 'saldova-avisos';
-        caja.style.cssText = 'position:fixed;top:14px;right:14px;z-index:99999;display:flex;flex-direction:column;gap:8px';
+        caja.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:99999;display:flex;flex-direction:column;gap:8px';
         document.body.appendChild(caja);
     }
     const t = document.createElement('div');
@@ -385,6 +398,14 @@ export function aviso(texto, tipo) {
     caja.appendChild(t);
     setTimeout(() => t.remove(), 4200);
     if (tipo === 'error') SND.error(); else SND.ok();
+}
+
+/* F8: guardar varios slots en UNA transacción; si el servidor lo
+ * rechaza (p. ej. consultor), avisa y no sigue como si se hubiera
+ * guardado: antes, el aviso de éxito salía igual. */
+export async function guardarMultiple(slots) {
+    try { await bd().docGuardarMultiple(tokenSesion(), slots); }
+    catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; }
 }
 
 /* Mensaje del resultado de importar una base (lo usan el Panel y la

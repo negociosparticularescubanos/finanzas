@@ -54,7 +54,7 @@
 
 <div class="tarjeta">
     <h2>Créditos bancarios</h2>
-    <p class="tenue">La ficha de cada crédito con su tabla de amortización: cuánto pagas cada mes, cuánto es interés y cuánto baja la deuda. El alta y el pago de la cuota hacen su asiento solos (deuda en la 410, intereses en la 710-000, banco en la 110-010).</p>
+    <p class="tenue">La ficha de cada crédito con su tabla de amortización: cuánto pagas cada mes, cuánto es interés y cuánto baja la deuda. El alta y el pago de la cuota hacen su asiento solos (la deuda, los intereses y el banco, según el plan de cuentas activo).</p>
     <div class="fila">
         <input id="crBanco" placeholder="Banco / entidad" style="flex:1;min-width:140px">
         <input id="crMonto" type="number" step="0.01" min="0" placeholder="Monto" style="width:130px">
@@ -169,7 +169,7 @@ function pintarUmbral() {
     const anio = ($('vMes').value || mesLocal()).slice(0, 4);
     const acum = ventasPeriodo(anio + '-01-01', anio + '-12-31');
     const pct = Math.min(100, r2(acum / 500000 * 100));
-    $('umbral').innerHTML = '<p>Ingresos por ventas acumulados en ' + anio + ' (cuentas 801/802 de los asientos): <b>' + fmt(acum) + '</b> de 500 000 CUP (' + fmt(pct) + ' %).</p>' +
+    $('umbral').innerHTML = '<p>Ingresos por ventas acumulados en ' + anio + ' (ventas de los asientos): <b>' + fmt(acum) + '</b> de 500 000 CUP (' + fmt(pct) + ' %).</p>' +
         '<div class="barra"><div style="width:' + pct + '%"></div></div>' +
         (pct >= 80 ? '<div class="alerta">Atención: ya vas por el ' + fmt(pct) + ' % del umbral de 500 000 CUP de la Res. 272/2024. Al superarlo, el TCP pasa a otro régimen de obligaciones: revísalo con tiempo.</div>'
                    : '<div class="bien">Todavía estás por debajo del 80 % del umbral.</div>');
@@ -307,9 +307,11 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         fiscal.creditos = fiscal.creditos || [];
+        $('crInicio').value = hoyLocal();
         $('crAdd').addEventListener('click', async () => {
             const monto = Number($('crMonto').value) || 0, plazo = parseInt($('crPlazo').value, 10) || 0;
             if (monto <= 0 || plazo <= 0) { aviso('Pon el monto y el plazo del crédito', 'error'); return; }
+            if (!$('crInicio').value) { aviso('El crédito necesita su fecha de inicio', 'error'); return; }
             fiscal.creditos.push({ id: 'cr' + Date.now().toString(36), banco: $('crBanco').value.trim(), monto, plazo, tasa: Number($('crTasa').value) || 0, inicio: $('crInicio').value || '', pagos: 0 });
             try { await guardar(); pintarCreditos(); aviso('Crédito registrado con su tabla de amortización'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });

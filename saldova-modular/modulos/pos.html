@@ -56,7 +56,7 @@
     <button type="button" id="vdAsiento">Generar el asiento del día</button>
     <button type="button" id="vdCsv" class="secundario chico">Descargar las ventas en Excel (CSV)</button></div>
     <div id="ventasDia"><p class="tenue">Elige la fecha.</p></div>
-    <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja (101-010), la tarjeta y el QR al Banco (110-010), lo vendido a crédito a Cuentas por Cobrar (131-000), contra Ventas (801-000), ya neto de las devoluciones del día. Cada venta entra una sola vez.</p>
+    <p class="tenue">El asiento del día agrupa TODAS las ventas de esa fecha en un solo comprobante: el efectivo a la Caja, la tarjeta y el QR al Banco, lo vendido a crédito a Cuentas por Cobrar, contra Ventas, ya neto de las devoluciones del día. Cada venta entra una sola vez.</p>
 </div>
 
 <div class="tarjeta">
@@ -117,7 +117,7 @@
 </div>
 
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, cuentaAuto, validarLineasAsiento, hoyLocal, fechaLocalDe } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, cuentaAuto, validarLineasAsiento, hoyLocal, fechaLocalDe, guardarMultiple } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(7);
@@ -138,7 +138,9 @@ async function pintarIndicador() {
         else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
     } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
 }
-async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
+/* F8: si el guardado es rechazado, avisar y no seguir como si se
+ * hubiera guardado (el aviso de éxito ya no sale). */
+async function guardar() { try { await bd().docGuardar(tokenSesion(), 'pos', pos); } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; } }
 function pintarProductos() {
     const lista = pos.productos || [];
     $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
@@ -267,6 +269,9 @@ function pintarDvLineas() {
         '<label>Devuelve <input type="number" step="1" min="0" max="' + disp + '" value="0" style="width:70px" data-dv="' + esc(l.codigo) + '"></label></div>';
     }).join('');
 }
+/* Costo promedio del producto (F7): para llevar el costo de lo
+ * vendido al asiento del día y devolverlo si hay devolución. */
+function costoProducto(cod) { const p = (pos.productos || []).find((x) => x.codigo === cod); return Number(p && p.costo) || 0; }
 function calcArqueo() {
     const fecha = $('arqFecha').value;
     let cobradoEf = 0;
@@ -325,6 +330,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             pintarCarrito();
         });
         $('vCobrar').addEventListener('click', async () => {
+            if (conta.candados && conta.candados[hoy().slice(0, 7)]) { aviso('El mes de ' + hoy().slice(0, 7) + ' está cerrado: no se pueden registrar ventas en un período cerrado', 'error'); return; }
             if (!carrito.length) { aviso('La venta está vacía', 'error'); return; }
             const medioSel = $('vMedio').value;
             const clienteCred = $('vCliente').value.trim();
@@ -351,7 +357,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             /* M-1: factura (conta) + venta y stock (pos) en UNA
              * transacción: antes, si el segundo guardado fallaba,
              * la factura quedaba sin su venta. */
-            if (medioSel === 'credito') await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+            if (medioSel === 'credito') await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             else await guardar();
             carrito = []; pintarTodo(); pintarDevoluciones();
             aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
@@ -408,6 +414,17 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             if (banco > 0) lineas.push(L(cuentaAuto(conta.plan, 'banco_cup', '110-010'), banco));
             if (creditoC > 0) lineas.push(L(cuentaAuto(conta.plan, 'clientes', '131-000'), creditoC));
             lineas.push(L(cuentaAuto(conta.plan, 'ventas', '801-000'), 0, total));
+            /* F7: el costo de lo vendido, neto de devoluciones del
+             * día: sin él, Informes decía costo 0,00 aunque se
+             * vendiera, y el stock bajaba sin salir de Mercancías. */
+            let costoTotal = 0;
+            for (const v of pendientes) for (const l of (v.lineas || [])) costoTotal = r2(costoTotal + (Number(l.cant) || 0) * costoProducto(l.codigo));
+            for (const d of devsNetas) for (const l of (d.lineas || [])) costoTotal = r2(costoTotal - (Number(l.cant) || 0) * costoProducto(l.codigo));
+            if (costoTotal < 0) costoTotal = 0;
+            if (costoTotal > 0) {
+                lineas.push(L(cuentaAuto(conta.plan, 'costo_ventas', '695-000'), costoTotal, 0));
+                lineas.push(L(cuentaAuto(conta.plan, 'mercancias', '188-000'), 0, costoTotal));
+            }
             const errLin = validarLineasAsiento(conta.plan, lineas);
             if (errLin) { aviso(errLin, 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
@@ -417,7 +434,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             for (const d of devsNetas) d.asientoId = id;
             pos.asientoDia = fecha;
             /* M-1: asiento (conta) + marcas asientoId (pos) en UNA transacción. */
-            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+            await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             aviso('Asiento del día nº ' + conta.seqAsiento + ' creado por ' + fmt(total));
             pintarVentasDia();
         });
@@ -440,9 +457,17 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             if (!okCant) { aviso('No se puede devolver más de lo vendido y no devuelto', 'error'); return; }
             const medio = (v.cobros && v.cobros[0] && v.cobros[0].medio) || 'efectivo';
             const fHoy = hoy();
-            if (v.asientoId && conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
+            if (conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
             const cuentaH = medio === 'efectivo' ? cuentaAuto(conta.plan, 'caja', '101-010') : (medio === 'credito' ? cuentaAuto(conta.plan, 'clientes', '131-000') : cuentaAuto(conta.plan, 'banco_cup', '110-010'));
             const lineasDevAsiento = [{ cuenta: cuentaAuto(conta.plan, 'ventas', '801-000'), debe: total, haber: 0 }, { cuenta: cuentaH, debe: 0, haber: total }];
+            /* F7: la devolución también devuelve el costo que el
+             * asiento del día ya había llevado a Costo de ventas. */
+            let costoDev = 0;
+            for (const ld of lineasDev) costoDev = r2(costoDev + (Number(ld.cant) || 0) * costoProducto(ld.codigo));
+            if (costoDev > 0) {
+                lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'mercancias', '188-000'), debe: costoDev, haber: 0 });
+                lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'costo_ventas', '695-000'), debe: 0, haber: costoDev });
+            }
             if (v.asientoId) {
                 const errLin = validarLineasAsiento(conta.plan, lineasDevAsiento);
                 if (errLin) { aviso(errLin, 'error'); return; }
@@ -465,7 +490,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
                 extra = ' Asiento de ajuste nº ' + conta.seqAsiento + ' creado.';
                 /* M-1: asiento de ajuste (conta) + devolución y stock
                  * (pos) en UNA transacción. */
-                await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+                await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             } else {
                 await guardar();
             }

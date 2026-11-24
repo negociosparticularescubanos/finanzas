@@ -76,7 +76,9 @@ async function pintarIndicador() {
         else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
     } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
 }
-async function guardar() { await bd().docGuardar(tokenSesion(), 'gestor', gestor); }
+/* F8: si el guardado es rechazado, avisar y no seguir como si se
+ * hubiera guardado (el aviso de éxito ya no sale). */
+async function guardar() { try { await bd().docGuardar(tokenSesion(), 'gestor', gestor); } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; } }
 function ficha(nombre) {
     gestor.kyc = gestor.kyc || {};
     return gestor.kyc[nombre] || (gestor.kyc[nombre] = { nit: '', contacto: '', telefono: '', direccion: '', riesgo: 'bajo', servicios: '', recuperacion: false });
@@ -161,7 +163,7 @@ function pintarExcluidos() {
             const estilo = document.createElement('style');
             estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
             document.head.appendChild(estilo);
-            const grupos = [['negocios', 'Negocios'], ['control', 'Control: ROS y exclusión']];
+            const grupos = [['negocios', 'Negocios'], ['control', 'ROS y exclusión']];
             const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Registro de operaciones') === 0 || x.indexOf('Lista de exclusión') === 0) return 'control'; return 'negocios'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');

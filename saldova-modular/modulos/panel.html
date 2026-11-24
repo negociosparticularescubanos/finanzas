@@ -150,7 +150,7 @@
 
 <div class="tarjeta">
     <h2>Salvas automáticas</h2>
-    <p class="tenue">Al cerrar un mes en el módulo Cierre, la base se guarda sola en un archivo con fecha. Para restaurar una: ábrela con «Importar» en «Mi archivo de base de datos».</p>
+    <p class="tenue">Al cerrar un mes, la base se guarda sola en un archivo con fecha (lo hace el administrador). Para guardar una copia cuando quieras, usa «Guardar mi archivo .db» en «Mi archivo de base de datos». Para restaurar una copia, ábrela con «Importar» ahí mismo.</p>
     <div id="salvasLista"><p class="tenue">Cargando…</p></div>
 </div>
 
@@ -397,7 +397,7 @@ const $p = (id) => document.getElementById(id);
 async function cargarDatosNegocio() { try { const f = await bd().docLeer(tokenSesion(), 'fiscal'); const m = (f && f.meta) || {}; $p('dnRazon').value = m.razon || ''; $p('dnNit').value = m.nit || ''; $p('dnDireccion').value = m.direccion || ''; $p('dnTelefono').value = m.telefono || ''; $p('dnCuenta').value = m.cuentaFiscal || ''; } catch (e) {} }
 $p('dnGuardar').addEventListener('click', async () => { try { const f = (await bd().docLeer(tokenSesion(), 'fiscal')) || { meta: {}, fuentes: [] }; f.meta = f.meta || {}; f.meta.razon = $p('dnRazon').value.trim(); f.meta.nit = $p('dnNit').value.trim(); f.meta.direccion = $p('dnDireccion').value.trim(); f.meta.telefono = $p('dnTelefono').value.trim(); f.meta.cuentaFiscal = $p('dnCuenta').value.trim(); await bd().docGuardar(tokenSesion(), 'fiscal', f); aviso('Datos del negocio guardados'); } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
 $p('tzVer').addEventListener('click', async () => { try { const filasT = await bd().trazas(tokenSesion(), $p('tzMes').value || null); $p('tzLista').innerHTML = filasT.length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + filasT.map((t) => '<tr><td>' + fechaHoraLocal(t.ts) + '</td><td>' + esc(t.usuario) + '</td><td>' + esc(t.accion) + (t.slot ? ' · ' + esc(t.slot) : '') + '</td><td>' + esc(t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin movimientos registrados en ese período.</p>'; } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
-function pintarSalvas() { let lista = []; try { lista = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {} $p('salvasLista').innerHTML = lista.length ? lista.map((x) => '<div class="fila"><b>' + x.fecha + '</b><span class="tenue">salva automática al cerrar ' + x.mes + ' · archivo ' + x.archivo + '</span></div>').join('') : '<p class="tenue">Todavía no hay salvas: se crean solas al cerrar un mes en el módulo Cierre.</p>'; }
+function pintarSalvas() { let lista = []; try { lista = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {} $p('salvasLista').innerHTML = lista.length ? lista.map((x) => '<div class="fila"><b>' + x.fecha + '</b><span class="tenue">salva automática al cerrar ' + x.mes + ' · archivo ' + x.archivo + '</span></div>').join('') : '<p class="tenue">Todavía no hay salvas en este equipo: se guardan al cerrar un mes (las crea el administrador) o con «Guardar mi archivo .db».</p>'; }
 cargarDatosNegocio(); pintarSalvas();
 (function pestPanel() {
     const grupos = [['base', 'Base'], ['acceso', 'Acceso'], ['negocio', 'Negocio'], ['equipo', 'Equipo']];

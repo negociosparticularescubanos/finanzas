@@ -211,7 +211,7 @@ function abrirModulo(id) {
     barraMostrar(m);
     const altoBarra = Math.round(document.getElementById('barraModulo').offsetHeight || 0);
     const wb = new WinBox(m.titulo, {
-        url: m.url, width: m.ancho || 820, height: m.alto || 600,
+        url: m.url, width: Math.min(m.ancho || 820, window.innerWidth), height: Math.min(m.alto || 600, Math.max(320, window.innerHeight - altoBarra)),
         x: 'center', y: 'center', top: altoBarra, bottom: 0, left: 0, right: 0,
         onminimize: () => SND.ventana(),
         onmaximize: () => {
@@ -377,7 +377,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v37';
+    document.getElementById('lzVer').textContent = '· v38';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     const g = document.getElementById('lzModulos');
     g.innerHTML = '';

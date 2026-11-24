@@ -48,6 +48,8 @@
         <input id="aCosto" class="monto" type="number" step="0.01" min="0" placeholder="Costo">
         <label>En servicio desde <input id="aFecha" type="date"></label>
         <label>Tasa anual % <input id="aTasa" type="number" step="0.1" min="0" value="10" style="width:70px"></label>
+        <label>Se pagó con <select id="aPago"><option value="banco">Banco</option><option value="caja">Caja</option><option value="credito">A crédito (por pagar)</option></select></label>
+        <label><input id="aSinAsiento" type="checkbox"> Ya está en los libros (no crear asiento)</label>
         <button type="button" id="aAdd" class="secundario chico">Añadir activo</button>
     </div>
     <p class="tenue">La tasa la fija la política del negocio según la vida útil del activo. La depreciación contable y la fiscal pueden diferir: aquí se lleva la contable; la fiscal se revisa en el cierre.</p>
@@ -83,7 +85,7 @@
 </div>
 
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal, guardarMultiple } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(5);
@@ -113,7 +115,9 @@ async function pintarIndicador() {
         else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
     } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
 }
-async function guardar() { await bd().docGuardar(tokenSesion(), 'aft', aft); }
+/* F8: si el guardado es rechazado, avisar y no seguir como si se
+ * hubiera guardado (el aviso de éxito ya no sale). */
+async function guardar() { try { await bd().docGuardar(tokenSesion(), 'aft', aft); } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; } }
 function mesesEnServicio(a, hastaMes) {
     if (!a.fechaServicio) return 0;
     const [y1, m1] = a.fechaServicio.split('-').map(Number);
@@ -208,9 +212,39 @@ function pintarTodo() {
             const nombre = $('aNombre').value.trim();
             const costo = Number($('aCosto').value) || 0;
             if (!nombre || costo <= 0 || !$('aFecha').value) { aviso('El activo necesita nombre, costo y fecha de puesta en servicio', 'error'); return; }
-            aft.activos.push({ id: 'af' + Date.now().toString(36), codigo: $('aCodigo').value.trim(), nombre, categoria: $('aCategoria').value, costo, fechaServicio: $('aFecha').value, tasa: Number($('aTasa').value) || 0, estado: 'activo' });
-            await guardar(); $('aCodigo').value = $('aNombre').value = $('aCosto').value = '';
-            pintarTodo(); aviso('Activo añadido');
+            const categoria = $('aCategoria').value;
+            const sinAsiento = $('aSinAsiento').checked;
+            const hoyF = hoyLocal();
+            let lineas = null, numAsiento = 0;
+            if (!sinAsiento) {
+                /* F6: el alta crea su asiento de compra (el activo
+                 * contra banco, caja o AFT por pagar); sin él, el
+                 * activo no existía en los libros. */
+                if (conta.candados && conta.candados[hoyF.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar la compra del activo. Si ya está en los libros, marca «Ya está en los libros» y añádelo sin asiento.', 'error'); return; }
+                const pago = $('aPago').value;
+                const ctaHaber = pago === 'caja' ? cuentaAuto(conta.plan, 'caja', '101-010')
+                    : pago === 'credito' ? cuentaAuto(conta.plan, 'aft_por_pagar', '421-000')
+                    : cuentaAuto(conta.plan, 'banco_cup', '110-010');
+                if (!ctaHaber) { aviso('Con el plan de cuentas activo no hay cuenta para pagar este activo a crédito: elige Banco o Caja.', 'error'); return; }
+                lineas = [{ cuenta: cuentaACT(categoria), debe: costo, haber: 0 }, { cuenta: ctaHaber, debe: 0, haber: costo }];
+                const errLin = validarLineasAsiento(conta.plan, lineas);
+                if (errLin) { aviso(errLin, 'error'); return; }
+            }
+            aft.activos.push({ id: 'af' + Date.now().toString(36), codigo: $('aCodigo').value.trim(), nombre, categoria, costo, fechaServicio: $('aFecha').value, tasa: Number($('aTasa').value) || 0, estado: 'activo' });
+            if (lineas) {
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                numAsiento = conta.seqAsiento;
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: numAsiento, fecha: hoyF, concepto: 'Compra de ' + nombre + ' (' + ($('aCodigo').value.trim() || 'sin código') + ')', origen: 'manual', estado: 'confirmado', lineas });
+                /* M-1: asiento (conta) + activo (aft) en UNA transacción. */
+                try { await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]); }
+                catch (e) { return; }
+            } else {
+                try { await guardar(); }
+                catch (e) { return; }
+            }
+            $('aCodigo').value = $('aNombre').value = $('aCosto').value = '';
+            pintarTodo();
+            aviso(numAsiento ? 'Activo añadido con el asiento nº ' + numAsiento : 'Activo añadido sin asiento (ya estaba en los libros)');
         });
         $('dMes').value = mesLocal();
         $('dMes').addEventListener('change', pintarTodo);
@@ -238,10 +272,11 @@ function pintarTodo() {
             /* M-1: asiento (conta) + marca ultimaDepreciacion (aft) en
              * UNA transacción: antes, si el segundo fallaba, re-ejecutar
              * duplicaba el asiento. */
-            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
+            await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
             aviso('Asiento nº ' + conta.seqAsiento + ' de depreciación creado');
             pintarTodo();
         });
+        $('aFecha').value = hoyLocal();
         $('bFecha').value = hoyLocal();
         $('tCerrar').addEventListener('click', () => { $('tarjetaActivo').style.display = 'none'; });
         $('tImprimir').addEventListener('click', () => window.print());
@@ -275,7 +310,7 @@ function pintarTodo() {
             a.estado = 'baja';
             a.baja = { fecha, motivo, precio: motivo === 'venta' ? precio : 0, asientoId: idA, asientoNumero: conta.seqAsiento };
             /* M-1: asiento (conta) + marca de baja (aft) en UNA transacción. */
-            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
+            await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
             pintarTodo(); pintarBajas();
             aviso('Baja registrada con el asiento nº ' + conta.seqAsiento + ': ' + a.nombre + ' salió de los libros (valor en libros ' + fmt(libros) + ')');
         });
