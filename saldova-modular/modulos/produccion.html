@@ -93,7 +93,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, hoyLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(14);
@@ -101,7 +101,7 @@ aplicarFondo(14);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => hoyLocal();
 let pos = null, conta = null, recetaEdit = [];
 
 async function pintarIndicador() {
@@ -118,7 +118,7 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
 const prod = (cod) => (pos.productos || []).find((p) => p.codigo === cod);
 const recetaDe = (cod) => (pos.recetas || []).find((r) => r.codigo === cod);
 function opcionesProductos(sel, vacio) {
-    $(sel).innerHTML = (pos.productos || []).map((p) => '<option value="' + p.codigo + '">' + p.codigo + ' · ' + p.nombre + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('') || '<option value="">' + vacio + '</option>';
+    $(sel).innerHTML = (pos.productos || []).map((p) => '<option value="' + esc(p.codigo) + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('') || '<option value="">' + vacio + '</option>';
 }
 function costoOrden(codTerminado, cant) {
     const r = recetaDe(codTerminado);
@@ -139,14 +139,14 @@ function pintarOrden() {
     if (!c) { $('opDetalle').innerHTML = '<p class="tenue">Este producto no tiene ficha de producción: créala en la pestaña «Fichas y ficha de costo».</p>'; return; }
     const falta = c.detalle.filter((d) => d.necesita > d.hay);
     $('opDetalle').innerHTML = '<table><thead><tr><th>Material</th><th class="num">Por unidad</th><th class="num">Necesita</th><th class="num">Hay</th><th class="num">Costo prom.</th><th class="num">Importe</th></tr></thead><tbody>' +
-        c.detalle.map((d) => '<tr><td>' + d.nombre + '</td><td class="num">' + d.porUnidad + '</td><td class="num">' + d.necesita + '</td><td class="num">' + (d.necesita > d.hay ? '<span class="rojo">' + d.hay + '</span>' : d.hay) + '</td><td class="num">' + fmt(d.costo) + '</td><td class="num">' + fmt(d.importe) + '</td></tr>').join('') +
+        c.detalle.map((d) => '<tr><td>' + esc(d.nombre) + '</td><td class="num">' + d.porUnidad + '</td><td class="num">' + d.necesita + '</td><td class="num">' + (d.necesita > d.hay ? '<span class="rojo">' + d.hay + '</span>' : d.hay) + '</td><td class="num">' + fmt(d.costo) + '</td><td class="num">' + fmt(d.importe) + '</td></tr>').join('') +
         '<tr class="totales"><td colspan="5">COSTO DE MATERIALES DE LA ORDEN (' + cant + ' unidades)</td><td class="num">' + fmt(c.total) + '</td></tr></tbody></table>' +
-        '<p>Costo unitario del terminado por materiales: <b>' + fmt(c.unitario) + '</b>.' + (falta.length ? ' <span class="rojo">No alcanza: falta material (' + falta.map((d) => d.nombre).join(', ') + '); la orden no se puede producir todavía.</span>' : ' Alcanza para producir.') + '</p>';
+        '<p>Costo unitario del terminado por materiales: <b>' + fmt(c.unitario) + '</b>.' + (falta.length ? ' <span class="rojo">No alcanza: falta material (' + falta.map((d) => esc(d.nombre)).join(', ') + '); la orden no se puede producir todavía.</span>' : ' Alcanza para producir.') + '</p>';
 }
 function pintarOrdenes() {
     const lista = [...(pos.produccion || [])].reverse().slice(0, 10);
     $('opLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Últimas órdenes:</b></p>' + lista.map((o) =>
-        '<div class="fila"><span>' + o.fecha + '</span><b>' + o.nombre + ' × ' + o.cant + '</b><span class="tenue">costo unitario ' + fmt(o.costoUnitario) + ' · total ' + fmt(o.costoTotal) + '</span></div>').join('') : '';
+        '<div class="fila"><span>' + o.fecha + '</span><b>' + esc(o.nombre) + ' × ' + o.cant + '</b><span class="tenue">costo unitario ' + fmt(o.costoUnitario) + ' · total ' + fmt(o.costoTotal) + '</span></div>').join('') : '';
 }
 function pintarReceta() {
     const cod = $('rProducto').value;
@@ -157,7 +157,7 @@ function pintarReceta() {
 function pintarRecetaEdit() {
     $('rMateriales').innerHTML = recetaEdit.map((m, i) => {
         const mp = prod(m.codigo);
-        return '<div class="fila"><span>' + (mp ? mp.nombre : m.codigo) + '</span><span class="tenue">' + m.cant + ' por unidad · costo prom. ' + fmt(mp ? (Number(mp.costo) || 0) : 0) + '</span>' +
+        return '<div class="fila"><span>' + esc(mp ? mp.nombre : m.codigo) + '</span><span class="tenue">' + m.cant + ' por unidad · costo prom. ' + fmt(mp ? (Number(mp.costo) || 0) : 0) + '</span>' +
             '<button type="button" class="chico secundario" data-rq="' + i + '">Quitar</button></div>';
     }).join('') || '<p class="tenue">Este producto aún no tiene materiales en su ficha.</p>';
     $('rMateriales').querySelectorAll('[data-rq]').forEach((b) => b.addEventListener('click', () => { recetaEdit.splice(Number(b.dataset.rq), 1); pintarRecetaEdit(); }));
@@ -172,9 +172,9 @@ function pintarFicha() {
     const costoTotal = r2(c.unitario + mano + otros);
     const precio = r2(costoTotal * (1 + util / 100));
     $('ficha').innerHTML =
-        '<p><b>Ficha de costo de ' + p.nombre + '</b> · precios y costos de hoy (' + hoy() + ')</p>' +
+        '<p><b>Ficha de costo de ' + esc(p.nombre) + '</b> · precios y costos de hoy (' + hoy() + ')</p>' +
         '<table><thead><tr><th>Concepto</th><th class="num">Importe por unidad</th></tr></thead><tbody>' +
-        c.detalle.map((d) => '<tr><td>Materia prima: ' + d.nombre + ' (' + d.porUnidad + ' × ' + fmt(d.costo) + ')</td><td class="num">' + fmt(r2(d.porUnidad * d.costo)) + '</td></tr>').join('') +
+        c.detalle.map((d) => '<tr><td>Materia prima: ' + esc(d.nombre) + ' (' + d.porUnidad + ' × ' + fmt(d.costo) + ')</td><td class="num">' + fmt(r2(d.porUnidad * d.costo)) + '</td></tr>').join('') +
         '<tr><td>Materiales directos</td><td class="num">' + fmt(c.unitario) + '</td></tr>' +
         '<tr><td>Mano de obra directa</td><td class="num">' + fmt(mano) + '</td></tr>' +
         '<tr><td>Otros gastos</td><td class="num">' + fmt(otros) + '</td></tr>' +
@@ -184,7 +184,7 @@ function pintarFicha() {
         '<p class="tenue">Precio de venta actual del producto: ' + fmt(p.precio) + '. Si el propuesto difiere, decides tú: la app no cambia precios sola. El impuesto sobre ventas se liquida aparte, por el Vector Fiscal.</p>' +
         '<div class="fila"><button type="button" id="fcImprimir" class="secundario chico">Ver el documento imprimible</button></div>';
     $('fcImprimir').addEventListener('click', () => {
-        $('fichaImpCuerpo').innerHTML = $('ficha').querySelector('table').outerHTML + '<p>Ficha de costo de ' + p.nombre + ' · ' + hoy() + ' · Utilidad ' + util + ' % · Precio propuesto ' + fmt(precio) + '.</p>';
+        $('fichaImpCuerpo').innerHTML = $('ficha').querySelector('table').outerHTML + '<p>Ficha de costo de ' + esc(p.nombre) + ' · ' + hoy() + ' · Utilidad ' + util + ' % · Precio propuesto ' + fmt(precio) + '.</p>';
         $('fichaImp').style.display = '';
         $('fichaImp').scrollIntoView({ behavior: 'smooth' });
     });

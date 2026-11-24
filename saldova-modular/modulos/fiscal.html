@@ -111,7 +111,7 @@
 .pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
 </style>
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(3);
@@ -135,9 +135,10 @@ async function pintarIndicador() {
 }
 function ventasPeriodo(desde, hasta) {
     let s = 0;
+    const ctasVentas = [cuentaAuto(conta && conta.plan, 'ventas', '801-000'), cuentaAuto(conta && conta.plan, 'ventas_servicios', '802-000')].filter(Boolean);
     for (const a of (conta && conta.asientos) || []) {
         if (a.fecha < desde || a.fecha > hasta) continue;
-        for (const l of a.lineas) if (l.cuenta === '801-000' || l.cuenta === '802-000') s += (Number(l.haber) || 0) - (Number(l.debe) || 0);
+        for (const l of a.lineas) if (ctasVentas.includes(l.cuenta)) s += (Number(l.haber) || 0) - (Number(l.debe) || 0);
     }
     return r2(s);
 }
@@ -165,7 +166,7 @@ function pintarUmbral() {
     const esTcp = fiscal.meta.tipo === 'tcp';
     $('cardUmbral').style.display = esTcp ? '' : 'none';
     if (!esTcp) return;
-    const anio = ($('vMes').value || new Date().toISOString().slice(0, 7)).slice(0, 4);
+    const anio = ($('vMes').value || mesLocal()).slice(0, 4);
     const acum = ventasPeriodo(anio + '-01-01', anio + '-12-31');
     const pct = Math.min(100, r2(acum / 500000 * 100));
     $('umbral').innerHTML = '<p>Ingresos por ventas acumulados en ' + anio + ' (cuentas 801/802 de los asientos): <b>' + fmt(acum) + '</b> de 500 000 CUP (' + fmt(pct) + ' %).</p>' +
@@ -217,14 +218,19 @@ function amortizacion(c) {
     return filasA;
 }
 async function asientoCredito(lineas, concepto) {
-    const hoyF = new Date().toISOString().slice(0, 10);
+    const hoyF = hoyLocal();
     if (!conta) conta = { asientos: [], seqAsiento: 0, recurrentes: [], gestion: { contratos: [], facturas: [] }, candados: {} };
     conta.candados = conta.candados || {};
     if (conta.candados[hoyF.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar el crédito', 'error'); return 0; }
+    const errLin = validarLineasAsiento(conta.plan, lineas);
+    if (errLin) { aviso(errLin, 'error'); return 0; }
     conta.seqAsiento = (conta.seqAsiento || 0) + 1;
     conta.asientos = conta.asientos || [];
     conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoyF, concepto, origen: 'credito', estado: 'confirmado', lineas });
-    await bd().docGuardar(tokenSesion(), 'conta', conta);
+    /* M-1: solo se prepara el asiento en memoria; lo guarda quien
+     * llama, junto con el documento fiscal (c.asientoAlta / c.pagos),
+     * en una sola transacción. Guardar conta aquí y fiscal después
+     * dejaba el asiento sin su marca si el segundo fallaba. */
     return conta.seqAsiento;
 }
 function pintarCreditos() {
@@ -234,7 +240,7 @@ function pintarCreditos() {
         const pagos = c.pagos || 0;
         const saldoVivo = pagos >= tab.length ? 0 : (pagos === 0 ? Number(c.monto) : tab[pagos - 1].saldo);
         const prox = tab[pagos];
-        return '<div class="propuesta"><h3>' + (c.banco || 'Crédito') + ' · ' + fmt(c.monto) + ' a ' + c.plazo + ' meses · ' + c.tasa + ' % anual · desde ' + (c.inicio || '') + '</h3>' +
+        return '<div class="propuesta"><h3>' + esc(c.banco || 'Crédito') + ' · ' + fmt(c.monto) + ' a ' + c.plazo + ' meses · ' + c.tasa + ' % anual · desde ' + (c.inicio || '') + '</h3>' +
         '<p>Cuota mensual: <b>' + fmt(tab[0].cuota) + '</b> · Intereses totales: ' + fmt(tab.reduce((x, f) => x + f.interes, 0)) + ' · Pagadas: ' + pagos + ' de ' + tab.length + ' · <b>Debes todavía: ' + fmt(r2(saldoVivo)) + '</b></p>' +
         (prox ? '<p class="tenue">Próxima cuota (nº ' + prox.k + '): interés ' + fmt(prox.interes) + ' + capital ' + fmt(prox.capital) + ' = ' + fmt(prox.cuota) + '</p>' : '<p class="bien">Crédito saldado.</p>') +
         '<div class="fila">' +
@@ -247,12 +253,12 @@ function pintarCreditos() {
     const buscar = (id) => (fiscal.creditos || []).find((x) => x.id === id);
     $('creditos').querySelectorAll('[data-alta]').forEach((b) => b.addEventListener('click', async () => {
         const c = buscar(b.dataset.alta); if (!c) return;
-        try { const n = await asientoCredito([{ cuenta: '110-010', debe: r2(c.monto), haber: 0 }, { cuenta: '410', debe: 0, haber: r2(c.monto) }], 'Alta del crédito ' + (c.banco || '') + ' por ' + fmt(c.monto)); if (n) { c.asientoAlta = n; await guardar(); pintarCreditos(); aviso('Asiento nº ' + n + ': el dinero del crédito entró al banco'); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        try { const n = await asientoCredito([{ cuenta: cuentaAuto(conta.plan, 'banco_cup', '110-010'), debe: r2(c.monto), haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'prestamos_por_pagar', '410'), debe: 0, haber: r2(c.monto) }], 'Alta del crédito ' + (c.banco || '') + ' por ' + fmt(c.monto)); if (n) { c.asientoAlta = n; await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'fiscal', valor: fiscal }]); pintarCreditos(); aviso('Asiento nº ' + n + ': el dinero del crédito entró al banco'); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
     }));
     $('creditos').querySelectorAll('[data-pagar]').forEach((b) => b.addEventListener('click', async () => {
         const c = buscar(b.dataset.pagar); if (!c) return;
         const tab = amortizacion(c); const f = tab[c.pagos || 0]; if (!f) return;
-        try { const n = await asientoCredito([{ cuenta: '410', debe: r2(f.capital), haber: 0 }, { cuenta: '710-000', debe: r2(f.interes), haber: 0 }, { cuenta: '110-010', debe: 0, haber: r2(f.cuota) }], 'Pago de la cuota nº ' + f.k + ' del crédito ' + (c.banco || '')); if (n) { c.pagos = (c.pagos || 0) + 1; await guardar(); pintarCreditos(); aviso('Cuota nº ' + f.k + ' pagada con el asiento nº ' + n); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        try { const n = await asientoCredito([{ cuenta: cuentaAuto(conta.plan, 'prestamos_por_pagar', '410'), debe: r2(f.capital), haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'gastos_financieros', '710-000'), debe: r2(f.interes), haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'banco_cup', '110-010'), debe: 0, haber: r2(f.cuota) }], 'Pago de la cuota nº ' + f.k + ' del crédito ' + (c.banco || '')); if (n) { c.pagos = (c.pagos || 0) + 1; await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'fiscal', valor: fiscal }]); pintarCreditos(); aviso('Cuota nº ' + f.k + ' pagada con el asiento nº ' + n); } } catch (e) { aviso(String((e && e.message) || e), 'error'); }
     }));
     $('creditos').querySelectorAll('[data-tabla]').forEach((b) => b.addEventListener('click', () => {
         const c = buscar(b.dataset.tabla); if (!c) return;
@@ -308,7 +314,7 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal
             try { await guardar(); pintarCreditos(); aviso('Crédito registrado con su tabla de amortización'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         pintarCreditos();
-        $('vMes').value = new Date().toISOString().slice(0, 7);
+        $('vMes').value = mesLocal();
         $('vVer').addEventListener('click', pintarVector);
         $('vAlimentos').addEventListener('change', pintarVector);
         $('pfAdd').addEventListener('click', async () => {

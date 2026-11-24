@@ -93,7 +93,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, hoyLocal, fechaLocalDe } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(6);
@@ -101,7 +101,7 @@ aplicarFondo(6);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => hoyLocal();
 let conta = null;
 
 async function pintarIndicador() {
@@ -128,7 +128,7 @@ function pintarFacturas() {
     const filas = lista.map((f) => {
         const saldo = saldoFac(f);
         const vencida = saldo > 0 && f.vencimiento && f.vencimiento < hoy();
-        return '<tr><td>' + f.numero + '</td><td>' + f.cliente + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + '</td>' +
+        return '<tr><td>' + esc(f.numero) + '</td><td>' + esc(f.cliente) + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + '</td>' +
             '<td class="num">' + fmt(f.total) + '</td><td class="num">' + fmt(saldo) + '</td>' +
             '<td>' + (saldo <= 0 ? 'Pagada' : vencida ? '<span class="rojo">Vencida</span>' : 'Pendiente') + '</td>' +
             '<td>' + (saldo > 0 ? '<input class="monto" type="number" step="0.01" min="0" placeholder="Cobro" data-cobro="' + f.id + '"> <button type="button" class="chico secundario" data-cobrar="' + f.id + '">Cobrar</button>' : '') +
@@ -159,7 +159,7 @@ function pintarTelecobranzas() {
         .map((f) => ({ f, dias: diasDesde(f.vencimiento || f.fecha) }))
         .sort((a, b) => b.dias - a.dias);
     $('telecobranzas').innerHTML = pendientes.map(({ f, dias }) =>
-        '<div class="fila"><b>' + f.cliente + '</b><span>Factura ' + f.numero + ' · saldo ' + fmt(saldoFac(f)) + ' · ' + (dias > 0 ? dias + ' día(s) de mora' : 'aún no vence') + '</span>' +
+        '<div class="fila"><b>' + esc(f.cliente) + '</b><span>Factura ' + esc(f.numero) + ' · saldo ' + fmt(saldoFac(f)) + ' · ' + (dias > 0 ? dias + ' día(s) de mora' : 'aún no vence') + '</span>' +
         '<span class="tenue">' + estrategia(dias) + '</span>' +
         '<button type="button" class="chico" data-aviso="' + f.id + '">Copiar aviso</button></div>').join('') ||
         '<p class="tenue">No hay cobros pendientes. Buena señal.</p>';
@@ -174,7 +174,7 @@ function pintarTelecobranzas() {
 function pintarContratos() {
     const lista = conta.gestion.contratos || [];
     $('contratos').innerHTML = lista.map((c) =>
-        '<div class="fila"><b>' + c.numero + '</b><span>' + c.cliente + '</span><span class="tenue">' + (c.objeto || '') + ' · ' + fmt(c.monto) + '</span>' +
+        '<div class="fila"><b>' + esc(c.numero) + '</b><span>' + esc(c.cliente) + '</span><span class="tenue">' + esc(c.objeto || '') + ' · ' + fmt(c.monto) + '</span>' +
         '<button type="button" class="chico secundario" data-delc="' + c.id + '">Quitar</button></div>').join('') ||
         '<p class="tenue">Sin contratos todavía.</p>';
     $('contratos').querySelectorAll('[data-delc]').forEach((b) => b.addEventListener('click', async () => {
@@ -198,13 +198,13 @@ function pintarConsecutivos() {
     $('consecutivos').innerHTML =
         '<p>Facturas numeradas: <b>' + nums.length + '</b> · del ' + ordenados[0] + ' al ' + ordenados[ordenados.length - 1] + '.</p>' +
         (saltos.length ? '<p><span class="rojo">Saltos detectados: faltan los números ' + saltos.join(', ') + '.</span> Si una factura se anuló, déjalo anotado en su contrato o en una nota: el hueco sin explicación es el problema, no el hueco.</p>' : '<p><span class="verde">Sin saltos: la numeración es continua.</span></p>') +
-        (duplicados.length ? '<p><span class="rojo">Números repetidos: ' + duplicados.join(', ') + '.</span> Dos facturas no pueden compartir número.</p>' : '');
+        (duplicados.length ? '<p><span class="rojo">Números repetidos: ' + duplicados.map(esc).join(', ') + '.</span> Dos facturas no pueden compartir número.</p>' : '');
 }
 let ofertaLineas = [];
 function pintarOfertaEditor() {
     const total = r2(ofertaLineas.reduce((sx, l) => sx + l.cant * l.precio, 0));
     $('oLineas').innerHTML = ofertaLineas.map((l, i) =>
-        '<div class="fila"><span>' + l.descripcion + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
+        '<div class="fila"><span>' + esc(l.descripcion) + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
         '<button type="button" class="chico secundario" data-oq="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Sin renglones: añade el primero.</p>';
     $('oTotal').textContent = ofertaLineas.length ? 'Total de la oferta: ' + fmt(total) : '';
     $('oLineas').querySelectorAll('[data-oq]').forEach((b) => b.addEventListener('click', () => { ofertaLineas.splice(Number(b.dataset.oq), 1); pintarOfertaEditor(); }));
@@ -212,7 +212,7 @@ function pintarOfertaEditor() {
 function pintarOfertas() {
     const lista = [...(conta.gestion.ofertas || [])].reverse();
     $('ofertas').innerHTML = lista.map((o) =>
-        '<div class="fila"><b>Oferta ' + o.numero + '</b><span>' + o.cliente + '</span><span class="tenue">' + o.fecha + (o.vigencia ? ' · válida hasta ' + o.vigencia : '') + ' · ' + (o.lineas || []).map((l) => l.descripcion + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(o.total) + '</b>' +
+        '<div class="fila"><b>Oferta ' + o.numero + '</b><span>' + esc(o.cliente) + '</span><span class="tenue">' + o.fecha + (o.vigencia ? ' · válida hasta ' + o.vigencia : '') + ' · ' + (o.lineas || []).map((l) => esc(l.descripcion) + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(o.total) + '</b>' +
         (o.estado === 'convertida' ? '<span class="verde">Convertida en la factura ' + (o.facturaNumero || '') + '</span>' : '<button type="button" class="chico" data-convertir="' + o.id + '">Convertir en factura</button>') +
         ' <button type="button" class="chico secundario" data-delo="' + o.id + '">Borrar</button></div>').join('') ||
         '<p class="tenue">Sin ofertas todavía.</p>';
@@ -222,7 +222,7 @@ function pintarOfertas() {
         let maxNum = 0;
         for (const f of conta.gestion.facturas) { const n = parseInt(String(f.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
         const numero = String(maxNum + 1);
-        const vence = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        const vence = fechaLocalDe(new Date(Date.now() + 30 * 86400000));
         const fac = { id: 'f' + Date.now().toString(36), numero, cliente: o.cliente, fecha: hoy(), vencimiento: vence, total: o.total, cobros: [], origen: 'oferta', ofertaId: o.id, lineas: o.lineas };
         conta.gestion.facturas.push(fac);
         o.estado = 'convertida'; o.facturaId = fac.id; o.facturaNumero = numero;
@@ -247,7 +247,7 @@ function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(
         conta.gestion.contratos = conta.gestion.contratos || [];
         conta.gestion.ofertas = conta.gestion.ofertas || [];
         $('oFecha').value = hoy();
-        $('oVence').value = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+        $('oVence').value = fechaLocalDe(new Date(Date.now() + 15 * 86400000));
         $('oAddLinea').addEventListener('click', () => {
             const descripcion = $('oDesc').value.trim(), cant = Math.max(1, Number($('oCant').value) || 1), precio = Number($('oPrecio').value) || 0;
             if (!descripcion || precio <= 0) { aviso('El renglón necesita descripción y precio', 'error'); return; }

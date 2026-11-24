@@ -155,7 +155,7 @@
 </div>
 
 <script type="module">
-import { bd, bus, SND, aviso, persistencia, pedirPersistencia, guardarArchivoReal, abrirArchivoReal, comprimir, tokenSesion, borrarSesion } from 'nucleo';
+import { esc, bd, bus, SND, aviso, persistencia, pedirPersistencia, guardarArchivoReal, abrirArchivoReal, comprimir, tokenSesion, borrarSesion, mensajeImport, fechaHoraLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(0);
@@ -210,14 +210,14 @@ document.getElementById('btnPersistir').addEventListener('click', async () => {
 
 document.getElementById('btnExportar').addEventListener('click', async () => {
     try {
-        const bytes = await bd().exportar();
+        const bytes = await bd().exportar(tokenSesion());
         const via = await guardarArchivoReal(bytes, 'Mi base.db', 'Base de datos Saldova', '.db');
         aviso(via === 'archivo' ? 'Archivo guardado donde elegiste' : 'Archivo descargado');
     } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo guardar: ' + e.message, 'error'); }
 });
 document.getElementById('btnExportarGz').addEventListener('click', async () => {
     try {
-        const bytes = await bd().exportar();
+        const bytes = await bd().exportar(tokenSesion());
         const gz = await comprimir(bytes);
         await guardarArchivoReal(gz, 'Mi base.db.gz', 'Base comprimida', '.gz');
         aviso('Comprimido: de ' + bytes.length + ' a ' + gz.length + ' bytes');
@@ -226,8 +226,8 @@ document.getElementById('btnExportarGz').addEventListener('click', async () => {
 document.getElementById('btnImportar').addEventListener('click', async () => {
     try {
         const bytes = await abrirArchivoReal('.db');
-        await bd().importar(bytes);
-        aviso('Archivo abierto: ya trabajas con esa base');
+        const r = await bd().importar(tokenSesion(), bytes);
+        aviso(mensajeImport(r));
         refrescar();
     } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo abrir: ' + e.message, 'error'); }
 });
@@ -296,8 +296,8 @@ async function refrescarBases() {
         const r = await bd().bases();
         det.textContent = 'Base activa: ' + r.activa + ' · ' + r.lista.length + ' base(s) en el registro.';
         document.getElementById('basesLista').innerHTML = r.lista.map((b) =>
-            '<p>' + (b.activa ? '● <b>' + b.nombre + '</b> (activa)' :
-                '○ ' + b.nombre + ' <button data-base="' + b.nombre + '">Cambiar a esta base</button>') + '</p>').join('');
+            '<p>' + (b.activa ? '● <b>' + esc(b.nombre) + '</b> (activa)' :
+                '○ ' + esc(b.nombre) + ' <button data-base="' + esc(b.nombre) + '">Cambiar a esta base</button>') + '</p>').join('');
         document.querySelectorAll('#basesLista button[data-base]').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 try {
@@ -326,7 +326,7 @@ async function refrescarUsuarios() {
         const lista = await bd().usuarios(token);
         det.textContent = lista.length + ' usuario(s) en esta base.';
         cuerpo.innerHTML = lista.map((u) =>
-            '<tr><td>' + u.username + '</td><td>' + u.role + '</td><td>' + u.negocio + '</td></tr>').join('');
+            '<tr><td>' + esc(u.username) + '</td><td>' + esc(u.role) + '</td><td>' + esc(u.negocio) + '</td></tr>').join('');
     } catch (e) {
         det.textContent = String((e && e.message) || e);
         cuerpo.innerHTML = '<tr><td colspan="3" class="tenue">Solo el administrador ve los usuarios.</td></tr>';
@@ -336,10 +336,10 @@ async function refrescarNegocios() {
     try {
         const lista = await bd().negocios(tokenSesion());
         document.getElementById('tablaNegocios').innerHTML =
-            lista.map((n) => '<tr><td>' + n + '</td></tr>').join('') ||
+            lista.map((n) => '<tr><td>' + esc(n) + '</td></tr>').join('') ||
             '<tr><td class="tenue">Todavía no hay negocios: crea el primero.</td></tr>';
         document.getElementById('nuNegocio').innerHTML =
-            lista.map((n) => '<option>' + n + '</option>').join('');
+            lista.map((n) => '<option>' + esc(n) + '</option>').join('');
         const ses = await bd().sesion(tokenSesion());
         document.getElementById('filaNegocioCrear').style.display =
             (ses && ses.role === 'admin') ? '' : 'none';
@@ -396,7 +396,7 @@ document.getElementById('btnBus').addEventListener('click', () => {
 const $p = (id) => document.getElementById(id);
 async function cargarDatosNegocio() { try { const f = await bd().docLeer(tokenSesion(), 'fiscal'); const m = (f && f.meta) || {}; $p('dnRazon').value = m.razon || ''; $p('dnNit').value = m.nit || ''; $p('dnDireccion').value = m.direccion || ''; $p('dnTelefono').value = m.telefono || ''; $p('dnCuenta').value = m.cuentaFiscal || ''; } catch (e) {} }
 $p('dnGuardar').addEventListener('click', async () => { try { const f = (await bd().docLeer(tokenSesion(), 'fiscal')) || { meta: {}, fuentes: [] }; f.meta = f.meta || {}; f.meta.razon = $p('dnRazon').value.trim(); f.meta.nit = $p('dnNit').value.trim(); f.meta.direccion = $p('dnDireccion').value.trim(); f.meta.telefono = $p('dnTelefono').value.trim(); f.meta.cuentaFiscal = $p('dnCuenta').value.trim(); await bd().docGuardar(tokenSesion(), 'fiscal', f); aviso('Datos del negocio guardados'); } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
-$p('tzVer').addEventListener('click', async () => { try { const filasT = await bd().trazas(tokenSesion(), $p('tzMes').value || null); $p('tzLista').innerHTML = filasT.length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + filasT.map((t) => '<tr><td>' + String(t.ts).slice(0, 16).replace('T', ' ') + '</td><td>' + t.usuario + '</td><td>' + t.accion + (t.slot ? ' · ' + t.slot : '') + '</td><td>' + (t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin movimientos registrados en ese período.</p>'; } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
+$p('tzVer').addEventListener('click', async () => { try { const filasT = await bd().trazas(tokenSesion(), $p('tzMes').value || null); $p('tzLista').innerHTML = filasT.length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + filasT.map((t) => '<tr><td>' + fechaHoraLocal(t.ts) + '</td><td>' + esc(t.usuario) + '</td><td>' + esc(t.accion) + (t.slot ? ' · ' + esc(t.slot) : '') + '</td><td>' + esc(t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin movimientos registrados en ese período.</p>'; } catch (e) { aviso(String((e && e.message) || e), 'error'); } });
 function pintarSalvas() { let lista = []; try { lista = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {} $p('salvasLista').innerHTML = lista.length ? lista.map((x) => '<div class="fila"><b>' + x.fecha + '</b><span class="tenue">salva automática al cerrar ' + x.mes + ' · archivo ' + x.archivo + '</span></div>').join('') : '<p class="tenue">Todavía no hay salvas: se crean solas al cerrar un mes en el módulo Cierre.</p>'; }
 cargarDatosNegocio(); pintarSalvas();
 (function pestPanel() {
@@ -411,7 +411,7 @@ cargarDatosNegocio(); pintarSalvas();
 })();
 </script>
 <script type="module">
-import { bd, aviso, tokenSesion, descargarCSV } from 'nucleo';
+import { esc, bd, aviso, tokenSesion, descargarCSV, mesLocal, fechaHoraLocal } from 'nucleo';
 const $p = (id) => document.getElementById(id);
 const fmtp = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2p = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -430,7 +430,7 @@ function auAsientosDelMes(mes) {
         const estilo = document.createElement('style');
         estilo.textContent = '@media print{body>*:not(#tarjetaAuditoria){display:none!important}#tarjetaAuditoria{display:block!important;border:none}}';
         document.head.appendChild(estilo);
-        $p('auMes').value = new Date().toISOString().slice(0, 7);
+        $p('auMes').value = mesLocal(); $p('tzMes').value = mesLocal();
         $p('auVer').addEventListener('click', async () => {
             const mes = $p('auMes').value;
             if (!mes) { aviso('Elige el mes del paquete', 'error'); return; }
@@ -441,12 +441,12 @@ function auAsientosDelMes(mes) {
                 const d = r2p((a.lineas || []).reduce((sx, l) => sx + (Number(l.debe) || 0), 0));
                 const h = r2p((a.lineas || []).reduce((sx, l) => sx + (Number(l.haber) || 0), 0));
                 tD = r2p(tD + d); tH = r2p(tH + h);
-                return '<tr><td>' + a.numero + '</td><td>' + a.fecha + '</td><td>' + a.concepto + '<br><span style="color:#5A738C">' + (a.lineas || []).map((l) => l.cuenta + ' D ' + fmtp(l.debe) + ' / H ' + fmtp(l.haber)).join(' · ') + '</span></td><td class="num">' + fmtp(d) + '</td><td class="num">' + fmtp(h) + '</td></tr>';
+                return '<tr><td>' + a.numero + '</td><td>' + a.fecha + '</td><td>' + esc(a.concepto) + '<br><span style="color:#5A738C">' + (a.lineas || []).map((l) => l.cuenta + ' D ' + fmtp(l.debe) + ' / H ' + fmtp(l.haber)).join(' · ') + '</span></td><td class="num">' + fmtp(d) + '</td><td class="num">' + fmtp(h) + '</td></tr>';
             }).join('');
             let trazasHtml = '';
             try {
                 const tz = await bd().trazas(tokenSesion(), mes);
-                trazasHtml = '<h3 style="margin:14px 0 6px">Quién hizo qué en ' + mes + '</h3>' + ((tz || []).length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + tz.map((t) => '<tr><td>' + String(t.ts || '').replace('T', ' ').slice(0, 16) + '</td><td>' + (t.usuario || '') + '</td><td>' + (t.accion || '') + (t.slot ? ' · ' + t.slot : '') + '</td><td>' + (t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p>Sin trazas registradas en ese mes.</p>');
+                trazasHtml = '<h3 style="margin:14px 0 6px">Quién hizo qué en ' + mes + '</h3>' + ((tz || []).length ? '<table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué hizo</th><th>Detalle</th></tr></thead><tbody>' + tz.map((t) => '<tr><td>' + fechaHoraLocal(t.ts) + '</td><td>' + esc(t.usuario || '') + '</td><td>' + esc(t.accion || '') + (t.slot ? ' · ' + esc(t.slot) : '') + '</td><td>' + esc(t.detalle || '') + '</td></tr>').join('') + '</tbody></table>' : '<p>Sin trazas registradas en ese mes.</p>');
             } catch (e) { trazasHtml = '<p>No se pudieron leer las trazas: ' + String((e && e.message) || e) + '</p>'; }
             $p('auResultado').innerHTML = '<h3 style="margin:10px 0 6px">Paquete de revisión de ' + mes + '</h3>' +
                 '<table><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto y líneas</th><th class="num">Debe</th><th class="num">Haber</th></tr></thead><tbody>' +

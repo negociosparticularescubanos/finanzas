@@ -112,7 +112,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, bus } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(1);
@@ -125,7 +125,6 @@ const CUENTAS = [
 ];
 const dinero = (n) => (n == null || isNaN(n)) ? '' :
     Number(n).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 let token = null, sesion = null;
 let movs = [];
@@ -172,9 +171,9 @@ function pintarTabla() {
             '<td class="num">' + (m.tipo === 'ingreso' ? dinero(monto) : '') + '</td>' +
             '<td class="num">' + (m.tipo === 'gasto' ? dinero(monto) : '') + '</td>' +
             '<td class="num">' + dinero(saldo) + '</td>' +
-            '<td style="white-space:nowrap"><label title="Marca si este movimiento ya apareció en el estado del banco"><input type="checkbox" data-conc="' + m.id + '"' + (m.conciliado ? ' checked' : '') + '> en el banco</label> ' +
-            '<button data-editar="' + m.id + '">Editar</button>' +
-            '<button data-borrar="' + m.id + '">Borrar</button></td></tr>';
+            '<td style="white-space:nowrap"><label title="Marca si este movimiento ya apareció en el estado del banco"><input type="checkbox" data-conc="' + esc(m.id) + '"' + (m.conciliado ? ' checked' : '') + '> en el banco</label> ' +
+            '<button data-editar="' + esc(m.id) + '">Editar</button>' +
+            '<button data-borrar="' + esc(m.id) + '">Borrar</button></td></tr>';
     }
     if (!delMes.length) html += '<tr><td colspan="7" class="tenue">Sin movimientos en este mes para esta cuenta. Importa el estado de cuenta o añade uno a mano.</td></tr>';
     html += '<tr class="totales"><td colspan="3">Totales del mes</td><td class="num">' + dinero(totI) +
@@ -468,7 +467,7 @@ async function importarPrevia() {
         n++;
     });
     if (previaOps.saldoBanco != null) {
-        try { localStorage.setItem(claveConciliacion(), JSON.stringify({ saldoBanco: previaOps.saldoBanco, fecha: new Date().toISOString().slice(0, 10) })); } catch (e) { /* nada */ }
+        try { localStorage.setItem(claveConciliacion(), JSON.stringify({ saldoBanco: previaOps.saldoBanco, fecha: hoyLocal() })); } catch (e) { /* nada */ }
     }
     previaOps = null; pintarPrevia();
     if (!n) { aviso('No había operaciones nuevas marcadas', 'error'); return; }
@@ -507,7 +506,7 @@ async function pintarIndicador() {
         contaCandados = contaDoc.candados || {};
         if (!Array.isArray(movs)) movs = [];
         $('mes').value = mesActual();
-        $('fFecha').value = new Date().toISOString().slice(0, 10);
+        $('fFecha').value = hoyLocal();
         pintarCuentas(); pintarTabla(); pintarConciliacion();
         $('mes').onchange = () => { pintarTabla(); pintarConciliacion(); };
         $('btnGuardarMov').onclick = guardarMov;

@@ -59,10 +59,8 @@ export function bd() {
                 estado: () => rpcMarco('estado'),
                 ping: () => rpcMarco('ping'),
                 tablas: () => rpcMarco('tablas'),
-                consulta: (sql, params) => rpcMarco('consulta', [sql, params]),
-                ejecutar: (sql) => rpcMarco('ejecutar', [sql]),
-                exportar: () => rpcMarco('exportar'),
-                importar: (bytes) => rpcMarco('importar', [bytes]),
+                exportar: (token) => rpcMarco('exportar', [token]),
+                importar: (token, bytes) => rpcMarco('importar', [token, bytes]),
                 acceso: () => rpcMarco('acceso'),
                 inicializar: (datos) => rpcMarco('inicializar', [datos]),
                 entrar: (usuario, clave) => rpcMarco('entrar', [usuario, clave]),
@@ -75,6 +73,7 @@ export function bd() {
                 baseElegir: (nombre) => rpcMarco('baseElegir', [nombre]),
                 docLeer: (token, slot) => rpcMarco('docLeer', [token, slot]),
                 docGuardar: (token, slot, valor) => rpcMarco('docGuardar', [token, slot, valor]),
+                docGuardarMultiple: (token, docs) => rpcMarco('docGuardarMultiple', [token, docs]),
                 trazas: (token, mes) => rpcMarco('trazas', [token, mes]),
                 negocios: (token) => rpcMarco('negocios', [token]),
                 negocioCrear: (token, nombre) => rpcMarco('negocioCrear', [token, nombre]),
@@ -96,10 +95,8 @@ export function exponerBase() {
         estado: () => duena.estado(),
         ping: () => duena.ping(),
         tablas: () => duena.tablas(),
-        consulta: (sql, params) => duena.consulta(sql, params),
-        ejecutar: (sql) => duena.ejecutar(sql),
-        exportar: () => duena.exportar(),
-        importar: (bytes) => duena.importar(bytes),
+        exportar: (token) => duena.exportar(token),
+        importar: (token, bytes) => duena.importar(token, bytes),
         acceso: () => duena.acceso(),
         inicializar: (datos) => duena.inicializar(datos),
         entrar: (usuario, clave) => duena.entrar(usuario, clave),
@@ -112,6 +109,7 @@ export function exponerBase() {
         baseElegir: (nombre) => duena.baseElegir(nombre),
         docLeer: (token, slot) => duena.docLeer(token, slot),
         docGuardar: (token, slot, valor) => duena.docGuardar(token, slot, valor),
+        docGuardarMultiple: (token, docs) => duena.docGuardarMultiple(token, docs),
         trazas: (token, mes) => duena.trazas(token, mes),
         negocios: (token) => duena.negocios(token),
         negocioCrear: (token, nombre) => duena.negocioCrear(token, nombre),
@@ -243,6 +241,117 @@ export async function sesionActual() {
     try { return await bd().sesion(t); } catch (e) { return null; }
 }
 
+
+/* ---------- Fechas en hora LOCAL (M-3) ----------
+ * Antes las fechas y los meses se construían con
+ * new Date().toISOString() (UTC) y, en Cuba (UTC-5), de 19:00 a
+ * 23:59 el día y el mes saltaban al día siguiente: asientos y
+ * documentos fechados en el mes siguiente, avisos de mes cerrado
+ * sobre el mes equivocado y facturas marcadas «Vencida» un día
+ * antes. Todo lo que derive una FECHA o un MES para decidir,
+ * filtrar o mostrar usa estos ayudantes. Los instantes puros
+ * (p. ej. `actualizado` de un documento) siguen en UTC. */
+export function fechaLocalDe(d) {
+    const f = d instanceof Date ? d : new Date(d);
+    return f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
+}
+export function hoyLocal() { return fechaLocalDe(new Date()); }
+export function mesLocalDe(d) {
+    const f = d instanceof Date ? d : new Date(d);
+    return f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0');
+}
+export function mesLocal() { return mesLocalDe(new Date()); }
+/* 'YYYY-MM-DD HH:MM' en hora local a partir de un instante ISO
+ * (p. ej. el ts UTC de una traza), para mostrarlo en pantalla. */
+export function fechaHoraLocal(ts) {
+    const f = new Date(ts);
+    if (isNaN(f)) return String(ts || '').slice(0, 16).replace('T', ' ');
+    return fechaLocalDe(f) + ' ' + String(f.getHours()).padStart(2, '0') + ':' + String(f.getMinutes()).padStart(2, '0');
+}
+
+/* ---------- Cuentas automáticas por concepto (C-4) ----------
+ * Un solo resolver compartido por todos los módulos: cada concepto
+ * contable (ventas, nómina, depreciación...) tiene su cuenta en el
+ * plan del dueño y su equivalente en el plan oficial Res. 494/2016.
+ * El plan oficial se carga con el campo `auto` inyectado (lo hace
+ * Contabilidad al cambiar de plan, con CTA_AUTO_OFICIAL); el plan
+ * del dueño no trae `auto`, y ahí manda CTA_AUTO_DUENO. Si el
+ * concepto no tiene cuenta en el plan activo, cuentaAuto devuelve
+ * '' y el módulo debe avisar y NO guardar el asiento (ver
+ * validarLineasAsiento). Los equivalentes oficiales son
+ * aproximaciones cuando el clasificador no trae la cuenta fina:
+ * el plan oficial no distingue CUP/divisa (todo es 109-000), no
+ * trae cuenta propia de salarios ni de depreciación (todo cae en
+ * 826-000 Gastos de Operación) y no separa los tipos de activo
+ * fijo (todo es 240-000) ni su depreciación acumulada (375-000).
+ * Eso queda documentado en la nota de C-4. */
+export const CTA_AUTO_DUENO = {
+    ventas: '801-000', ventas_servicios: '802-000', ingresos_financieros: '805-000',
+    otros_ingresos: '810-000', gastos_financieros: '710-000', costo_ventas: '695-000',
+    prod_proceso: '186-000', prod_terminada: '187-000', mercancias: '188-000',
+    materias_primas: '181-000', combustible: '182-000', repuestos: '183-000', utiles: '184-000',
+    caja: '101-010', banco_cup: '110-010', banco_divisa: '110-020', clientes: '131-000',
+    gasto_salarios: '614-000', gasto_seguridad_social: '615-000', nomina_por_pagar: '331-000',
+    ss_por_pagar: '333-000', fuerza_trabajo_por_pagar: '334-000',
+    ingresos_personales_por_pagar: '345-000', retenciones_por_pagar: '332-000',
+    gasto_depreciacion: '613-000',
+    aft_edificios: '241-000', aft_transporte: '242-000', aft_maquinaria: '243-000',
+    aft_computacion: '244-000', aft_muebles: '245-000',
+    dep_acum_edificios: '251-000', dep_acum_transporte: '252-000', dep_acum_maquinaria: '253-000',
+    perdida_baja: '720-000', faltante_inventario: '720-000', reservas: '505-000',
+    prestamos_por_pagar: '410', dividendos_por_pagar: '417', capital: '501-000',
+    onat_utilidades: '342-000', onat_ingresos_personales: '345-000',
+    onat_fuerza_trabajo: '334-000', onat_seguridad_social: '333-000', onat_ventas: '341-000',
+};
+/* Cuenta oficial (Res. 494/2016) -> conceptos que resuelve. Es la
+ * tabla que Contabilidad inyecta como campo `auto` al cargar el
+ * plan oficial. */
+export const CTA_AUTO_OFICIAL = {
+    '900-000': 'ventas,ventas_servicios', '920-000': 'ingresos_financieros',
+    '950-000': 'otros_ingresos', '835-000': 'gastos_financieros', '810-000': 'costo_ventas',
+    '700-000': 'prod_proceso', '188-000': 'prod_terminada', '189-000': 'mercancias',
+    '183-000': 'materias_primas', '184-000': 'combustible', '185-000': 'repuestos',
+    '187-000': 'utiles', '101-000': 'caja', '109-000': 'banco_cup,banco_divisa',
+    '135-000': 'clientes',
+    '826-000': 'gasto_salarios,gasto_seguridad_social,gasto_depreciacion',
+    '455-000': 'nomina_por_pagar', '440-008': 'ss_por_pagar,onat_seguridad_social',
+    '440-007': 'fuerza_trabajo_por_pagar,onat_fuerza_trabajo',
+    '440-005': 'ingresos_personales_por_pagar,onat_ingresos_personales',
+    '460-000': 'retenciones_por_pagar',
+    '240-000': 'aft_edificios,aft_transporte,aft_maquinaria,aft_computacion,aft_muebles',
+    '375-000': 'dep_acum_edificios,dep_acum_transporte,dep_acum_maquinaria',
+    '845-000': 'perdida_baja', '850-000': 'faltante_inventario', '646-000': 'reservas',
+    '520-000': 'prestamos_por_pagar', '417-000': 'dividendos_por_pagar',
+    '601-000': 'capital', '440-004': 'onat_utilidades', '440-001': 'onat_ventas',
+};
+export function existeCuenta(plan, cod) {
+    return !!cod && (plan || []).some((c) => c.codigo === cod);
+}
+/* La cuenta del concepto en el plan activo. Primero el campo `auto`
+ * del plan (plan oficial), luego la cuenta del plan del dueño si
+ * existe en el plan activo, luego el defecto si existe. '' si no hay
+ * cuenta: el módulo debe avisar y no guardar. */
+export function cuentaAuto(plan, concepto, defecto) {
+    const lista = plan || [];
+    for (const c of lista) {
+        if (c.auto && String(c.auto).split(',').map((x) => x.trim()).includes(concepto)) return c.codigo;
+    }
+    const def = CTA_AUTO_DUENO[concepto];
+    if (def && lista.some((c) => c.codigo === def)) return def;
+    return (defecto && lista.some((c) => c.codigo === defecto)) ? defecto : '';
+}
+/* Valida que todas las líneas de un asiento existan en el plan de
+ * cuentas activo. Devuelve '' si está bien, o el mensaje de error
+ * (en español) si alguna línea no tiene cuenta o la cuenta no
+ * existe: el módulo debe mostrarlo y NO guardar el asiento. */
+export function validarLineasAsiento(plan, lineas) {
+    for (const l of lineas || []) {
+        if (!l.cuenta) return 'Falta elegir la cuenta en una línea del asiento.';
+        if (!existeCuenta(plan, l.cuenta)) return 'La cuenta ' + l.cuenta + ' no existe en el plan de cuentas activo (' + ((plan && plan.length) ? 'revisa el plan o el asiento' : 'sin plan cargado') + '): el asiento no se guardó.';
+    }
+    return '';
+}
+
 /* ---------- Avisos en pantalla ---------- */
 /* Descarga una tabla como CSV que Excel abre directo (separador ; y
  * BOM para que las tildes y la ñ se vean bien en Excel en español). */
@@ -255,6 +364,12 @@ export function descargarCSV(nombre, filas) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
+/* ---------- Escape de HTML (M-2) ----------
+ * Un solo esc() compartido por todos los módulos: el texto que escribe
+ * el usuario (conceptos, nombres, clientes...) nunca se inserta en
+ * innerHTML sin pasar por aquí, ni en contenido ni en atributos. */
+export const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 export function aviso(texto, tipo) {
     let caja = document.getElementById('saldova-avisos');
     if (!caja) {
@@ -270,6 +385,17 @@ export function aviso(texto, tipo) {
     caja.appendChild(t);
     setTimeout(() => t.remove(), 4200);
     if (tipo === 'error') SND.error(); else SND.ok();
+}
+
+/* Mensaje del resultado de importar una base (lo usan el Panel y la
+ * puerta): la migración del escritorio y el respaldo quedan a la vista. */
+export function mensajeImport(r) {
+    if (!r) return 'Archivo abierto: ya trabajas con esa base';
+    const base = r.migrado
+        ? 'Base del escritorio migrada: ' + (r.usuarios || 0) + ' usuario(s) y ' + (r.documentos || 0) + ' documento(s)' +
+            ((r.omitidos || 0) ? ' (' + r.omitidos + ' usuario(s) deshabilitado(s) no se migraron)' : '')
+        : 'Archivo abierto: ya trabajas con esa base';
+    return base + (r.respaldo ? '. Respaldo de la base anterior: ' + String(r.respaldo).replace(/^\//, '') : '');
 }
 
 /* ===== Puente de pestañas con la barra del módulo (index) =====

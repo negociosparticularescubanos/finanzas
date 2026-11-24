@@ -117,7 +117,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, descargarCSV } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, cuentaAuto, validarLineasAsiento, hoyLocal, fechaLocalDe } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(7);
@@ -125,7 +125,7 @@ aplicarFondo(7);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => hoyLocal();
 let pos = null, conta = null, carrito = [];
 
 async function pintarIndicador() {
@@ -141,11 +141,11 @@ async function pintarIndicador() {
 async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
 function pintarProductos() {
     const lista = pos.productos || [];
-    $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + p.codigo + ' · ' + p.nombre + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
+    $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
     const filas = lista.map((p) => {
         const costo = Number(p.costo) || 0;
         const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
-        return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num">' + fmt(p.precio) + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
+        return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num">' + fmt(p.precio) + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
         '<td class="num">' + (p.stock <= (p.stockMin || 0) ? '<span class="rojo">' + p.stock + '</span>' : p.stock) + '</td>' +
         '<td><input type="number" step="0.01" min="0" style="width:90px" placeholder="Nuevo" data-np="' + p.id + '"> <button type="button" class="chico secundario" data-fijar="' + p.id + '">Fijar precio</button> <button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>';
     }).join('');
@@ -176,16 +176,16 @@ function pintarPrecios() {
         (lista.map((p) => {
             const costo = Number(p.costo) || 0;
             const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
-            return '<tr><td>' + p.codigo + '</td><td>' + p.nombre + '</td><td class="num"><b>' + fmt(p.precio) + '</b></td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td></tr>';
+            return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num"><b>' + fmt(p.precio) + '</b></td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td></tr>';
         }).join('') || '<tr><td colspan="5" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
     const hist = [...(pos.preciosHist || [])].reverse().slice(0, 10);
     $('histPrecios').innerHTML = hist.length ? '<p style="margin-top:10px"><b>Últimos cambios de precio:</b></p>' + hist.map((h) =>
-        '<div class="fila"><span>' + h.fecha + '</span><span>' + h.nombre + '</span><span class="tenue">de ' + fmt(h.antes) + ' a</span><b>' + fmt(h.despues) + '</b></div>').join('') : '<p class="tenue">Todavía no se ha cambiado ningún precio.</p>';
+        '<div class="fila"><span>' + h.fecha + '</span><span>' + esc(h.nombre) + '</span><span class="tenue">de ' + fmt(h.antes) + ' a</span><b>' + fmt(h.despues) + '</b></div>').join('') : '<p class="tenue">Todavía no se ha cambiado ningún precio.</p>';
 }
 function pintarCarrito() {
     const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
     $('carrito').innerHTML = carrito.map((l, i) =>
-        '<div class="fila"><span>' + l.nombre + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
+        '<div class="fila"><span>' + esc(l.nombre) + ' × ' + l.cant + '</span><b>' + fmt(l.cant * l.precio) + '</b>' +
         '<button type="button" class="chico secundario" data-q="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Venta vacía.</p>';
     $('vTotal').textContent = carrito.length ? 'Total: ' + fmt(total) : '';
     $('carrito').querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => { carrito.splice(Number(b.dataset.q), 1); pintarCarrito(); }));
@@ -196,7 +196,7 @@ function pintarVentasDia() {
     const total = r2(ventas.reduce((s, v) => s + (Number(v.total) || 0), 0));
     $('ventasDia').innerHTML = ventas.map((v) => {
         const dev = r2((pos.devoluciones || []).filter((d) => d.ventaId === v.id).reduce((sx, d) => sx + (Number(d.total) || 0), 0));
-        return '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
+        return '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => esc(l.nombre) + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
         '<span class="tenue">' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ') + (v.asientoId ? ' · ya en el asiento del día' : '') + (dev > 0 ? ' · <span class="rojo">devuelto: −' + fmt(dev) + '</span>' : '') + '</span></div>';
     }).join('') ||
         '<p class="tenue">Sin ventas en ' + fecha + '.</p>';
@@ -207,12 +207,12 @@ function pintarOcioso() {
     for (const v of pos.ventas || []) for (const l of v.lineas) {
         if (!ultimaVenta.has(l.codigo) || v.fecha > ultimaVenta.get(l.codigo)) ultimaVenta.set(l.codigo, v.fecha);
     }
-    const limite = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const limite = fechaLocalDe(new Date(Date.now() - 90 * 86400000));
     const ociosos = (pos.productos || []).filter((p) => (Number(p.stock) || 0) > 0 && (ultimaVenta.get(p.codigo) || p.fechaAlta || hoy()) <= limite);
     let valor = 0;
     $('ocioso').innerHTML = ociosos.map((p) => {
         const v = r2((Number(p.stock) || 0) * (Number(p.precio) || 0)); valor += v;
-        return '<div class="fila"><b>' + p.nombre + '</b><span>stock ' + p.stock + ' · último movimiento: ' + (ultimaVenta.get(p.codigo) || p.fechaAlta || 'nunca') + ' · valor parado: ' + fmt(v) + '</span></div>';
+        return '<div class="fila"><b>' + esc(p.nombre) + '</b><span>stock ' + p.stock + ' · último movimiento: ' + (ultimaVenta.get(p.codigo) || p.fechaAlta || 'nunca') + ' · valor parado: ' + fmt(v) + '</span></div>';
     }).join('') || '<p class="tenue">Nada ocioso: todo el stock se ha movido en los últimos 90 días.</p>';
     if (ociosos.length) $('ocioso').innerHTML += '<p><b>Valor total inmovilizado: ' + fmt(valor) + '</b> (a precio de venta). Valora rebajarlo, devolverlo o promocionarlo.</p>';
 }
@@ -245,26 +245,26 @@ function pintarIPV() {
     }
     $('ipv').innerHTML =
         '<table><thead><tr><th>Producto</th><th class="num">Cantidad neta</th><th class="num">Importe neto</th></tr></thead><tbody>' +
-        [...porProducto.entries()].map(([cod, g]) => '<tr><td>' + cod + ' · ' + g.nombre + '</td><td class="num">' + g.cant + '</td><td class="num">' + fmt(g.importe) + '</td></tr>').join('') +
+        [...porProducto.entries()].map(([cod, g]) => '<tr><td>' + esc(cod) + ' · ' + esc(g.nombre) + '</td><td class="num">' + g.cant + '</td><td class="num">' + fmt(g.importe) + '</td></tr>').join('') +
         '<tr class="totales"><td colspan="2">TOTAL NETO DEL TURNO (' + ventas.length + ' venta(s))</td><td class="num">' + fmt(r2(total - totalDev)) + '</td></tr></tbody></table>' +
         (totalDev > 0 ? '<p>Devoluciones del día: <b>−' + fmt(totalDev) + '</b> (el bruto vendido fue ' + fmt(total) + ').</p>' : '') +
         '<p>Cobrado por vía (neto): ' + [...porMedio.entries()].map(([m, v]) => '<b>' + m + '</b> ' + fmt(v)).join(' · ') + '.</p>';
 }
 function pintarDevoluciones() {
     const ventas = [...(pos.ventas || [])].reverse();
-    $('dvVenta').innerHTML = ventas.map((v) => '<option value="' + v.id + '">' + v.id + ' · ' + v.fecha + ' · ' + fmt(v.total) + ' · ' + v.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + '</option>').join('') || '<option value="">Sin ventas todavía</option>';
+    $('dvVenta').innerHTML = ventas.map((v) => '<option value="' + v.id + '">' + v.id + ' · ' + v.fecha + ' · ' + fmt(v.total) + ' · ' + v.lineas.map((l) => esc(l.nombre) + ' ×' + l.cant).join(', ') + '</option>').join('') || '<option value="">Sin ventas todavía</option>';
     pintarDvLineas();
     const devs = [...(pos.devoluciones || [])].reverse().slice(0, 8);
     $('dvLista').innerHTML = devs.length ? '<p style="margin-top:10px"><b>Últimas devoluciones:</b></p>' + devs.map((d) =>
-        '<div class="fila"><span>' + d.fecha + '</span><span class="tenue">venta ' + d.ventaId + ' · ' + d.lineas.map((l) => l.nombre + ' ×' + l.cant).join(', ') + ' · vía ' + d.medio + (d.asientoId ? ' · con su asiento' : ' · se neta en el asiento del día') + '</span><b>−' + fmt(d.total) + '</b></div>').join('') : '';
+        '<div class="fila"><span>' + d.fecha + '</span><span class="tenue">venta ' + d.ventaId + ' · ' + d.lineas.map((l) => esc(l.nombre) + ' ×' + l.cant).join(', ') + ' · vía ' + d.medio + (d.asientoId ? ' · con su asiento' : ' · se neta en el asiento del día') + '</span><b>−' + fmt(d.total) + '</b></div>').join('') : '';
 }
 function pintarDvLineas() {
     const v = (pos.ventas || []).find((x) => x.id === $('dvVenta').value);
     if (!v) { $('dvLineas').innerHTML = '<p class="tenue">Sin ventas: primero vende algo en el POS.</p>'; return; }
     $('dvLineas').innerHTML = v.lineas.map((l) => {
         const disp = (Number(l.cant) || 0) - (Number(l.devueltas) || 0);
-        return '<div class="fila"><span>' + l.nombre + '</span><span class="tenue">vendidas ' + l.cant + ' · ya devueltas ' + (Number(l.devueltas) || 0) + ' · quedan ' + disp + '</span>' +
-        '<label>Devuelve <input type="number" step="1" min="0" max="' + disp + '" value="0" style="width:70px" data-dv="' + l.codigo + '"></label></div>';
+        return '<div class="fila"><span>' + esc(l.nombre) + '</span><span class="tenue">vendidas ' + l.cant + ' · ya devueltas ' + (Number(l.devueltas) || 0) + ' · quedan ' + disp + '</span>' +
+        '<label>Devuelve <input type="number" step="1" min="0" max="' + disp + '" value="0" style="width:70px" data-dv="' + esc(l.codigo) + '"></label></div>';
     }).join('');
 }
 function calcArqueo() {
@@ -291,7 +291,7 @@ function pintarArqueo() {
 function pintarArqueos() {
     const lista = [...(pos.arqueos || [])].reverse().slice(0, 8);
     $('arqLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Arqueos registrados:</b></p>' + lista.map((a) =>
-        '<div class="fila"><span>' + a.fecha + '</span><span class="tenue">esperado ' + fmt(a.esperado) + ' · contado ' + fmt(a.contado) + ' · por ' + a.por + '</span><b class="' + (a.diferencia === 0 ? '' : 'rojo') + '">diferencia ' + (a.diferencia > 0 ? '+' : '') + fmt(a.diferencia) + '</b></div>').join('') : '';
+        '<div class="fila"><span>' + a.fecha + '</span><span class="tenue">esperado ' + fmt(a.esperado) + ' · contado ' + fmt(a.contado) + ' · por ' + esc(a.por) + '</span><b class="' + (a.diferencia === 0 ? '' : 'rojo') + '">diferencia ' + (a.diferencia > 0 ? '+' : '') + fmt(a.diferencia) + '</b></div>').join('') : '';
 }
 function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
 (async () => {
@@ -343,13 +343,16 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
                 conta.gestion.facturas = conta.gestion.facturas || [];
                 let maxNum = 0;
                 for (const f of conta.gestion.facturas) { const n = parseInt(String(f.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
-                const vence = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+                const vence = fechaLocalDe(new Date(Date.now() + 30 * 86400000));
                 conta.gestion.facturas.push({ id: 'f' + Date.now().toString(36), numero: String(maxNum + 1), cliente: clienteCred, fecha: hoy(), vencimiento: vence, total, cobros: [], origen: 'pos', ventaId: ventaNueva.id });
-                await bd().docGuardar(tokenSesion(), 'conta', conta);
                 avisoExtra = ' · Factura nº ' + (maxNum + 1) + ' creada para ' + clienteCred + ' (vence ' + vence + '): ya está en Gestión y TeleCobranzas';
                 $('vCliente').value = '';
             }
-            await guardar();
+            /* M-1: factura (conta) + venta y stock (pos) en UNA
+             * transacción: antes, si el segundo guardado fallaba,
+             * la factura quedaba sin su venta. */
+            if (medioSel === 'credito') await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+            else await guardar();
             carrito = []; pintarTodo(); pintarDevoluciones();
             aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
         });
@@ -401,18 +404,20 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             }
             const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
             const lineas = [];
-            if (efectivo > 0) lineas.push(L('101-010', efectivo));
-            if (banco > 0) lineas.push(L('110-010', banco));
-            if (creditoC > 0) lineas.push(L('131-000', creditoC));
-            lineas.push(L('801-000', 0, total));
+            if (efectivo > 0) lineas.push(L(cuentaAuto(conta.plan, 'caja', '101-010'), efectivo));
+            if (banco > 0) lineas.push(L(cuentaAuto(conta.plan, 'banco_cup', '110-010'), banco));
+            if (creditoC > 0) lineas.push(L(cuentaAuto(conta.plan, 'clientes', '131-000'), creditoC));
+            lineas.push(L(cuentaAuto(conta.plan, 'ventas', '801-000'), 0, total));
+            const errLin = validarLineasAsiento(conta.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
             conta.asientos.push({ id, numero: conta.seqAsiento, fecha, concepto: 'Ventas del POS de ' + fecha + ' (asiento del día)', origen: 'manual', estado: 'confirmado', lineas });
             for (const v of pendientes) v.asientoId = id;
             for (const d of devsNetas) d.asientoId = id;
             pos.asientoDia = fecha;
-            await bd().docGuardar(tokenSesion(), 'conta', conta);
-            await guardar();
+            /* M-1: asiento (conta) + marcas asientoId (pos) en UNA transacción. */
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             aviso('Asiento del día nº ' + conta.seqAsiento + ' creado por ' + fmt(total));
             pintarVentasDia();
         });
@@ -436,6 +441,12 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             const medio = (v.cobros && v.cobros[0] && v.cobros[0].medio) || 'efectivo';
             const fHoy = hoy();
             if (v.asientoId && conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
+            const cuentaH = medio === 'efectivo' ? cuentaAuto(conta.plan, 'caja', '101-010') : (medio === 'credito' ? cuentaAuto(conta.plan, 'clientes', '131-000') : cuentaAuto(conta.plan, 'banco_cup', '110-010'));
+            const lineasDevAsiento = [{ cuenta: cuentaAuto(conta.plan, 'ventas', '801-000'), debe: total, haber: 0 }, { cuenta: cuentaH, debe: 0, haber: total }];
+            if (v.asientoId) {
+                const errLin = validarLineasAsiento(conta.plan, lineasDevAsiento);
+                if (errLin) { aviso(errLin, 'error'); return; }
+            }
             for (const ld of lineasDev) {
                 const l = v.lineas.find((x) => x.codigo === ld.codigo);
                 l.devueltas = (Number(l.devueltas) || 0) + ld.cant;
@@ -449,13 +460,15 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             if (v.asientoId) {
                 conta.seqAsiento = (conta.seqAsiento || 0) + 1;
                 const idA = 'a' + Date.now().toString(36);
-                const cuentaH = medio === 'efectivo' ? '101-010' : (medio === 'credito' ? '131-000' : '110-010');
-                conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha: fHoy, concepto: 'Devolución de la venta ' + v.id + ' del POS', origen: 'manual', estado: 'confirmado', lineas: [{ cuenta: '801-000', debe: total, haber: 0 }, { cuenta: cuentaH, debe: 0, haber: total }] });
+                conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha: fHoy, concepto: 'Devolución de la venta ' + v.id + ' del POS', origen: 'manual', estado: 'confirmado', lineas: lineasDevAsiento });
                 dev.asientoId = idA;
-                await bd().docGuardar(tokenSesion(), 'conta', conta);
                 extra = ' Asiento de ajuste nº ' + conta.seqAsiento + ' creado.';
+                /* M-1: asiento de ajuste (conta) + devolución y stock
+                 * (pos) en UNA transacción. */
+                await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+            } else {
+                await guardar();
             }
-            await guardar();
             pintarTodo(); pintarDevoluciones();
             aviso('Devolución registrada por ' + fmt(total) + ': el stock quedó repuesto.' + extra);
         });

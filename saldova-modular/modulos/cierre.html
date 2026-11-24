@@ -49,7 +49,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, guardarArchivoReal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, guardarArchivoReal, hoyLocal, mesLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(8);
@@ -131,7 +131,7 @@ function pintarRevision() {
 }
 function pintarCerrados() {
     $('cerrados').innerHTML = hist.map((h) =>
-        '<div class="fila"><b>' + h.mes + '</b><span class="tenue">cerrado el ' + h.cerradoEn + ' por ' + h.por + ' · ' + (h.resumen || '') + '</span></div>').join('') ||
+        '<div class="fila"><b>' + h.mes + '</b><span class="tenue">cerrado el ' + h.cerradoEn + ' por ' + esc(h.por) + ' · ' + (h.resumen || '') + '</span></div>').join('') ||
         '<p class="tenue">Todavía no hay meses cerrados.</p>';
 }
 (async () => {
@@ -147,7 +147,7 @@ function pintarCerrados() {
         aft = await bd().docLeer(tokenSesion(), 'aft');
         rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
         hist = (await bd().docLeer(tokenSesion(), 'hist')) || [];
-        $('cMes').value = new Date().toISOString().slice(0, 7);
+        $('cMes').value = mesLocal();
         $('cVer').addEventListener('click', pintarRevision);
         $('cMes').addEventListener('change', pintarRevision);
         $('cCerrar').addEventListener('click', async () => {
@@ -156,19 +156,21 @@ function pintarCerrados() {
             const bloqueos = puntos.filter((p) => p.bloquea && !p.ok);
             if (bloqueos.length) { aviso('No se puede cerrar: ' + bloqueos[0].texto, 'error'); return; }
             const asientosMes = (conta.asientos || []).filter((a) => (a.fecha || '').startsWith(mes)).length;
-            const entrada = { mes, cerradoEn: new Date().toISOString().slice(0, 10), por: sesion.username, resumen: asientosMes + ' asiento(s) en el mes' };
+            const entrada = { mes, cerradoEn: hoyLocal(), por: sesion.username, resumen: asientosMes + ' asiento(s) en el mes' };
             hist.push(entrada);
             conta.candados[mes] = true;
             conta.cierres.push(entrada);
-            await bd().docGuardar(tokenSesion(), 'hist', hist);
-            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            /* M-1: historial (hist) + candado (conta) en UNA
+             * transacción: antes, si el segundo fallaba, hist decía
+             * «cerrado» pero ningún módulo veía el candado. */
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'hist', valor: hist }, { slot: 'conta', valor: conta }]);
             aviso('Mes ' + mes + ' cerrado');
             try {
-                const bytesC = await bd().exportar();
+                const bytesC = await bd().exportar(tokenSesion());
                 const nombreSalva = 'saldova-salva-' + mes + '.db';
                 await guardarArchivoReal(bytesC, nombreSalva, 'Salva automática de Saldova', '.db');
                 let sv = []; try { sv = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {}
-                sv.unshift({ fecha: new Date().toISOString().slice(0, 10), mes, archivo: nombreSalva });
+                sv.unshift({ fecha: hoyLocal(), mes, archivo: nombreSalva });
                 localStorage.setItem('saldova_salvas', JSON.stringify(sv.slice(0, 24)));
                 aviso('Salva automática guardada: ' + nombreSalva);
             } catch (e) { /* la salva es un extra: el cierre ya está hecho */ }

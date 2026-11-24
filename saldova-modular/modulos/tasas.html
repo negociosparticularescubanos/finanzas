@@ -38,19 +38,13 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal } from 'nucleo';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(11);
 const $ = (id) => document.getElementById(id);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const fmt = (n) => (Number(n) || 0).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 let fx = null, conta = null, diferencia = 0;
-function existeCuenta(cod) { return !!cod && (conta.plan || []).some((c) => c.codigo === cod); }
-function cuentaAuto(concepto, defecto) {
-    const plan = (conta && conta.plan) || [];
-    for (const c of plan) { if (c.auto && String(c.auto).split(',').map((x) => x.trim()).includes(concepto)) return c.codigo; }
-    return existeCuenta(defecto) ? defecto : '';
-}
 function pintar() {
     const valorCup = r2((Number(fx.saldoUsd) || 0) * (Number(fx.tasa) || 0));
     $('estado').innerHTML =
@@ -81,34 +75,35 @@ function pintar() {
             if (!nueva) { aviso('Escribe la nueva tasa', 'error'); return; }
             diferencia = r2((Number(fx.saldoUsd) || 0) * (nueva - (Number(fx.tasa) || 0)));
             $('tvResultado').innerHTML = '<p>Saldo declarado ' + fmt(fx.saldoUsd) + ' USD × (' + fmt(nueva) + ' − ' + fmt(fx.tasa) + ') = diferencia de cambio <strong>' + fmt(diferencia) + ' CUP</strong> ' +
-                (diferencia > 0 ? '(ganancia: Debe banco en divisa 110-020, Haber ingresos financieros)' : diferencia < 0 ? '(pérdida: Debe gastos financieros, Haber banco en divisa 110-020)' : '(sin diferencia)') + '.</p>' +
+                (diferencia > 0 ? '(ganancia: Debe banco en divisa, Haber ingresos financieros)' : diferencia < 0 ? '(pérdida: Debe gastos financieros, Haber banco en divisa)' : '(sin diferencia)') + '.</p>' +
                 (diferencia !== 0 ? '<button type="button" id="tvAsentar">Crear el asiento de revalorización</button>' : '');
             const b = $('tvAsentar');
             if (b) b.addEventListener('click', async () => {
                 if (!fx.multimoneda) { aviso('La multimoneda está apagada: enciéndela y guarda primero', 'error'); return; }
-                const hoy = new Date().toISOString().slice(0, 10);
+                const hoy = hoyLocal();
                 if (conta.candados && conta.candados[hoy.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar la revalorización', 'error'); return; }
-                const banco = existeCuenta('110-020') ? '110-020' : '';
-                const ctaIng = cuentaAuto('ingresos_financieros', '805-000');
-                const ctaGas = cuentaAuto('gastos_financieros', '710-000');
+                const banco = cuentaAuto(conta.plan, 'banco_divisa', '110-020');
+                const ctaIng = cuentaAuto(conta.plan, 'ingresos_financieros', '805-000');
+                const ctaGas = cuentaAuto(conta.plan, 'gastos_financieros', '710-000');
                 const lineas = diferencia > 0
                     ? [{ cuenta: banco, debe: diferencia, haber: 0 }, { cuenta: ctaIng, debe: 0, haber: diferencia }]
                     : [{ cuenta: ctaGas, debe: -diferencia, haber: 0 }, { cuenta: banco, debe: 0, haber: -diferencia }];
-                if (lineas.some((l) => !l.cuenta)) { aviso('Falta alguna cuenta en el plan activo (banco en divisa o la de diferencia de cambio)', 'error'); return; }
+                const errLin = validarLineasAsiento(conta.plan, lineas);
+                if (errLin) { aviso(errLin, 'error'); return; }
                 conta.seqAsiento = (conta.seqAsiento || 0) + 1;
                 conta.asientos = conta.asientos || [];
                 conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoy, concepto: 'Revalorización de la divisa (tasa ' + fmt(fx.tasa) + ' → ' + fmt(nueva) + ')', origen: 'tasas', estado: 'confirmado', lineas });
                 fx.tasa = nueva;
                 try {
-                    await bd().docGuardar(tokenSesion(), 'conta', conta);
-                    await bd().docGuardar(tokenSesion(), 'fx', fx);
+                    /* M-1: asiento (conta) + tasa nueva (fx) en UNA transacción. */
+                    await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'fx', valor: fx }]);
                     aviso('Asiento nº ' + conta.seqAsiento + ' creado y tasa actualizada a ' + fmt(nueva));
                     diferencia = 0; $('tvNueva').value = ''; $('tvResultado').innerHTML = '<p class="tenue">Revalorización asentada.</p>'; pintar();
                 } catch (e) { aviso(String((e && e.message) || e), 'error'); }
             });
         });
     } catch (e) {
-        $('estado').innerHTML = '<p class="mal">' + ((e && e.message) || e) + '</p>';
+        $('estado').innerHTML = '<p class="mal">' + esc((e && e.message) || e) + '</p>';
     }
 })();
 </script>

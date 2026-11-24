@@ -55,7 +55,7 @@
 
 <div class="tarjeta">
     <h2>Bajas de activos</h2>
-    <p class="tenue">Dar de baja no es borrar: el activo sale de los libros con su motivo y su asiento — se cancela su costo contra la depreciación acumulada, lo cobrado entra al banco si fue venta, y la diferencia va a Otros Ingresos (810-000) si se ganó o a Pérdidas (720-000) si se perdió. El historial queda abajo y la tarjeta del activo se puede imprimir en cualquier momento.</p>
+    <p class="tenue">Dar de baja no es borrar: el activo sale de los libros con su motivo y su asiento — se cancela su costo contra la depreciación acumulada, lo cobrado entra al banco si fue venta, y la diferencia va a Otros Ingresos si se ganó o a Pérdidas si se perdió. El historial queda abajo y la tarjeta del activo se puede imprimir en cualquier momento.</p>
     <div class="fila">
         <label>Activo <select id="bActivo" style="min-width:200px"></select></label>
         <label>Motivo <select id="bMotivo"><option value="venta">Venta</option><option value="rotura">Rotura / fin de vida útil</option><option value="perdida">Pérdida o robo</option><option value="donacion">Donación</option></select></label>
@@ -79,10 +79,11 @@
     <button type="button" id="dAsiento">Generar asiento del mes</button></div>
     <div id="depreciacion"><p class="tenue">Elige el mes.</p></div>
     <p class="tenue">Sin la depreciación del mes registrada, el cierre del período queda bloqueado (así lo exige el procedimiento: primero depreciar, después cerrar).</p>
+    <p class="tenue" id="notaOficialDep"></p>
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(5);
@@ -90,8 +91,14 @@ aplicarFondo(5);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const ACUM = { edificios: '251-000', transporte: '252-000', maquinaria: '253-000', computacion: '253-000', muebles: '253-000' };
-const ACT = { edificios: '241-000', transporte: '242-000', maquinaria: '243-000', computacion: '244-000', muebles: '245-000' };
+const ACUM_CONCEPTO = { edificios: 'dep_acum_edificios', transporte: 'dep_acum_transporte', maquinaria: 'dep_acum_maquinaria', computacion: 'dep_acum_maquinaria', muebles: 'dep_acum_maquinaria' };
+const ACT_CONCEPTO = { edificios: 'aft_edificios', transporte: 'aft_transporte', maquinaria: 'aft_maquinaria', computacion: 'aft_computacion', muebles: 'aft_muebles' };
+const ACUM_DEF = { edificios: '251-000', transporte: '252-000', maquinaria: '253-000', computacion: '253-000', muebles: '253-000' };
+const ACT_DEF = { edificios: '241-000', transporte: '242-000', maquinaria: '243-000', computacion: '244-000', muebles: '245-000' };
+/* La cuenta de depreciación acumulada y la del activo según el plan
+ * activo: con el plan oficial todo cae en 375-000 y 240-000. */
+const cuentaACUM = (cat) => cuentaAuto(conta.plan, ACUM_CONCEPTO[cat] || 'dep_acum_maquinaria', ACUM_DEF[cat] || '253-000');
+const cuentaACT = (cat) => cuentaAuto(conta.plan, ACT_CONCEPTO[cat] || 'aft_maquinaria', ACT_DEF[cat] || '243-000');
 const MOTIVO_NOMBRE = { venta: 'Venta', rotura: 'Rotura / fin de vida útil', perdida: 'Pérdida o robo', donacion: 'Donación' };
 const CAT_NOMBRE = { edificios: 'Edificios', transporte: 'Transporte', maquinaria: 'Maquinaria y equipos', computacion: 'Computación', muebles: 'Muebles y enseres' };
 let aft = null, conta = null;
@@ -118,14 +125,14 @@ function depAcumulada(a, hastaMes) {
     return Math.min(Number(a.costo) || 0, r2(depMensual(a) * mesesEnServicio(a, hastaMes)));
 }
 function pintarActivos() {
-    const mes = $('dMes').value || new Date().toISOString().slice(0, 7);
+    const mes = $('dMes').value || mesLocal();
     const lista = aft.activos || [];
     let tc = 0, ta = 0;
     const filas = lista.map((a) => {
         const acum = depAcumulada(a, mes);
         const esBaja = a.estado === 'baja';
         if (!esBaja) { tc += Number(a.costo) || 0; ta += acum; }
-        return '<tr' + (esBaja ? ' style="opacity:.65"' : '') + '><td>' + (a.codigo || '') + '</td><td>' + a.nombre + (esBaja ? ' <b>(de baja: ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ', ' + ((a.baja && a.baja.fecha) || '') + ')</b>' : '') + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td>' +
+        return '<tr' + (esBaja ? ' style="opacity:.65"' : '') + '><td>' + esc(a.codigo || '') + '</td><td>' + esc(a.nombre) + (esBaja ? ' <b>(de baja: ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ', ' + ((a.baja && a.baja.fecha) || '') + ')</b>' : '') + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td>' +
             '<td class="num">' + fmt(a.costo) + '</td><td class="num">' + fmt(a.tasa) + ' %</td><td>' + (a.fechaServicio || '') + '</td>' +
             '<td class="num">' + fmt(acum) + '</td><td class="num">' + fmt((Number(a.costo) || 0) - acum) + '</td>' +
             '<td>' + (esBaja ? '' : '<button type="button" class="chico secundario" data-del="' + a.id + '">Quitar</button> ') +
@@ -143,14 +150,14 @@ function pintarActivos() {
 function verTarjeta(id) {
     const a = (aft.activos || []).find((x) => x.id === id);
     if (!a) return;
-    const mes = new Date().toISOString().slice(0, 7);
+    const mes = mesLocal();
     const acum = depAcumulada(a, mes);
     $('tarjetaCuerpo').innerHTML =
-        '<h3 style="margin:4px 0">TARJETA DE ACTIVO FIJO — ' + a.nombre + '</h3>' +
+        '<h3 style="margin:4px 0">TARJETA DE ACTIVO FIJO — ' + esc(a.nombre) + '</h3>' +
         '<table><tbody>' +
-        '<tr><td><b>Código</b></td><td>' + (a.codigo || '—') + '</td><td><b>Categoría</b></td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td></tr>' +
+        '<tr><td><b>Código</b></td><td>' + esc(a.codigo || '—') + '</td><td><b>Categoría</b></td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td></tr>' +
         '<tr><td><b>Costo de adquisición</b></td><td>' + fmt(a.costo) + '</td><td><b>En servicio desde</b></td><td>' + (a.fechaServicio || '—') + '</td></tr>' +
-        '<tr><td><b>Tasa anual</b></td><td>' + fmt(a.tasa) + ' %</td><td><b>Cuenta / Acumulada</b></td><td>' + (ACT[a.categoria] || '') + ' / ' + (ACUM[a.categoria] || '') + '</td></tr>' +
+        '<tr><td><b>Tasa anual</b></td><td>' + fmt(a.tasa) + ' %</td><td><b>Cuenta / Acumulada</b></td><td>' + cuentaACT(a.categoria) + ' / ' + cuentaACUM(a.categoria) + '</td></tr>' +
         '<tr><td><b>Depreciación acumulada</b></td><td>' + fmt(acum) + '</td><td><b>Valor en libros hoy</b></td><td><b>' + fmt((Number(a.costo) || 0) - acum) + '</b></td></tr>' +
         '<tr><td><b>Estado</b></td><td colspan="3">' + (a.estado === 'baja' ? 'DE BAJA — ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' el ' + ((a.baja && a.baja.fecha) || '') + (a.baja && a.baja.precio ? ' por ' + fmt(a.baja.precio) : '') : 'En explotación') + '</td></tr>' +
         '</tbody></table>' +
@@ -160,10 +167,10 @@ function verTarjeta(id) {
 }
 function pintarBajas() {
     const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
-    $('bActivo').innerHTML = activos.map((a) => '<option value="' + a.id + '">' + (a.codigo || '') + ' · ' + a.nombre + ' · costo ' + fmt(a.costo) + '</option>').join('') || '<option value="">Sin activos en explotación</option>';
+    $('bActivo').innerHTML = activos.map((a) => '<option value="' + a.id + '">' + esc(a.codigo || '') + ' · ' + esc(a.nombre) + ' · costo ' + fmt(a.costo) + '</option>').join('') || '<option value="">Sin activos en explotación</option>';
     const bajas = (aft.activos || []).filter((a) => a.estado === 'baja');
     $('bajas').innerHTML = bajas.length ? '<p style="margin-top:8px"><b>Historial de bajas:</b></p>' + bajas.map((a) =>
-        '<div class="fila"><span>' + ((a.baja && a.baja.fecha) || '') + '</span><b>' + a.nombre + '</b><span class="tenue">' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' · costo ' + fmt(a.costo) + (a.baja && a.baja.precio ? ' · vendido por ' + fmt(a.baja.precio) : '') + (a.baja && a.baja.asientoNumero ? ' · asiento nº ' + a.baja.asientoNumero : '') + '</span></div>').join('') : '<p class="tenue">Todavía no hay bajas registradas.</p>';
+        '<div class="fila"><span>' + ((a.baja && a.baja.fecha) || '') + '</span><b>' + esc(a.nombre) + '</b><span class="tenue">' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' · costo ' + fmt(a.costo) + (a.baja && a.baja.precio ? ' · vendido por ' + fmt(a.baja.precio) : '') + (a.baja && a.baja.asientoNumero ? ' · asiento nº ' + a.baja.asientoNumero : '') + '</span></div>').join('') : '<p class="tenue">Todavía no hay bajas registradas.</p>';
 }
 function pintarDepreciacion() {
     const mes = $('dMes').value;
@@ -174,14 +181,20 @@ function pintarDepreciacion() {
         const acumAntes = depAcumulada(a, mes.slice(0, 4) + '-' + String(Number(mes.slice(5)) - 1 || 12).padStart(2, '0'));
         const delMes = depMensual(a) > 0 && mesesEnServicio(a, mes) > 0 && depAcumulada(a, mes) < (Number(a.costo) || 0) ? depMensual(a) : 0;
         total += delMes;
-        return '<tr><td>' + a.nombre + '</td><td class="num">' + fmt(delMes) + '</td><td class="num">' + fmt(depAcumulada(a, mes)) + '</td></tr>';
+        return '<tr><td>' + esc(a.nombre) + '</td><td class="num">' + fmt(delMes) + '</td><td class="num">' + fmt(depAcumulada(a, mes)) + '</td></tr>';
     }).join('');
     $('depreciacion').innerHTML = '<table><thead><tr><th>Activo</th><th class="num">Depreciación de ' + mes + '</th><th class="num">Acumulada</th></tr></thead><tbody>' +
         (filas || '<tr><td colspan="3" class="tenue">Sin activos.</td></tr>') +
         '<tr class="totales"><td>TOTAL DEL MES</td><td class="num">' + fmt(total) + '</td><td></td></tr></tbody></table>' +
         '<p class="tenue">Última depreciación registrada: ' + (aft.ultimaDepreciacion || 'ninguna') + '.</p>';
 }
-function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
+function pintarTodo() {
+    pintarActivos(); pintarDepreciacion();
+    const nota = $('notaOficialDep');
+    if (nota) nota.textContent = (conta && conta.planOrigen === 'oficial')
+        ? 'Con el plan oficial (Res. 494/2016) no hay cuenta propia de depreciación: el gasto se asienta en 826-000 Gastos de Operación, todos los activos en 240-000 y su depreciación acumulada en 375-000.'
+        : '';
+}
 (async () => {
     try {
         pintarIndicador();
@@ -199,7 +212,7 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
             await guardar(); $('aCodigo').value = $('aNombre').value = $('aCosto').value = '';
             pintarTodo(); aviso('Activo añadido');
         });
-        $('dMes').value = new Date().toISOString().slice(0, 7);
+        $('dMes').value = mesLocal();
         $('dMes').addEventListener('change', pintarTodo);
         $('dVer').addEventListener('click', pintarDepreciacion);
         $('dAsiento').addEventListener('click', async () => {
@@ -210,22 +223,26 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
             let total = 0;
             for (const a of (aft.activos || []).filter((x) => x.estado !== 'baja')) {
                 if (depMensual(a) <= 0 || mesesEnServicio(a, mes) <= 0 || depAcumulada(a, mes) >= (Number(a.costo) || 0)) continue;
-                const cta = ACUM[a.categoria] || '253-000';
+                const cta = cuentaACUM(a.categoria);
                 porCuenta.set(cta, r2((porCuenta.get(cta) || 0) + depMensual(a)));
                 total = r2(total + depMensual(a));
             }
             if (total <= 0) { aviso('No hay depreciación que registrar en ' + mes, 'error'); return; }
-            const lineas = [{ cuenta: '613-000', debe: total, haber: 0 }];
+            const lineas = [{ cuenta: cuentaAuto(conta.plan, 'gasto_depreciacion', '613-000'), debe: total, haber: 0 }];
             for (const [cta, v] of porCuenta) lineas.push({ cuenta: cta, debe: 0, haber: v });
+            const errLin = validarLineasAsiento(conta.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Depreciación de ' + mes, origen: 'manual', estado: 'confirmado', lineas });
             aft.ultimaDepreciacion = mes;
-            await bd().docGuardar(tokenSesion(), 'conta', conta);
-            await guardar();
+            /* M-1: asiento (conta) + marca ultimaDepreciacion (aft) en
+             * UNA transacción: antes, si el segundo fallaba, re-ejecutar
+             * duplicaba el asiento. */
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
             aviso('Asiento nº ' + conta.seqAsiento + ' de depreciación creado');
             pintarTodo();
         });
-        $('bFecha').value = new Date().toISOString().slice(0, 10);
+        $('bFecha').value = hoyLocal();
         $('tCerrar').addEventListener('click', () => { $('tarjetaActivo').style.display = 'none'; });
         $('tImprimir').addEventListener('click', () => window.print());
         $('bDar').addEventListener('click', async () => {
@@ -239,15 +256,17 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
             const acum = depAcumulada(a, fecha.slice(0, 7));
             const libros = r2(costo - acum);
             const lineas = [];
-            if (acum > 0) lineas.push({ cuenta: ACUM[a.categoria] || '253-000', debe: acum, haber: 0 });
+            if (acum > 0) lineas.push({ cuenta: cuentaACUM(a.categoria), debe: acum, haber: 0 });
             if (motivo === 'venta') {
-                lineas.push({ cuenta: '110-010', debe: precio, haber: 0 });
-                if (precio > libros) lineas.push({ cuenta: '810-000', debe: 0, haber: r2(precio - libros) });
-                if (precio < libros) lineas.push({ cuenta: '720-000', debe: r2(libros - precio), haber: 0 });
+                lineas.push({ cuenta: cuentaAuto(conta.plan, 'banco_cup', '110-010'), debe: precio, haber: 0 });
+                if (precio > libros) lineas.push({ cuenta: cuentaAuto(conta.plan, 'otros_ingresos', '810-000'), debe: 0, haber: r2(precio - libros) });
+                if (precio < libros) lineas.push({ cuenta: cuentaAuto(conta.plan, 'perdida_baja', '720-000'), debe: r2(libros - precio), haber: 0 });
             } else if (libros > 0) {
-                lineas.push({ cuenta: '720-000', debe: libros, haber: 0 });
+                lineas.push({ cuenta: cuentaAuto(conta.plan, 'perdida_baja', '720-000'), debe: libros, haber: 0 });
             }
-            lineas.push({ cuenta: ACT[a.categoria] || '243-000', debe: 0, haber: costo });
+            lineas.push({ cuenta: cuentaACT(a.categoria), debe: 0, haber: costo });
+            const errLin = validarLineasAsiento(conta.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
             const dTot = r2(lineas.reduce((sx, l) => sx + l.debe, 0)), hTot = r2(lineas.reduce((sx, l) => sx + l.haber, 0));
             if (Math.abs(dTot - hTot) > 0.005) { aviso('El asiento de la baja no cuadra: revísalo antes de seguir', 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
@@ -255,8 +274,8 @@ function pintarTodo() { pintarActivos(); pintarDepreciacion(); }
             conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha, concepto: 'Baja del activo ' + a.nombre + ' (' + (MOTIVO_NOMBRE[motivo] || motivo) + ')', origen: 'manual', estado: 'confirmado', lineas });
             a.estado = 'baja';
             a.baja = { fecha, motivo, precio: motivo === 'venta' ? precio : 0, asientoId: idA, asientoNumero: conta.seqAsiento };
-            await bd().docGuardar(tokenSesion(), 'conta', conta);
-            await guardar();
+            /* M-1: asiento (conta) + marca de baja (aft) en UNA transacción. */
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
             pintarTodo(); pintarBajas();
             aviso('Baja registrada con el asiento nº ' + conta.seqAsiento + ': ' + a.nombre + ' salió de los libros (valor en libros ' + fmt(libros) + ')');
         });

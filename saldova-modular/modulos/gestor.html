@@ -57,7 +57,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, hoyLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(9);
@@ -84,15 +84,15 @@ function ficha(nombre) {
 function pintarNegocios() {
     $('negocios').innerHTML = negociosBase.map((nombre) => {
         const k = ficha(nombre);
-        return '<div class="negocio"><b>' + nombre + '</b>' +
-            '<div class="fila"><input placeholder="NIT" size="13" data-k="nit" value="' + (k.nit || '') + '">' +
-            '<input placeholder="Contacto" data-k="contacto" value="' + (k.contacto || '') + '">' +
-            '<input placeholder="Teléfono" size="12" data-k="telefono" value="' + (k.telefono || '') + '">' +
-            '<input placeholder="Dirección" style="min-width:180px" data-k="direccion" value="' + (k.direccion || '') + '"></div>' +
+        return '<div class="negocio"><b>' + esc(nombre) + '</b>' +
+            '<div class="fila"><input placeholder="NIT" size="13" data-k="nit" value="' + esc(k.nit || '') + '">' +
+            '<input placeholder="Contacto" data-k="contacto" value="' + esc(k.contacto || '') + '">' +
+            '<input placeholder="Teléfono" size="12" data-k="telefono" value="' + esc(k.telefono || '') + '">' +
+            '<input placeholder="Dirección" style="min-width:180px" data-k="direccion" value="' + esc(k.direccion || '') + '"></div>' +
             '<div class="fila"><label>Riesgo <select data-k="riesgo"><option value="bajo">Bajo</option><option value="medio">Medio</option><option value="alto">Alto</option></select></label>' +
-            '<input placeholder="Servicios contratados (separados por comas)" style="flex:1;min-width:220px" data-k="servicios" value="' + (k.servicios || '') + '">' +
+            '<input placeholder="Servicios contratados (separados por comas)" style="flex:1;min-width:220px" data-k="servicios" value="' + esc(k.servicios || '') + '">' +
             '<label><input type="checkbox" data-k="recuperacion"' + (k.recuperacion ? ' checked' : '') + '> Tiene código de recuperación</label>' +
-            '<button type="button" class="chico" data-guardar="' + nombre + '">Guardar ficha</button></div></div>';
+            '<button type="button" class="chico" data-guardar="' + esc(nombre) + '">Guardar ficha</button></div></div>';
     }).join('') || '<p class="tenue">Esta base todavía no tiene negocios creados.</p>';
     $('negocios').querySelectorAll('.negocio').forEach((div) => {
         const nombre = div.querySelector('[data-guardar]').dataset.guardar;
@@ -109,7 +109,7 @@ function pintarNegocios() {
 }
 function pintarRos() {
     $('ros').innerHTML = (gestor.ros || []).map((r, i) =>
-        '<div class="fila"><span>' + r.fecha + '</span><b>' + r.negocio + '</b><span class="tenue">' + r.detalle + ' · ' + fmt(r.monto) + '</span>' +
+        '<div class="fila"><span>' + r.fecha + '</span><b>' + esc(r.negocio) + '</b><span class="tenue">' + esc(r.detalle) + ' · ' + fmt(r.monto) + '</span>' +
         '<button type="button" class="chico secundario" data-delr="' + i + '">Quitar</button></div>').join('') ||
         '<p class="tenue">Sin operaciones sospechosas registradas.</p>';
     $('ros').querySelectorAll('[data-delr]').forEach((b) => b.addEventListener('click', async () => {
@@ -118,7 +118,7 @@ function pintarRos() {
 }
 function pintarExcluidos() {
     $('excluidos').innerHTML = (gestor.excluidos || []).map((e, i) =>
-        '<div class="fila"><b>' + e.nombre + '</b><span class="tenue">' + e.motivo + ' · desde ' + e.fecha + '</span>' +
+        '<div class="fila"><b>' + esc(e.nombre) + '</b><span class="tenue">' + esc(e.motivo) + ' · desde ' + e.fecha + '</span>' +
         '<button type="button" class="chico secundario" data-dele="' + i + '">Quitar</button></div>').join('') ||
         '<p class="tenue">La lista de exclusión está vacía.</p>';
     $('excluidos').querySelectorAll('[data-dele]').forEach((b) => b.addEventListener('click', async () => {
@@ -144,14 +144,14 @@ function pintarExcluidos() {
         $('rAdd').addEventListener('click', async () => {
             const negocio = $('rNegocio').value.trim(), detalle = $('rDetalle').value.trim();
             if (!negocio || !detalle) { aviso('El ROS necesita negocio y detalle', 'error'); return; }
-            gestor.ros.push({ fecha: new Date().toISOString().slice(0, 10), negocio, detalle, monto: Number($('rMonto').value) || 0 });
+            gestor.ros.push({ fecha: hoyLocal(), negocio, detalle, monto: Number($('rMonto').value) || 0 });
             await guardar(); $('rNegocio').value = $('rDetalle').value = $('rMonto').value = '';
             pintarRos(); aviso('Operación registrada');
         });
         $('eAdd').addEventListener('click', async () => {
             const nombre = $('eNombre').value.trim();
             if (!nombre) { aviso('Escribe a quién se excluye', 'error'); return; }
-            gestor.excluidos.push({ nombre, motivo: $('eMotivo').value.trim(), fecha: new Date().toISOString().slice(0, 10) });
+            gestor.excluidos.push({ nombre, motivo: $('eMotivo').value.trim(), fecha: hoyLocal() });
             await guardar(); $('eNombre').value = $('eMotivo').value = '';
             pintarExcluidos(); aviso('Añadido a la lista de exclusión');
         });

@@ -152,7 +152,7 @@
     </section>
 </main>
 <script type="module">
-import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal } from 'nucleo';
+import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal, mensajeImport, mesLocalDe } from 'nucleo';
 import { aplicarFondo } from 'fondos';
 import 'componentes';
 
@@ -343,7 +343,7 @@ async function refrescarFechaYTasas() {
     let fecha = ahora.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     try {
         const conta = (await bd().docLeer(tokenSesion(), 'conta')) || {};
-        const mesAct = ahora.toISOString().slice(0, 7);
+        const mesAct = mesLocalDe(ahora);
         if (conta.candados && conta.candados[mesAct]) fecha += ' · ojo: este mes ya está cerrado en Contabilidad';
     } catch (e) { /* la fecha va sin el aviso */ }
     document.getElementById('lzFecha').textContent = fecha;
@@ -377,7 +377,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v36';
+    document.getElementById('lzVer').textContent = '· v37';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     const g = document.getElementById('lzModulos');
     g.innerHTML = '';
@@ -442,7 +442,8 @@ document.getElementById('lzCambiar').addEventListener('click', async () => {
         try {
             const bytes = await abrirArchivoReal('.db');
             if (!bytes) return;
-            await bd().importar(bytes);
+            const r = await bd().importar(tokenSesion(), bytes);
+            try { sessionStorage.setItem('saldova_aviso_import', mensajeImport(r)); } catch (e) {}
             location.reload();
         } catch (e) { document.getElementById('lzError').textContent = e.message; }
     });
@@ -548,7 +549,8 @@ async function pintarPuerta() {
             try {
                 const bytes = await abrirArchivoReal('.db');
                 if (!bytes) return;
-                await bd().importar(bytes);
+                const r = await bd().importar(tokenSesion(), bytes);
+                try { sessionStorage.setItem('saldova_aviso_import', mensajeImport(r)); } catch (e) {}
                 location.reload();
             } catch (e) { puertaFallo(e); }
         });
@@ -578,6 +580,13 @@ async function pintarPuerta() {
     document.getElementById('pClave').addEventListener('keydown', (e) => { if (e.key === 'Enter') intentar(); });
 }
 pintarPuerta();
+
+/* Aviso guardado antes de recargar tras importar una base (p. ej. la
+ * migración del escritorio): se muestra una sola vez al volver. */
+try {
+    const avisoImport = sessionStorage.getItem('saldova_aviso_import');
+    if (avisoImport) { sessionStorage.removeItem('saldova_aviso_import'); aviso(avisoImport); }
+} catch (e) {}
 
 if ('serviceWorker' in navigator) {
     /* updateViaCache 'none': el navegador busca SIEMPRE la versión

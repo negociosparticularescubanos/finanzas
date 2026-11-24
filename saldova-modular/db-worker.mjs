@@ -15,6 +15,9 @@ import sqlite3InitModule from './libs/sqlite3/index.mjs';
 
 const ARCHIVO_PRINCIPAL = '/saldova.db';
 const ARCHIVO_REGISTRO = '/registro.db';
+/* Archivo temporal para validar y migrar una base importada ANTES de
+ * tocar la base activa (C-2/C-3). Se borra al terminar, falle o no. */
+const ARCHIVO_IMPORT_TMP = '/import-tmp.db';
 let poolUtil = null;
 let reg = null;          // el registro de bases
 let db = null;           // la base activa
@@ -36,8 +39,15 @@ async function hashSecreto(secreto) {
         { name: 'PBKDF2', salt: sal, iterations: 150000, hash: 'SHA-256' }, base, 256);
     return 'pbkdf2$150000$' + b64(sal) + '$' + b64(new Uint8Array(bits));
 }
+const hex = (bytes) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
 async function verificaSecreto(secreto, guardado) {
     const p = String(guardado || '').split('$');
+    if (p[0] === 'sha256' && p.length === 3) {
+        // Hash del escritorio (Saldova.exe / Finanzas offline):
+        // sha256$sal$hex(sha256(sal + '::' + clave)), sal de 8 bytes en hex.
+        const dig = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p[1] + '::' + secreto));
+        return hex(dig) === p[2];
+    }
     if (p.length !== 4 || p[0] !== 'pbkdf2') return false;
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secreto), 'PBKDF2', false, ['deriveBits']);
     const bits = await crypto.subtle.deriveBits(
@@ -129,6 +139,11 @@ function sesionValida(token) {
     return u.length ? u[0] : null;
 }
 const esAdmin = (token) => { const s = sesionValida(token); return s && s.role === 'admin' ? s : null; };
+/* Slots que solo el administrador general puede leer y guardar:
+ * 'gestor' es el documento del módulo Gestor (negocios, ROS,
+ * exclusiones), cuya pantalla ya es solo-admin en la interfaz;
+ * aquí se cierra en el Worker para que no se rodee por consola. */
+const SLOTS_ADMIN = ['gestor'];
 function traza(usuario, accion, negocio, slot, detalle) {
     try { db.exec({ sql: 'INSERT INTO trazas (ts, usuario, accion, negocio, slot, detalle) VALUES (?, ?, ?, ?, ?, ?)', bind: [new Date().toISOString(), usuario || '', accion, negocio || null, slot || null, detalle || null] }); } catch (e) {}
 }
@@ -145,6 +160,100 @@ function listaNegocios() {
 }
 function guardarNegocios(lista) {
     db.exec({ sql: "INSERT INTO config (clave, valor) VALUES ('negocios', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor", bind: [JSON.stringify(lista)] });
+}
+
+/* ---------- Importación segura y migración del escritorio (C-2/C-3) ---------- */
+const tablasDe = (dbX) => new Set(filas(dbX, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").map((r) => r.name));
+const columnasDe = (dbX, tabla) => {
+    const s = new Set();
+    try { for (const r of filas(dbX, 'PRAGMA table_info("' + tabla + '")')) s.add(r.name); } catch (e) {}
+    return s;
+};
+const contar = (dbX, tabla, donde) => {
+    try { return filas(dbX, 'SELECT COUNT(*) AS n FROM "' + tabla + '"' + (donde ? ' WHERE ' + donde : ''))[0].n; } catch (e) { return 0; }
+};
+/* Nombre de columna seguro para interpolarlo en un SELECT: solo
+ * letras, dígitos y guion bajo (las columnas reales lo cumplen). */
+const colOk = (c) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(c || ''));
+function integridadOk(dbX) {
+    try {
+        const r = filas(dbX, 'PRAGMA integrity_check');
+        return r.length === 1 && Object.values(r[0])[0] === 'ok';
+    } catch (e) { return false; }
+}
+/* Qué clase de base es el archivo temporal: 'web', 'escritorio' o null.
+ * El orden importa: una importación vieja (antes de C-2) dejó tablas web
+ * vacías junto a las fin_* del escritorio; si hay usuarios en fin_*,
+ * la base es del escritorio aunque ya existan tablas web vacías. */
+function clasificarBase(dbX) {
+    const tablas = tablasDe(dbX);
+    if (tablas.has('usuarios') && contar(dbX, 'usuarios') > 0) return 'web';
+    if (tablas.has('fin_usuarios') && contar(dbX, 'fin_usuarios') > 0) return 'escritorio';
+    if (tablas.has('usuarios') && tablas.has('documentos') && tablas.has('meta_saldova')) return 'web';
+    if (tablas.has('fin_usuarios') && tablas.has('fin_documentos')) return 'escritorio';
+    return null;
+}
+/* Migra una base del escritorio (fin_*) a las tablas web, dentro del
+ * archivo temporal. Las tablas fin_* se conservan como evidencia.
+ * Devuelve cuántos usuarios y documentos se migraron (y cuántos
+ * usuarios deshabilitados se omitieron). Las sesiones del escritorio
+ * no se migran: cada usuario entra de nuevo con su clave. */
+async function migrarEscritorio(tmp) {
+    const colUsu = columnasDe(tmp, 'fin_usuarios');
+    const colDoc = columnasDe(tmp, 'fin_documentos');
+    if (!colUsu.has('usuario') || !colUsu.has('pass_hash')) throw new Error('La base del escritorio no trae usuarios válidos (falta usuario o pass_hash)');
+    if (!colDoc.has('negocio') || !colDoc.has('slot') || !colDoc.has('data')) throw new Error('La base del escritorio no trae documentos válidos');
+    await aplicarEsquema(tmp);
+    const ahora = new Date().toISOString();
+    const sel = (cols, col, defecto) => (cols.has(col) && colOk(col) ? col : defecto);
+    // Usuarios: solo los activos; los deshabilitados no entran en la web.
+    const tieneDes = colUsu.has('disabled');
+    const nUsu = contar(tmp, 'fin_usuarios', tieneDes ? 'disabled = 0' : '');
+    const nOmit = tieneDes ? contar(tmp, 'fin_usuarios', 'disabled != 0') : 0;
+    tmp.exec({ sql: 'INSERT OR IGNORE INTO usuarios (username, hash, role, entity_type, socios, negocio, theme, must_change) ' +
+        'SELECT usuario, pass_hash, ' + sel(colUsu, 'role', "'editor'") + ', ' + sel(colUsu, 'entity_type', "'tcp'") + ', ' +
+        sel(colUsu, 'socios', '0') + ', ' + sel(colUsu, 'negocio', "''") + ', ' + sel(colUsu, 'theme', "''") + ', ' + sel(colUsu, 'must_change', '0') +
+        ' FROM fin_usuarios' + (tieneDes ? ' WHERE disabled = 0' : '') });
+    // Documentos: data -> json, ver -> version (sin marca de tiempo en
+    // el escritorio: se sella con la fecha de la migración).
+    const nDoc = contar(tmp, 'fin_documentos');
+    tmp.exec({ sql: 'INSERT OR IGNORE INTO documentos (negocio, slot, json, version, actualizado) ' +
+        'SELECT negocio, slot, data, ' + (colDoc.has('ver') ? 'ver' : '0') + ', ? FROM fin_documentos', bind: [ahora] });
+    const colRes = columnasDe(tmp, 'fin_documentos_respaldo');
+    if (colRes.has('negocio') && colRes.has('slot') && colRes.has('data')) {
+        tmp.exec({ sql: 'INSERT OR IGNORE INTO documentos_respaldo (negocio, slot, json, version, actualizado) ' +
+            'SELECT negocio, slot, data, ' + (colRes.has('ver') ? 'ver' : '0') + ', ' +
+            (colRes.has('guardado') ? "COALESCE(NULLIF(guardado, ''), ?)" : '?') + ' FROM fin_documentos_respaldo', bind: [ahora] });
+    }
+    // Negocios: unión de los que ya había, fin_negocios y los negocios
+    // de los usuarios migrados, guardada en config ('negocios').
+    const negocios = new Set();
+    try {
+        const f = filas(tmp, "SELECT valor FROM config WHERE clave = 'negocios'");
+        if (f.length) { const arr = JSON.parse(f[0].valor); if (Array.isArray(arr)) for (const n of arr) if (n) negocios.add(String(n)); }
+    } catch (e) {}
+    if (tablasDe(tmp).has('fin_negocios')) {
+        for (const r of filas(tmp, 'SELECT nombre FROM fin_negocios')) if (r.nombre) negocios.add(String(r.nombre));
+    }
+    for (const r of filas(tmp, 'SELECT DISTINCT negocio FROM fin_usuarios')) if (r.negocio) negocios.add(String(r.negocio));
+    if (negocios.size) {
+        tmp.exec({ sql: "INSERT INTO config (clave, valor) VALUES ('negocios', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor", bind: [JSON.stringify([...negocios])] });
+    }
+    return { usuarios: nUsu, documentos: nDoc, omitidos: nOmit };
+}
+
+/* Escribe UN documento dentro de una transacción ya abierta:
+ * respaldo en documentos_respaldo + INSERT o UPDATE. La usan
+ * docGuardar y docGuardarMultiple (M-1) para no duplicar la lógica
+ * y para que ambos escriban exactamente igual. */
+function escribirDoc(negocio, slot, txt, ahora) {
+    const f = filas(db, 'SELECT json, version FROM documentos WHERE negocio = ? AND slot = ?', [negocio, String(slot)]);
+    if (f.length) {
+        db.exec({ sql: 'INSERT OR REPLACE INTO documentos_respaldo (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, ?, ?)', bind: [negocio, String(slot), f[0].json, f[0].version, ahora] });
+        db.exec({ sql: 'UPDATE documentos SET json = ?, version = version + 1, actualizado = ? WHERE negocio = ? AND slot = ?', bind: [txt, ahora, negocio, String(slot)] });
+    } else {
+        db.exec({ sql: 'INSERT INTO documentos (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, 1, ?)', bind: [negocio, String(slot), txt, ahora] });
+    }
 }
 
 const api = {
@@ -165,8 +274,6 @@ const api = {
         }
         return { tablas, conteos };
     },
-    async consulta(sql, params) { await listo; return filas(db, sql, params); },
-    async ejecutar(sql) { await listo; db.exec(sql); return { ok: true }; },
     /* Documentos por (negocio, slot): el contrato de datos de Saldova.
        El negocio sale de la sesión, nunca del cliente. Al guardar se
        deja la foto anterior en documentos_respaldo, como el escritorio. */
@@ -174,6 +281,7 @@ const api = {
         await listo;
         const s = sesionValida(token);
         if (!s) throw new Error('Sesión expirada');
+        if (SLOTS_ADMIN.includes(String(slot)) && s.role !== 'admin') throw new Error('Solo el administrador puede ver este documento');
         const f = filas(db, 'SELECT json FROM documentos WHERE negocio = ? AND slot = ?', [s.negocio, String(slot)]);
         return f.length ? JSON.parse(f[0].json) : null;
     },
@@ -181,38 +289,137 @@ const api = {
         await listo;
         const s = sesionValida(token);
         if (!s) throw new Error('Sesión expirada');
-        if (mes) return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas WHERE ts LIKE ? ORDER BY id DESC LIMIT 300', [String(mes) + '%']);
-        return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas ORDER BY id DESC LIMIT 300', []);
+        if (!mes) return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas ORDER BY id DESC LIMIT 300', []);
+        /* M-3: el mes es LOCAL. El ts se guarda en UTC (instante), así
+         * que filtrar por LIKE 'YYYY-MM%' perdía las trazas de
+         * 19:00 a 23:59 del último día del mes (en UTC ya eran del
+         * mes siguiente) y el paquete de Auditoría las perdía. Se
+         * filtra por rango: del inicio del mes local al inicio del
+         * mes siguiente local, ambos pasados a UTC para compararlos
+         * con el ts guardado. Las trazas viejas siguen valiendo. */
+        const m = /^(\d{4})-(\d{2})$/.exec(String(mes));
+        if (!m) return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas WHERE ts LIKE ? ORDER BY id DESC LIMIT 300', [String(mes) + '%']);
+        const ini = new Date(+m[1], +m[2] - 1, 1).toISOString();
+        const fin = new Date(+m[1], +m[2], 1).toISOString();
+        return filas(db, 'SELECT ts, usuario, accion, negocio, slot, detalle FROM trazas WHERE ts >= ? AND ts < ? ORDER BY id DESC LIMIT 300', [ini, fin]);
     },
     async docGuardar(token, slot, valor) {
         await listo;
         const s = sesionValida(token);
         if (!s) throw new Error('Sesión expirada');
         if (s.role === 'consultor') throw new Error('Tu usuario es de consulta (solo lectura): no puede guardar cambios');
+        if (SLOTS_ADMIN.includes(String(slot)) && s.role !== 'admin') throw new Error('Solo el administrador puede guardar este documento');
         const txt = JSON.stringify(valor == null ? null : valor);
         if (txt.length > 3000000) throw new Error('Documento demasiado grande');
         const ahora = new Date().toISOString();
-        const f = filas(db, 'SELECT json, version FROM documentos WHERE negocio = ? AND slot = ?', [s.negocio, String(slot)]);
         db.exec('BEGIN');
         try {
-            if (f.length) {
-                db.exec({ sql: 'INSERT OR REPLACE INTO documentos_respaldo (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, ?, ?)', bind: [s.negocio, String(slot), f[0].json, f[0].version, ahora] });
-                db.exec({ sql: 'UPDATE documentos SET json = ?, version = version + 1, actualizado = ? WHERE negocio = ? AND slot = ?', bind: [txt, ahora, s.negocio, String(slot)] });
-            } else {
-                db.exec({ sql: 'INSERT INTO documentos (negocio, slot, json, version, actualizado) VALUES (?, ?, ?, 1, ?)', bind: [s.negocio, String(slot), txt, ahora] });
+            escribirDoc(s.negocio, slot, txt, ahora);
+            /* La traza va DENTRO de la transacción (M-1): antes se
+             * llamaba después del COMMIT y, si fallaba, el módulo
+             * creía que el guardado había fallado cuando ya estaba
+             * guardado, y el reintento duplicaba. traza() ya traga
+             * su propio error, así que nunca aborta el guardado. */
+            traza(s.username, 'guardar', s.negocio, String(slot), 'Documento actualizado');
+            db.exec('COMMIT');
+        } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
+        return { ok: true };
+    },
+    /* M-1: guarda VARIOS documentos en UNA sola transacción. Los
+     * módulos que mueven dos documentos juntos (asiento + su marca,
+     * cierre + candado...) lo usan en vez de dos docGuardar
+     * seguidos: si algo falla, no queda ni el primero guardado ni
+     * el segundo perdido, y no hay reintento que duplique. Las
+     * mismas reglas que docGuardar (sesión, consultor, slots de
+     * admin, tope de tamaño) se comprueban ANTES de abrir la
+     * transacción. Si un slot se repite, manda el último valor. */
+    async docGuardarMultiple(token, docs) {
+        await listo;
+        const s = sesionValida(token);
+        if (!s) throw new Error('Sesión expirada');
+        if (s.role === 'consultor') throw new Error('Tu usuario es de consulta (solo lectura): no puede guardar cambios');
+        if (!Array.isArray(docs) || !docs.length) throw new Error('Falta la lista de documentos a guardar');
+        const porSlot = new Map();
+        for (const d of docs) {
+            const slot = String((d && d.slot) || '');
+            if (!slot) throw new Error('Falta el slot de un documento');
+            if (SLOTS_ADMIN.includes(slot) && s.role !== 'admin') throw new Error('Solo el administrador puede guardar este documento');
+            const txt = JSON.stringify(d.valor == null ? null : d.valor);
+            if (txt.length > 3000000) throw new Error('Documento demasiado grande');
+            porSlot.set(slot, txt);
+        }
+        const ahora = new Date().toISOString();
+        db.exec('BEGIN');
+        try {
+            for (const [slot, txt] of porSlot) {
+                escribirDoc(s.negocio, slot, txt, ahora);
+                traza(s.username, 'guardar', s.negocio, slot, 'Documento actualizado');
             }
             db.exec('COMMIT');
         } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
-        traza(s.username, 'guardar', s.negocio, String(slot), 'Documento actualizado');
         return { ok: true };
     },
-    async exportar() { await listo; return poolUtil.exportFile(activaArchivo); },
-    async importar(bytes) {
+    async exportar(token) {
         await listo;
-        db.close();
-        await poolUtil.importFile(activaArchivo, bytes);
-        await abrirActiva(activaNombre, activaArchivo);
-        return { ok: true };
+        if (!esAdmin(token)) throw new Error('Solo el administrador puede exportar la base');
+        return poolUtil.exportFile(activaArchivo);
+    },
+    async importar(token, bytes) {
+        await listo;
+        /* La única excepción sin sesión de admin es la primera puesta
+         * en marcha: una base sin usuarios aún no tiene a quién
+         * proteger, y el botón «Localizar un archivo .db» de la
+         * puerta solo existe en ese estado (igual que inicializar). */
+        if (usuariosDeActiva().length && !esAdmin(token)) throw new Error('Solo el administrador puede abrir un archivo .db');
+        if (!bytes || !bytes.length) throw new Error('El archivo está vacío');
+        /* 1. Escribir en un archivo TEMPORAL: la base activa no se toca
+         * hasta que el archivo nuevo esté validado (y migrado, si es
+         * del escritorio). importDb ya rechaza lo que no tiene
+         * cabecera SQLite; aquí se valida el resto. */
+        try { await poolUtil.importDb(ARCHIVO_IMPORT_TMP, bytes); }
+        catch (e) { throw new Error('El archivo no es una base de datos SQLite válida'); }
+        let tmp = null;
+        try {
+            tmp = new poolUtil.OpfsSAHPoolDb(ARCHIVO_IMPORT_TMP);
+            try { tmp.exec('PRAGMA synchronous = NORMAL;'); } catch (e) {}
+            if (!integridadOk(tmp)) throw new Error('El archivo está dañado: la comprobación de integridad de SQLite falló');
+            const tipo = clasificarBase(tmp);
+            if (!tipo) throw new Error('El archivo no es una base Saldova: no trae las tablas de la web ni las del escritorio');
+            let migrado = false;
+            let usuariosMigrados = 0;
+            let documentosMigrados = 0;
+            let usuariosOmitidos = 0;
+            if (tipo === 'escritorio') {
+                const m = await migrarEscritorio(tmp);
+                migrado = true;
+                usuariosMigrados = m.usuarios;
+                documentosMigrados = m.documentos;
+                usuariosOmitidos = m.omitidos;
+            }
+            /* 2. Respaldo de la base activa, con fecha en el nombre.
+             * Vive en el almacenamiento del navegador, junto a las
+             * bases; si la sustitución falla se restaura desde él. */
+            const respaldoBytes = poolUtil.exportFile(activaArchivo);
+            const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+            const respaldoArchivo = '/respaldo-' + ts + '.db';
+            await poolUtil.importDb(respaldoArchivo, respaldoBytes);
+            /* 3. Sustituir la activa por la importada (ya validada y,
+             * si hacía falta, migrada). Si falla a medias, se restaura
+             * el respaldo y se reabre la base anterior. */
+            const nuevosBytes = poolUtil.exportFile(ARCHIVO_IMPORT_TMP);
+            try {
+                await poolUtil.importDb(activaArchivo, nuevosBytes);
+            } catch (e) {
+                try { await poolUtil.importDb(activaArchivo, respaldoBytes); } catch (_) {}
+                try { await abrirActiva(activaNombre, activaArchivo); } catch (_) {}
+                throw new Error('No se pudo sustituir la base activa; se restauró la anterior');
+            }
+            await abrirActiva(activaNombre, activaArchivo);
+            return { ok: true, migrado, respaldo: respaldoArchivo, usuarios: usuariosMigrados, documentos: documentosMigrados, omitidos: usuariosOmitidos };
+        } finally {
+            try { if (tmp) tmp.close(); } catch (e) {}
+            try { await poolUtil.unlink(ARCHIVO_IMPORT_TMP); } catch (e) {}
+        }
     },
 
     /* ---------- Acceso, usuarios y bases con nombre ---------- */
@@ -266,6 +473,12 @@ const api = {
             throw new Error('Credenciales inválidas');
         }
         intentos.delete(usuario);
+        /* Clave del escritorio: al entrar bien por primera vez, se
+         * guarda con el hash de la web (PBKDF2) para no depender del
+         * formato viejo. Si falla, se reintenta en la próxima entrada. */
+        if (String(f[0].hash || '').startsWith('sha256$')) {
+            try { db.exec({ sql: 'UPDATE usuarios SET hash = ? WHERE username = ?', bind: [await hashSecreto(String(clave || '')), usuario] }); } catch (e) {}
+        }
         const token = tokenNuevo();
         const ahora = Math.floor(Date.now() / 1000);
         db.exec({ sql: 'INSERT INTO sesiones (token, username, creado, expira) VALUES (?, ?, ?, ?)', bind: [token, f[0].username, ahora, ahora + 30 * 24 * 3600] });

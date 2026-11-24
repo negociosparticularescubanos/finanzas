@@ -50,7 +50,7 @@
     <button type="button" id="nGuardar">Guardar nómina</button>
     <button type="button" id="nAsiento" class="secundario chico">Generar asiento</button>
     <button type="button" id="nDias" class="secundario chico">Brutos desde los días</button></div>
-    <p class="tenue">El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto; en el asiento, ambos van a la 615-000 como aportes patronales, y quedan por pagar en la 333-000 y la 334-000.</p>
+    <p class="tenue" id="notaAportes">El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto.</p>
     <div id="nomina"><p class="tenue">Elige el mes y prepara la nómina.</p></div>
 </div>
 
@@ -71,7 +71,7 @@
 .pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
 </style>
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(4);
@@ -95,7 +95,7 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'rrhh', rrhh); }
 function pintarTrabajadores() {
     const lista = rrhh.trabajadores || [];
     $('trabajadores').innerHTML = lista.map((t) =>
-        '<div class="fila"><b>' + t.nombre + '</b><span class="tenue">' + (t.cargo || '') + ' · CI ' + (t.ci || '') + ' · Salario ' + fmt(t.salario) + '</span>' +
+        '<div class="fila"><b>' + esc(t.nombre) + '</b><span class="tenue">' + esc(t.cargo || '') + ' · CI ' + esc(t.ci || '') + ' · Salario ' + fmt(t.salario) + '</span>' +
         '<button type="button" class="chico secundario" data-del="' + t.id + '">Quitar</button></div>').join('') ||
         '<p class="tenue">Sin trabajadores todavía.</p>';
     $('trabajadores').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
@@ -110,10 +110,17 @@ function nominaDelMes() {
 function pintarNomina() {
     const mes = $('nMes').value;
     const nom = nominaDelMes();
+    const nota = $('notaAportes');
+    if (nota) {
+        const cSal = cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), cApor = cuentaAuto(conta.plan, 'gasto_seguridad_social', '615-000');
+        const cSS = cuentaAuto(conta.plan, 'ss_por_pagar', '333-000'), cIUFT = cuentaAuto(conta.plan, 'fuerza_trabajo_por_pagar', '334-000');
+        nota.textContent = 'El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto; en el asiento, el bruto va a la ' + (cSal || '—') + ' y los aportes a la ' + (cApor || '—') + ' como aportes patronales, y quedan por pagar en la ' + (cSS || '—') + ' y la ' + (cIUFT || '—') + '.' +
+            ((conta.planOrigen === 'oficial') ? ' Con el plan oficial (Res. 494/2016) no hay cuenta propia de salarios: el bruto y los aportes se asientan juntos en 826-000 Gastos de Operación.' : '');
+    }
     if (!nom) { $('nomina').innerHTML = '<p class="tenue">No hay nómina guardada de ' + mes + '. Pulsa «Preparar» para crearla desde los trabajadores.</p>'; return; }
     const filas = nom.trabajadores.map((t, i) => {
         const bruto = Number(t.bruto) || 0, imp = Number(t.impPersonal) || 0, desc = Math.min(bruto - imp, Number(t.descuento) || 0);
-        return '<tr><td>' + t.nombre + '</td>' +
+        return '<tr><td>' + esc(t.nombre) + '</td>' +
         '<td class="num"><input class="monto" data-dias="' + i + '" type="number" step="1" min="0" max="31" value="' + (t.dias == null ? 30 : t.dias) + '" title="Días trabajados en el mes"></td>' +
         '<td class="num"><input class="monto" data-bruto="' + i + '" type="number" step="0.01" min="0" value="' + t.bruto + '"></td>' +
         '<td class="num"><input class="monto" data-imp="' + i + '" type="number" step="0.01" min="0" value="' + (t.impPersonal || 0) + '"></td>' +
@@ -143,10 +150,10 @@ function pintarVacaciones() {
     const filasV = (rrhh.trabajadores || []).map((t) => {
         const v = vac[t.id] || { dias: 0, dinero: 0, disfrutes: [] };
         const disfr = (v.disfrutes || []).reduce((x, d) => x + (Number(d.dias) || 0), 0);
-        return '<tr><td>' + t.nombre + '</td><td class="num">' + fmt(v.dias) + '</td><td class="num">' + fmt(v.dinero) + '</td><td class="num">' + fmt(disfr) + '</td></tr>';
+        return '<tr><td>' + esc(t.nombre) + '</td><td class="num">' + fmt(v.dias) + '</td><td class="num">' + fmt(v.dinero) + '</td><td class="num">' + fmt(disfr) + '</td></tr>';
     }).join('');
     $('vacTabla').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días acumulados</th><th class="num">Dinero acumulado</th><th class="num">Días disfrutados</th></tr></thead><tbody>' + (filasV || '<tr><td colspan="4" class="tenue">Sin trabajadores.</td></tr>') + '</tbody></table>';
-    $('vacTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + t.nombre + '</option>').join('');
+    $('vacTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('');
 }
 (async () => {
     try {
@@ -168,7 +175,7 @@ function pintarVacaciones() {
             await guardar(); $('tNombre').value = $('tCi').value = $('tCargo').value = $('tSalario').value = '';
             pintarTrabajadores(); aviso('Trabajador añadido');
         });
-        $('nMes').value = new Date().toISOString().slice(0, 7);
+        $('nMes').value = mesLocal();
         $('nMes').addEventListener('change', pintarNomina);
         $('nPreparar').addEventListener('click', async () => {
             const mes = $('nMes').value;
@@ -196,17 +203,20 @@ function pintarVacaciones() {
             const prov = r2(bruto * 0.0909);
             if (bruto <= 0) { aviso('La nómina está en cero', 'error'); return; }
             const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
-            const lineas = [L('614-000', bruto), L('615-000', r2(ss + iuft)), L('331-000', 0, liquido), L('333-000', 0, ss), L('334-000', 0, iuft)];
-            if (imp > 0) lineas.push(L('345-000', 0, imp));
-            if (descTotal > 0) lineas.push(L('332-000', 0, descTotal));
-            if (prov > 0) { lineas.push(L('614-000', prov)); lineas.push(L('331-000', 0, prov)); }
+            const lineas = [L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), bruto), L(cuentaAuto(conta.plan, 'gasto_seguridad_social', '615-000'), r2(ss + iuft)), L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, liquido), L(cuentaAuto(conta.plan, 'ss_por_pagar', '333-000'), 0, ss), L(cuentaAuto(conta.plan, 'fuerza_trabajo_por_pagar', '334-000'), 0, iuft)];
+            if (imp > 0) lineas.push(L(cuentaAuto(conta.plan, 'ingresos_personales_por_pagar', '345-000'), 0, imp));
+            if (descTotal > 0) lineas.push(L(cuentaAuto(conta.plan, 'retenciones_por_pagar', '332-000'), 0, descTotal));
+            if (prov > 0) { lineas.push(L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), prov)); lineas.push(L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, prov)); }
+            const errLin = validarLineasAsiento(conta.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
             conta.asientos.push({ id, numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Nómina de ' + mes, origen: 'manual', estado: 'confirmado', lineas });
             nom.asientoId = id; nom.asientoNumero = conta.seqAsiento;
             nom.trabajadores.forEach((t) => { const v = rrhh.vacaciones[t.id] || (rrhh.vacaciones[t.id] = { dias: 0, dinero: 0, disfrutes: [] }); v.dias = r2(v.dias + (Number(t.dias == null ? 30 : t.dias) || 0) / 11); v.dinero = r2(v.dinero + (Number(t.bruto) || 0) * 0.0909); });
-            await bd().docGuardar(tokenSesion(), 'conta', conta);
-            await guardar();
+            /* M-1: asiento (conta) + descuentos consumidos y vacaciones
+             * acumuladas (rrhh) en UNA transacción. */
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'rrhh', valor: rrhh }]);
             aviso('Asiento nº ' + conta.seqAsiento + ' de la nómina creado en Contabilidad');
             pintarNomina();
             pintarVacaciones();
@@ -222,17 +232,26 @@ function pintarVacaciones() {
             const v = (rrhh.vacaciones || {})[idT];
             if (!v || diasD <= 0) { aviso('Elige el trabajador y los días a disfrutar', 'error'); return; }
             if (diasD > v.dias) { aviso('Solo tiene ' + fmt(v.dias) + ' días acumulados', 'error'); return; }
-            const mesHoy = new Date().toISOString().slice(0, 7);
+            const mesHoy = mesLocal();
             if (conta.candados && conta.candados[mesHoy]) { aviso('Este mes está cerrado', 'error'); return; }
             const pago = v.dias > 0 ? r2(v.dinero / v.dias * diasD) : 0;
+            const lineasVac = pago > 0 ? [{ cuenta: cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), debe: pago, haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'banco_cup', '110-010'), debe: 0, haber: pago }] : [];
+            if (pago > 0) {
+                const errLin = validarLineasAsiento(conta.plan, lineasVac);
+                if (errLin) { aviso(errLin, 'error'); return; }
+            }
             v.dias = r2(v.dias - diasD); v.dinero = r2(v.dinero - pago);
-            v.disfrutes = v.disfrutes || []; v.disfrutes.push({ fecha: new Date().toISOString().slice(0, 10), dias: diasD, pago });
+            v.disfrutes = v.disfrutes || []; v.disfrutes.push({ fecha: hoyLocal(), dias: diasD, pago });
             if (pago > 0) {
                 conta.seqAsiento = (conta.seqAsiento || 0) + 1;
-                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: new Date().toISOString().slice(0, 10), concepto: 'Pago de vacaciones (' + diasD + ' días)', origen: 'manual', estado: 'confirmado', lineas: [{ cuenta: '331-000', debe: pago, haber: 0 }, { cuenta: '110-010', debe: 0, haber: pago }] });
-                await bd().docGuardar(tokenSesion(), 'conta', conta);
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoyLocal(), concepto: 'Pago de vacaciones (' + diasD + ' días)', origen: 'manual', estado: 'confirmado', lineas: lineasVac });
+                /* M-1: asiento (conta) + disfrute descontado (rrhh) en
+                 * UNA transacción. */
+                await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'rrhh', valor: rrhh }]);
+            } else {
+                await guardar();
             }
-            await guardar(); pintarVacaciones();
+            pintarVacaciones();
             aviso('Vacaciones registradas: ' + diasD + ' días por ' + fmt(pago) + (pago > 0 ? ' (asiento nº ' + conta.seqAsiento + ')' : ''));
         });
         (function pestNomina() {
