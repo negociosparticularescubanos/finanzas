@@ -220,10 +220,10 @@ function abrirModulo(id) {
              * módulo, de borde a borde, como la ventana del .exe. */
             requestAnimationFrame(() => {
                 const h = Math.round(document.getElementById('barraModulo').offsetHeight || 0);
-                wb.dom.style.top = h + 'px';
-                wb.dom.style.left = '0px';
-                wb.dom.style.width = window.innerWidth + 'px';
-                wb.dom.style.height = (window.innerHeight - h) + 'px';
+                wb.window.style.top = h + 'px';
+                wb.window.style.left = '0px';
+                wb.window.style.width = window.innerWidth + 'px';
+                wb.window.style.height = (window.innerHeight - h) + 'px';
             });
         },
         onrestore: () => SND.ventana(),
@@ -276,7 +276,7 @@ function vigilarPestanas(wb) {
     let intentos = 0;
     intervaloPestanas = setInterval(() => {
         try {
-            const ifr = wb.dom && wb.dom.querySelector('iframe');
+            const ifr = wb.body && wb.body.querySelector('iframe');
             const doc = ifr && ifr.contentDocument;
             if (!doc) return;
             const bar = doc.querySelector('.pest-bar');
@@ -377,7 +377,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v35';
+    document.getElementById('lzVer').textContent = '· v36';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     const g = document.getElementById('lzModulos');
     g.innerHTML = '';
