@@ -228,6 +228,7 @@ function abrirModulo(id) {
         onrestore: () => SND.ventana(),
         onclose: () => {
             delete abiertas[id];
+            if (intervaloPestanas) { clearInterval(intervaloPestanas); intervaloPestanas = null; }
             SND.ventana();
             if (!cambiandoModulo) setTimeout(() => { if (haySesion && !Object.keys(abiertas).length) volverAlLanzador(); }, 0);
             return false;
@@ -235,6 +236,7 @@ function abrirModulo(id) {
     });
     abiertas[id] = wb;
     marcoActual = wb.dom.querySelector('iframe');
+    vigilarPestanas();
     SND.ventana();
 }
 function barraMostrar(m) {
@@ -259,16 +261,42 @@ function pintarPestanasBarra(pestanas, activa) {
         b.type = 'button';
         b.textContent = p.texto;
         if (String(p.id) === String(activa)) b.className = 'activa';
-        b.addEventListener('click', () => { if (marcoActual && marcoActual.contentWindow) marcoActual.contentWindow.postMessage({ tipo: 'saldova-ir-pestana', id: p.id }, '*'); });
+        /* Clic directo en el botón interno del módulo (misma página,
+         * mismo origen): la pestaña de arriba ES la del módulo. */
+        b.addEventListener('click', () => { try { p.el.click(); } catch (e) {} });
         c.appendChild(b);
     });
 }
-window.addEventListener('message', (e) => {
-    const d = e.data || {};
-    if (d.tipo !== 'saldova-pestanas') return;
-    if (!marcoActual || e.source !== marcoActual.contentWindow) return;
-    pintarPestanasBarra(d.pestanas, d.activa);
-});
+/* Vigilante de pestañas: lee la barra interna del módulo abierto
+ * (mismo origen) y la refleja arriba; la interna queda oculta. */
+let intervaloPestanas = null;
+function vigilarPestanas() {
+    if (intervaloPestanas) clearInterval(intervaloPestanas);
+    let firma = '';
+    let intentos = 0;
+    intervaloPestanas = setInterval(() => {
+        try {
+            const doc = marcoActual && marcoActual.contentDocument;
+            if (!doc) return;
+            const bar = doc.querySelector('.pest-bar');
+            if (!bar) {
+                intentos++;
+                if (intentos === 14) pintarPestanasBarra([], null);
+                return;
+            }
+            const btns = [...bar.querySelectorAll('button')];
+            if (!btns.length) return;
+            bar.style.display = 'none';
+            const idDe = (b, i) => b.dataset.pest || b.dataset.sec || String(i);
+            const act = bar.querySelector('button.activa');
+            const activa = act ? idDe(act, btns.indexOf(act)) : idDe(btns[0], 0);
+            const nueva = JSON.stringify([btns.map((b, i) => [idDe(b, i), b.textContent.trim()]), activa]);
+            if (nueva === firma) return;
+            firma = nueva;
+            pintarPestanasBarra(btns.map((b, i) => ({ id: idDe(b, i), texto: b.textContent.trim(), el: b })), activa);
+        } catch (e) { /* el marco aún está cargando */ }
+    }, 400);
+}
 document.getElementById('bmCerrar').addEventListener('click', () => {
     if (moduloActual && abiertas[moduloActual.id]) abiertas[moduloActual.id].close();
 });
