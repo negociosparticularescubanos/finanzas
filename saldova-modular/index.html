@@ -128,6 +128,7 @@
     <div class="lz-cab">
         <span class="lz-tit">Saldova · Módulos</span>
         <span class="lz-ses" id="lzSesion"></span>
+        <span class="lz-ses" id="lzVer"></span>
         <span class="der"><button type="button" id="lzSonido" title="Sonido">🔊</button><button type="button" id="lzSalir">Salir</button></span>
     </div>
     <div class="lz-info">
@@ -235,8 +236,7 @@ function abrirModulo(id) {
         },
     });
     abiertas[id] = wb;
-    marcoActual = wb.dom.querySelector('iframe');
-    vigilarPestanas();
+    vigilarPestanas(wb);
     SND.ventana();
 }
 function barraMostrar(m) {
@@ -270,13 +270,14 @@ function pintarPestanasBarra(pestanas, activa) {
 /* Vigilante de pestañas: lee la barra interna del módulo abierto
  * (mismo origen) y la refleja arriba; la interna queda oculta. */
 let intervaloPestanas = null;
-function vigilarPestanas() {
+function vigilarPestanas(wb) {
     if (intervaloPestanas) clearInterval(intervaloPestanas);
     let firma = '';
     let intentos = 0;
     intervaloPestanas = setInterval(() => {
         try {
-            const doc = marcoActual && marcoActual.contentDocument;
+            const ifr = wb.dom && wb.dom.querySelector('iframe');
+            const doc = ifr && ifr.contentDocument;
             if (!doc) return;
             const bar = doc.querySelector('.pest-bar');
             if (!bar) {
@@ -376,6 +377,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
+    document.getElementById('lzVer').textContent = '· v35';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     const g = document.getElementById('lzModulos');
     g.innerHTML = '';
