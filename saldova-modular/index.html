@@ -465,7 +465,7 @@ function mostrarLanzador(ses, acc) {
      * tipo de negocio (2026-11-25). */
     const nombreRol = (r) => (r === 'admin' ? 'Administrador' : r === 'editor' ? 'Editor' : r === 'consultor' ? 'Consultor' : (r || ''));
     document.getElementById('lzSesion').textContent = 'Usuario: ' + ses.username + ' · Rol: ' + nombreRol(ses.role);
-    document.getElementById('lzVer').textContent = '· v45';
+    document.getElementById('lzVer').textContent = '· v46';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     document.getElementById('lzBases').style.display = 'none';
     document.getElementById('lanzador').style.display = '';
@@ -489,7 +489,7 @@ function mostrarLanzador(ses, acc) {
         actorActual = actor; plenoActual = pleno; rolActual = (ses && ses.role) || '';
         /* El tipo de negocio en la cinta (antes la MIPYME no salía). */
         const elActor = document.getElementById('lzActor');
-        if (elActor) elActor.textContent = actor ? 'Negocio: ' + (actor === 'tcp' ? 'TCP' : actor === 'mipyme' ? 'MIPYME' : actor === 'pdl' ? 'PDL' : actor) : '';
+        if (elActor) elActor.textContent = actor ? 'Negocio: ' + (actor === 'tcp' ? 'TCP' : actor === 'mipyme' ? 'MIPYME' : actor === 'pdl' ? 'PDL' : actor) : 'Negocio: sin definir';
         const el = document.getElementById('lzNegocio');
         if (el) {
             if (p && p.razon) el.innerHTML = (p.logo ? '<img src="' + esc(p.logo) + '" alt="" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;border-radius:4px;background:#fff;border:1px solid #8FA8C8"> ' : '') + '<b>' + esc(p.razon) + '</b> <span class="tenue">· ' + esc(p.actor === 'tcp' ? 'TCP' : p.actor === 'mipyme' ? 'MIPYME' : p.actor === 'pdl' ? 'PDL' : '') + '</span>';
@@ -508,7 +508,8 @@ function mostrarLanzador(ses, acc) {
             '<span class="tenue">' +
             (actor === 'tcp' ? 'TCP · ' + (pleno ? 'contabilidad completa (superó 500 000 CUP en ' + anio + ')' : 'Registro de Control (hasta 500 000 CUP)') : '') +
             (actor === 'mipyme' ? 'MIPYME' : '') +
-            (actor === 'pdl' ? 'PDL · Proyecto de Desarrollo Local' : '') + '</span>';
+            (actor === 'pdl' ? 'PDL · Proyecto de Desarrollo Local' : '') +
+            (actor ? '' : 'Sin tipo de negocio definido — complétalo en Fiscal · Datos del negocio') + '</span>';
         const btnEditar = document.getElementById('lzEditar');
         if (btnEditar) btnEditar.addEventListener('click', () => {
             editando = !editando;

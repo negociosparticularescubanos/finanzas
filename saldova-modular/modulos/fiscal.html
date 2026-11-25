@@ -131,7 +131,7 @@
 </style>
 <script type="module">
 import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal, esOnat } from 'nucleo';
-import { perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm, perfilVacio, perfilActorNombre } from 'componentes';
+import { PERFIL_ACTORES, perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm, perfilVacio, perfilActorNombre } from 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(3);
 
@@ -141,6 +141,10 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const FUENTES = ['Fondo para el Desarrollo Local','Fondo de Fideicomiso','Fondos para proyectos de desarrollo local','Fondo del Gobierno Provincial','Fondo Nacional de Medio Ambiente','Fondo Nacional para el Desarrollo Forestal','Fondo Financiero de Ciencia e Innovación','Fondo financiero de programas de ciencia, tecnología e innovación','Fondo de la cooperación internacional','Recursos financieros propios de los actores locales','Créditos bancarios','Presupuesto del Estado','Otros recursos financieros del exterior','Cualquier otro fondo o recurso financiero'];
 const FIDEICOMISO = 'Fondo de Fideicomiso';
 let fiscal = null, conta = null, movs = [], rrhh = null, pos = null;
+/* true cuando la base ya trae el tipo de actor guardado; las bases
+ * creadas con el flujo rápido (sin asistente) no lo traen: el actor
+ * se define una sola vez al completar la ficha, no se inventa. */
+let actorDefinido = false;
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -436,7 +440,7 @@ async function importarVectorArchivo(file) {
             /* La base no tenía ficha: se completa desde el documento. */
             fiscal.meta = Object.assign({}, fiscal.meta, { nit: res.meta.nit || fiscal.meta.nit, razon: res.meta.razon || fiscal.meta.razon });
             $('fNit').value = fiscal.meta.nit || ''; $('fRazon').value = fiscal.meta.razon || '';
-            $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo || 'tcp');
+            $('fTipoTxt').textContent = actorDefinido ? perfilActorNombre(fiscal.meta.tipo) : 'Sin definir';
         }
         await guardar();
         pintarVector(); pintarPerfil(); pestFiscal();
@@ -559,11 +563,25 @@ function pintarPerfil() {
     $('perfilEditar').addEventListener('click', pintarPerfilForm);
 }
 function pintarPerfilForm() {
-    const tipo = (fiscal.meta && fiscal.meta.tipo) || 'tcp';
-    const p = (fiscal.meta && fiscal.meta.perfil) || perfilVacio(tipo);
+    /* Si la base todavía no tiene el tipo definido, el formulario
+     * trae el selector arriba: se elige una vez y al guardar queda
+     * fijo (desde la app no se cambia después, igual que al crear
+     * la base con el asistente). Al cambiarlo se redibuja el
+     * formulario con los campos de ese actor, sin perder lo escrito
+     * en los campos comunes. */
+    let tipo = (fiscal.meta && fiscal.meta.tipo) || 'tcp';
+    let p = (fiscal.meta && fiscal.meta.perfil) || perfilVacio(tipo);
     const caja = $('perfilCaja');
-    caja.innerHTML = perfilFormHTML(tipo, p);
-    perfilCablearForm(caja);
+    const pintarForm = () => {
+        let h = '';
+        if (!actorDefinido) h += '<p class="nota"><b>¿Qué actor económico eres?</b> Esta base todavía no tiene el tipo definido: elígelo una vez; después queda fijo.</p>' +
+            '<label>Tipo de actor económico <select id="perfilActorSel">' + PERFIL_ACTORES.map((a) => '<option value="' + a.id + '"' + (a.id === tipo ? ' selected' : '') + '>' + a.nombre + '</option>').join('') + '</select></label>';
+        caja.innerHTML = h + perfilFormHTML(tipo, p);
+        perfilCablearForm(caja);
+        const sel = document.getElementById('perfilActorSel');
+        if (sel) sel.addEventListener('change', () => { p = perfilLeerForm(tipo, caja); tipo = sel.value; pintarForm(); });
+    };
+    pintarForm();
     $('perfilBotones').innerHTML = '<button type="button" id="perfilGuardar">Guardar ficha</button> <button type="button" id="perfilCancelar" class="secundario">Cancelar</button>';
     $('perfilCancelar').addEventListener('click', pintarPerfil);
     $('perfilGuardar').addEventListener('click', async () => {
@@ -577,6 +595,7 @@ function pintarPerfilForm() {
         fiscal.meta.cuentaFiscal = nuevo.cuentaCup;
         try {
             await guardar();
+            actorDefinido = true;
             $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo); $('fNit').value = fiscal.meta.nit; $('fRazon').value = fiscal.meta.razon; $('fCuenta').value = fiscal.meta.cuentaFiscal;
             pintarPerfil(); pestFiscal(); aviso('Ficha del negocio guardada');
         } catch (e) { aviso(String((e && e.message) || e), 'error'); }
@@ -589,13 +608,16 @@ function pintarPerfilForm() {
         if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+        /* El tipo guardado se lee ANTES del valor por defecto: si la
+         * base no lo trae, el actor está sin definir (no es TCP). */
+        actorDefinido = !!(fiscal.meta && fiscal.meta.tipo);
         fiscal.meta = fiscal.meta || { tipo: 'tcp', nit: '', razon: '', cuentaFiscal: '' };
         fiscal.fuentes = fiscal.fuentes || [];
         conta = await bd().docLeer(tokenSesion(), 'conta');
         movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
         rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
         pos = await bd().docLeer(tokenSesion(), 'pos');
-        $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo || 'tcp');
+        $('fTipoTxt').textContent = actorDefinido ? perfilActorNombre(fiscal.meta.tipo) : 'Sin definir';
         $('fNit').value = fiscal.meta.nit || '';
         $('fRazon').value = fiscal.meta.razon || '';
         $('fCuenta').value = fiscal.meta.cuentaFiscal || '';
