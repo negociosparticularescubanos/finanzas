@@ -92,6 +92,11 @@
         <button class="principal" id="btnGuardarMov">Guardar</button>
         <button id="btnCancelarEd" style="display:none">Cancelar</button>
     </div>
+    <div class="fila" id="fUsdRow" style="display:none">
+        <label class="campo">Tasa del segmento III (CUP por 1 USD) <input type="number" id="fTasa" min="0" step="0.01" style="width:130px"></label>
+        <label class="campo">Equivalente en CUP <input type="text" id="fEquiv" readonly style="width:130px"></label>
+        <span class="tenue" id="fTasaOrigen"></span>
+    </div>
 </div>
 
 <!-- Fase 25, bloque 1: caja chica. Un fondo fijo en efectivo para
@@ -163,6 +168,10 @@
             <label class="campo">Clasificación <input type="text" id="mClasificacion" list="clases" placeholder="Por clasificar"></label>
             <label class="campo">Monto <input type="number" id="mMonto" min="0" step="0.01" style="width:130px"></label>
         </div>
+        <div class="fila" id="mUsdRow" style="display:none;margin-top:10px">
+            <label class="campo">Tasa del segmento III (CUP por 1 USD) <input type="number" id="mTasa" min="0" step="0.01" style="width:130px"></label>
+            <label class="campo">Equivalente en CUP <input type="text" id="mEquiv" readonly style="width:130px"></label>
+        </div>
         <div class="fila" style="margin-top:10px">
             <label class="tenue"><input type="checkbox" id="mGuardarRegla"> Recordar esta clasificación como regla para conceptos iguales (la próxima vez se clasificará sola)</label>
         </div>
@@ -201,7 +210,7 @@
 </div>
 
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal, normConcepto, guardarRegla, reglaPara, cuentaAuto, validarLineasAsiento, guardarMultiple } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal, normConcepto, guardarRegla, reglaPara, cuentaAuto, validarLineasAsiento, guardarMultiple, tasaSegmentoIII, esCuentaUsd } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(1);
@@ -238,7 +247,7 @@ function pintarCuentas() {
         '<button data-cuenta="' + c.id + '"' + (c.id === cuentaActiva ? ' class="activa"' : '') + '>' + c.nombre + '</button>'
     ).join('');
     document.querySelectorAll('#cuentas button').forEach((b) => {
-        b.onclick = () => { cuentaActiva = b.dataset.cuenta; editandoId = null; pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarConcAuto(); };
+        b.onclick = () => { cuentaActiva = b.dataset.cuenta; editandoId = null; pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarConcAuto(); pintarUsdRow(); };
     });
 }
 
@@ -668,7 +677,11 @@ async function cuarentenaLiberar(id) {
     const cuentaAntes = cuentaActiva;
     cuentaActiva = en.cuenta;
     try {
-        const n = await aplicarImportacion(aImportar, en.archivo || '', en.saldoBanco);
+        /* USD en CUP: al liberar no hay vista previa; va la tasa de
+         * hoy si hay internet, si no el movimiento queda sin
+         * convertir y la reparación lo lista. */
+        const tLib = await tasaHoy();
+        const n = await aplicarImportacion(aImportar, en.archivo || '', en.saldoBanco, tLib ? tLib.usd : 0);
         cuarentenaDecidir(contaDoc, id, 'liberada', sesion ? sesion.username : '');
         await bd().docGuardar(token, 'conta', contaDoc);
         aviso('Lote liberado: ' + n + ' operación(es) importada(s)');
@@ -716,6 +729,12 @@ function editar(id) {
     $('mTipo').value = m.tipo || 'gasto';
     $('mClasificacion').value = (m.clasificacion === 'Por clasificar') ? '' : (m.clasificacion || '');
     $('mMonto').value = m.monto || '';
+    /* USD en CUP: al editar un movimiento en USD se ve y se puede
+     * cambiar su tasa; el equivalente se recalcula solo. */
+    const mEsUsd = m.moneda === 'USD' || esCuentaUsd(m.cuenta);
+    $('mUsdRow').style.display = mEsUsd ? '' : 'none';
+    $('mTasa').value = mEsUsd ? (m.tasa || '') : '';
+    $('mEquiv').value = (mEsUsd && Number(m.montoCup) > 0) ? dinero(m.montoCup) : '';
     $('modalMov').classList.add('abierto');
     $('mConcepto').focus();
 }
@@ -734,7 +753,15 @@ async function guardarModalMov() {
     if (contaCandados[String(m.fecha || '').slice(0, 7)] || contaCandados[fecha.slice(0, 7)]) { aviso('El mes de ' + (m.fecha || '').slice(0, 7) + ' o el de ' + fecha + ' está cerrado: no se editan movimientos en un período cerrado', 'error'); return; }
     const clasificacion = $('mClasificacion').value.trim() || 'Por clasificar';
     const clase = claseManual(concepto, tipo, clasificacion);
-    Object.assign(m, { fecha, concepto, tipo, clasificacion, monto, clase });
+    /* USD en CUP: al editar un movimiento en USD, su tasa es
+     * obligatoria y el equivalente se recalcula. */
+    let extraM = { moneda: 'CUP' };
+    if (m.moneda === 'USD' || esCuentaUsd(m.cuenta)) {
+        const tasa = parseFloat($('mTasa').value) || 0;
+        if (!(tasa > 0)) { aviso('Este movimiento es en USD: necesita su tasa del segmento III', 'error'); return; }
+        extraM = { moneda: 'USD', tasa, montoCup: r2(monto * tasa) };
+    }
+    Object.assign(m, { fecha, concepto, tipo, clasificacion, monto, clase, ...extraM });
     try {
         await guardar();
         /* Fase 14, bloque 4: si lo pidió, la clasificación queda
@@ -762,7 +789,38 @@ async function borrar(id) {
 function cancelarEd() {
     /* Fase 9: el formulario de la página es solo alta; la edición
      * vive en el modal. */
-    $('fFecha').value = ''; $('fConcepto').value = ''; $('fClasificacion').value = ''; $('fMonto').value = '';
+    $('fFecha').value = ''; $('fConcepto').value = ''; $('fClasificacion').value = ''; $('fMonto').value = ''; $('fTasa').value = ''; $('fEquiv').value = ''; $('fTasaOrigen').textContent = '';
+}
+/* USD en CUP (2026-11-25): cuando la cuenta es la Tarjeta USD, el
+ * movimiento se guarda en USD con su tasa del segmento III y su
+ * equivalente en CUP. La tasa de hoy viene sola del servicio de
+ * tasas; sin internet, se escribe a mano. */
+let tasaHoyCache = null;
+async function tasaHoy() {
+    if (tasaHoyCache) return tasaHoyCache;
+    tasaHoyCache = await tasaSegmentoIII();
+    return tasaHoyCache;
+}
+function actualizarEquiv() {
+    const monto = parseFloat($('fMonto').value) || 0;
+    const tasa = parseFloat($('fTasa').value) || 0;
+    $('fEquiv').value = (monto > 0 && tasa > 0) ? dinero(r2(monto * tasa)) : '';
+}
+function actualizarEquivModal() {
+    const monto = parseFloat($('mMonto').value) || 0;
+    const tasa = parseFloat($('mTasa').value) || 0;
+    $('mEquiv').value = (monto > 0 && tasa > 0) ? dinero(r2(monto * tasa)) : '';
+}
+async function pintarUsdRow() {
+    const esUsd = esCuentaUsd(cuentaActiva);
+    $('fUsdRow').style.display = esUsd ? '' : 'none';
+    if (!esUsd) return;
+    if (!$('fTasa').value) {
+        const t = await tasaHoy();
+        if (t) { $('fTasa').value = t.usd; $('fTasaOrigen').textContent = 'Tasa de hoy (' + (t.fecha || '') + ') del segmento III. Si el movimiento es de otro día, escribe la tasa de ese día.'; }
+        else $('fTasaOrigen').textContent = 'Sin internet: escribe la tasa del segmento III del día del movimiento.';
+    }
+    actualizarEquiv();
 }
 async function guardarMov() {
     const fecha = $('fFecha').value, concepto = $('fConcepto').value.trim(),
@@ -780,7 +838,15 @@ async function guardarMov() {
      * «Por clasificar». Solo vale para gastos: un ingreso con ONAT
      * en el concepto sería una devolución, no un pago. */
     const clase = claseManual(concepto, tipo, clasificacion);
-    movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase });
+    /* USD en CUP: el movimiento guarda su moneda, su tasa y su
+     * equivalente; el asiento usará el equivalente. */
+    let extra = { moneda: 'CUP' };
+    if (esCuentaUsd(cuentaActiva)) {
+        const tasa = parseFloat($('fTasa').value) || 0;
+        if (!(tasa > 0)) { aviso('La Tarjeta USD necesita su tasa del segmento III (CUP por 1 USD)', 'error'); return; }
+        extra = { moneda: 'USD', tasa, montoCup: r2(monto * tasa) };
+    }
+    movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase, ...extra });
     try {
         await guardar();
         aviso('Movimiento guardado');
@@ -1099,6 +1165,11 @@ function pintarPrevia() {
                 '<label><input type="checkbox" data-previa="' + i + '" checked> Importar</label>') + '</td></tr>';
     });
     html += '</tbody></table>';
+    /* USD en CUP: al importar un estado de la Tarjeta USD, cada
+     * movimiento necesita su tasa del segmento III. */
+    if (esCuentaUsd(cuentaActiva)) {
+        html += '<p><label class="campo">Tasa del segmento III para estos movimientos (CUP por 1 USD) <input type="number" id="previaTasa" min="0" step="0.01" style="width:130px"></label> <span class="tenue">La tasa de hoy viene sola; si el estado es de otro día, escribe la tasa de ese día.</span></p>';
+    }
     if (previaOps.invalidas && previaOps.invalidas.length) {
         html += '<p class="rojo">En cuarentena (fecha que no existe en el calendario, no se importan): ' +
             previaOps.invalidas.map((p) => esc(p.fecha)).join(', ') + '</p>';
@@ -1107,6 +1178,9 @@ function pintarPrevia() {
         esc(CUENTAS.find((c) => c.id === cuentaActiva).nombre) + '»</button> ' +
         '<button id="btnDescartarPrevia">Descartar</button></p>';
     $('previa').innerHTML = html;
+    if (esCuentaUsd(cuentaActiva)) {
+        tasaHoy().then((t) => { const inp = $('previaTasa'); if (inp && !inp.value && t) inp.value = t.usd; });
+    }
     $('btnDescartarPrevia').onclick = () => { previaOps = null; pintarPrevia(); };
     $('btnImportarPrevia').onclick = importarPrevia;
 }
@@ -1138,13 +1212,20 @@ function sanearIdsMovs(lista) {
  * cuarentena (bloque 3): crea los movimientos (con su refO, para la
  * conciliación automática), registra el estado en conta.estadosBanco
  * y guarda movs + conta en UNA transacción. */
-async function aplicarImportacion(items, archivo, saldoBanco) {
+async function aplicarImportacion(items, archivo, saldoBanco, tasa) {
     let n = 0;
     const opsEstado = [];
+    /* USD en CUP: la tasa viene de la vista previa (o de la de hoy
+     * al liberar de cuarentena). Sin tasa, el movimiento queda en
+     * USD sin convertir y la herramienta de reparación lo lista. */
+    const tasaUsd = esCuentaUsd(cuentaActiva) ? (Number(tasa) || 0) : 0;
     items.forEach((p) => {
+        const extra = tasaUsd > 0
+            ? { moneda: 'USD', tasa: tasaUsd, montoCup: r2(Math.abs(Number(p.op.monto) || 0) * tasaUsd) }
+            : { moneda: esCuentaUsd(cuentaActiva) ? 'USD' : 'CUP' };
         movs.push({ id: nuevoIdMov(n), fecha: p.op.fecha, concepto: p.op.concepto,
             tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
-            clase: p.clase, qr: p.qr, ref: p.op.refC || '', refO: p.op.refO || '', conciliado: true, origen: 'pdf_banco' });
+            clase: p.clase, qr: p.qr, ref: p.op.refC || '', refO: p.op.refO || '', conciliado: true, origen: 'pdf_banco', ...extra });
         opsEstado.push({ refC: p.op.refC || '', refO: p.op.refO || '', fecha: p.op.fecha, concepto: p.op.concepto, monto: p.op.monto, tipo: p.op.tipo });
         n++;
     });
@@ -1165,10 +1246,18 @@ async function importarPrevia() {
     const aImportar = previaOps.filter((p, i) => marcadas.has(i) && !p.duplicada);
     const archivo = previaOps.archivo || '';
     const saldoBanco = previaOps.saldoBanco;
+    /* USD en CUP: la tasa se lee ANTES de borrar la vista previa
+     * (ahí vive el campo). Sin tasa, no se importa en USD. */
+    let tasaImp = 0;
+    if (esCuentaUsd(cuentaActiva)) {
+        const inp = document.getElementById('previaTasa');
+        tasaImp = inp ? (parseFloat(inp.value) || 0) : 0;
+        if (!(tasaImp > 0)) { aviso('La Tarjeta USD necesita su tasa del segmento III para importar', 'error'); return; }
+    }
     previaOps = null; pintarPrevia();
     if (!aImportar.length) { aviso('No había operaciones nuevas marcadas', 'error'); return; }
     try {
-        const n = await aplicarImportacion(aImportar, archivo, saldoBanco);
+        const n = await aplicarImportacion(aImportar, archivo, saldoBanco, tasaImp);
         aviso('Importadas ' + n + ' operaciones del estado de cuenta');
         pintarTabla(); pintarConciliacion(); pintarConcAuto();
         bus.postMessage({ tipo: 'datos', slot: 'mov' });
@@ -1210,7 +1299,11 @@ async function pintarIndicador() {
         try { const c = localStorage.getItem('saldova_chequera_cuenta'); if (c && ['chequera', 'tarjeta_cup', 'tarjeta_usd'].includes(c)) { cuentaActiva = c; localStorage.removeItem('saldova_chequera_cuenta'); } } catch (e) { /* nada */ }
         $('mes').value = mesActual();
         $('fFecha').value = hoyLocal();
-        pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarCuarentena(); pintarReglas(); pintarCajaChica(); pintarAnticipos();
+        pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarCuarentena(); pintarReglas(); pintarCajaChica(); pintarAnticipos(); pintarUsdRow();
+        $('fMonto').addEventListener('input', actualizarEquiv);
+        $('fTasa').addEventListener('input', actualizarEquiv);
+        $('mMonto').addEventListener('input', actualizarEquivModal);
+        $('mTasa').addEventListener('input', actualizarEquivModal);
         $('concMes').value = mesActual();
         $('btnConciliar').addEventListener('click', pintarConcAuto);
         $('concMes').addEventListener('change', pintarConcAuto);

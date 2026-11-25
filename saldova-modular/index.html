@@ -73,7 +73,7 @@
     /* Barra del módulo abierto: solo SUS pestañas (modelo .exe) */
     #barraModulo { position: relative; z-index: 30; display: flex; align-items: center; gap: 12px; background: linear-gradient(180deg, #2B5B84, #1A3E5E); color: #fff; padding: 6px 10px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(13,38,66,.4); }
     #barraModulo .bm-mod { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
-    #barraModulo .bm-mod img { width: 30px; height: 30px; }
+    #barraModulo .bm-mod img { width: 30px; height: 30px; background: #fff; border-radius: 6px; object-fit: contain; }
     #barraModulo .bm-tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-end; }
     #barraModulo .bm-tabs button { background: linear-gradient(180deg, #DCE8F5, #C6D9EE); border: 1px solid #7E9CC0; color: #14324F; border-radius: 7px 7px 0 0; padding: 7px 14px; cursor: pointer; font-size: 13.5px; }
     #barraModulo .bm-tabs button.activa { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 700; }
@@ -104,7 +104,7 @@
     .lz-modo button { cursor: pointer; border-radius: 5px; padding: 5px 12px; font-size: 13px; background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; color: #14324F; }
     .lz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 12px; padding: 16px; }
     .lz-tile { background: linear-gradient(180deg, #FFFFFF, #E7F0FA); border: 1px solid #8FA8C8; border-radius: 10px; padding: 13px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; }
-    .lz-tile img { width: 54px; height: 54px; }
+    .lz-tile img { width: 54px; height: 54px; background: #fff; border-radius: 10px; object-fit: contain; }
     .lz-tile span { text-align: center; line-height: 1.2; }
     .lz-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 9px 19px rgba(20,50,79,.3); border-color: #F48C1E; }
     .lz-tile:hover img { animation: tileBounce .5s ease; }
@@ -138,6 +138,7 @@
     <div class="lz-cab">
         <span class="lz-tit">Saldova · Módulos</span>
         <span class="lz-ses" id="lzSesion"></span>
+        <span class="lz-ses" id="lzActor"></span>
         <span class="lz-ses" id="lzVer"></span>
         <span class="der"><button type="button" id="lzSonido" title="Sonido">🔊</button><button type="button" id="lzSalir">Salir</button></span>
     </div>
@@ -180,25 +181,25 @@ try {
 let haySesion = false;
 
 const MODULOS = [
-    { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.svg', activo: true, ancho: 900, alto: 640 },
-    { id: 'trimestres', titulo: 'Trimestres · Utilidad por trimestre', url: 'modulos/trimestres.html', icono: 'iconos/trimestres.svg', activo: true, ancho: 940, alto: 700 },
-    { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.svg', activo: true, ancho: 940, alto: 700 },
-    { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.svg', activo: true, ancho: 860, alto: 620 },
-    { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.svg', activo: true, ancho: 920, alto: 640 },
-    { id: 'pagosqr', titulo: 'Pagos QR · Registro de pagos por QR', url: 'modulos/pagosqr.html', icono: 'iconos/pagosqr.svg', activo: true, ancho: 920, alto: 640 },
-    { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'fiscal', titulo: 'Fiscal · Vector y obligaciones', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'nomina', titulo: 'Nómina', url: 'modulos/nomina.html', icono: 'iconos/nomina.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'aft', titulo: 'Activos Fijos', url: 'modulos/aft.html', icono: 'iconos/aft.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'gestion', titulo: 'Gestión · Facturas y cobros', url: 'modulos/gestion.html', icono: 'iconos/gestion.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'pos', titulo: 'Punto de Venta', url: 'modulos/pos.html', icono: 'iconos/pos.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'cierre', titulo: 'Cierre de período', url: 'modulos/cierre.html', icono: 'iconos/cierre.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'gestor', titulo: 'Gestor · Panel del tenedor', url: 'modulos/gestor.html', icono: 'iconos/gestor.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'informes', titulo: 'Informes', url: 'modulos/informes.html', icono: 'iconos/informes.svg', activo: true, ancho: 900, alto: 640 },
-    { id: 'inventarios', titulo: 'Inventarios', url: 'modulos/inventarios.html', icono: 'iconos/inventarios.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'produccion', titulo: 'Producción', url: 'modulos/produccion.html', icono: 'iconos/produccion.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'tasas', titulo: 'Tasas y multimoneda', url: 'modulos/tasas.html', icono: 'iconos/tasas.svg', activo: true, ancho: 900, alto: 620 },
-    { id: 'ayuda', titulo: 'Ayuda · Manual de la app', url: 'modulos/ayuda.html', icono: 'iconos/ayuda.svg', activo: true, ancho: 900, alto: 640 },
+    { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.png', activo: true, ancho: 900, alto: 640 },
+    { id: 'trimestres', titulo: 'Trimestres · Utilidad por trimestre', url: 'modulos/trimestres.html', icono: 'iconos/trimestres.png', activo: true, ancho: 940, alto: 700 },
+    { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.png', activo: true, ancho: 940, alto: 700 },
+    { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.png', activo: true, ancho: 860, alto: 620 },
+    { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.png', activo: true, ancho: 920, alto: 640 },
+    { id: 'pagosqr', titulo: 'Pagos QR · Registro de pagos por QR', url: 'modulos/pagosqr.html', icono: 'iconos/pagosqr.png', activo: true, ancho: 920, alto: 640 },
+    { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'fiscal', titulo: 'Fiscal · Vector y obligaciones', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'nomina', titulo: 'Nómina', url: 'modulos/nomina.html', icono: 'iconos/nomina.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'aft', titulo: 'Activos Fijos', url: 'modulos/aft.html', icono: 'iconos/aft.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'gestion', titulo: 'Gestión · Facturas y cobros', url: 'modulos/gestion.html', icono: 'iconos/gestion.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'pos', titulo: 'Punto de Venta', url: 'modulos/pos.html', icono: 'iconos/pos.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'cierre', titulo: 'Cierre de período', url: 'modulos/cierre.html', icono: 'iconos/cierre.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'gestor', titulo: 'Gestor · Panel del tenedor', url: 'modulos/gestor.html', icono: 'iconos/gestor.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'informes', titulo: 'Informes', url: 'modulos/informes.html', icono: 'iconos/informes.png', activo: true, ancho: 900, alto: 640 },
+    { id: 'inventarios', titulo: 'Inventarios', url: 'modulos/inventarios.html', icono: 'iconos/inventarios.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'produccion', titulo: 'Producción', url: 'modulos/produccion.html', icono: 'iconos/produccion.png', activo: true, ancho: 940, alto: 660 },
+    { id: 'tasas', titulo: 'Tasas y multimoneda', url: 'modulos/tasas.html', icono: 'iconos/tasas.png', activo: true, ancho: 900, alto: 620 },
+    { id: 'ayuda', titulo: 'Ayuda · Manual de la app', url: 'modulos/ayuda.html', icono: 'iconos/ayuda.png', activo: true, ancho: 900, alto: 640 },
 ];
 
 const cinta = document.getElementById('cinta');
@@ -209,10 +210,15 @@ const cinta = document.getElementById('cinta');
  * no ve AFT; la MIPYME lo ve todo. El Registro solo es para el TCP
  * (decisión 1: el trimestre es para MIPYME y PDL). El Gestor (el
  * panel del tenedor) solo lo ve el administrador general: si no
- * eres gestor, no tienes que tenerlo. */
+ * eres gestor, no tienes que tenerlo. El administrador solo tiene
+ * cosas para administrar (2026-11-25): Resumen, Panel y base de
+ * datos, Cierre, Gestor, Informes, Tasas y Ayuda; el trabajo diario
+ * (Registro, Chequera, Pagos QR, Contabilidad, Fiscal, Nómina, AFT,
+ * Gestión, POS, Trimestres, Inventarios, Producción) es del editor. */
 function modulosVisibles(modulos, actor, pleno, rol) {
     return (modulos || []).filter((m) => {
         if (!m.activo) return false;
+        if (rol === 'admin') return ['resumen', 'panel', 'cierre', 'gestor', 'informes', 'tasas', 'ayuda'].includes(m.id);
         if (m.id === 'gestor' && rol !== 'admin') return false;
         if (actor === 'tcp') {
             if (m.id === 'registro') return true;
@@ -455,8 +461,11 @@ async function refrescarFechaYTasas() {
     }
 }
 function mostrarLanzador(ses, acc) {
-    document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v44';
+    /* La cinta de arriba dice con quién se trabaja: usuario, rol y
+     * tipo de negocio (2026-11-25). */
+    const nombreRol = (r) => (r === 'admin' ? 'Administrador' : r === 'editor' ? 'Editor' : r === 'consultor' ? 'Consultor' : (r || ''));
+    document.getElementById('lzSesion').textContent = 'Usuario: ' + ses.username + ' · Rol: ' + nombreRol(ses.role);
+    document.getElementById('lzVer').textContent = '· v45';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     document.getElementById('lzBases').style.display = 'none';
     document.getElementById('lanzador').style.display = '';
@@ -478,6 +487,9 @@ function mostrarLanzador(ses, acc) {
         const anio = new Date().getFullYear();
         const pleno = ingresosAnioCUP(movsDoc, regDoc.manuales, fxDoc.tasa, anio) > 500000;
         actorActual = actor; plenoActual = pleno; rolActual = (ses && ses.role) || '';
+        /* El tipo de negocio en la cinta (antes la MIPYME no salía). */
+        const elActor = document.getElementById('lzActor');
+        if (elActor) elActor.textContent = actor ? 'Negocio: ' + (actor === 'tcp' ? 'TCP' : actor === 'mipyme' ? 'MIPYME' : actor === 'pdl' ? 'PDL' : actor) : '';
         const el = document.getElementById('lzNegocio');
         if (el) {
             if (p && p.razon) el.innerHTML = (p.logo ? '<img src="' + esc(p.logo) + '" alt="" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;border-radius:4px;background:#fff;border:1px solid #8FA8C8"> ' : '') + '<b>' + esc(p.razon) + '</b> <span class="tenue">· ' + esc(p.actor === 'tcp' ? 'TCP' : p.actor === 'mipyme' ? 'MIPYME' : p.actor === 'pdl' ? 'PDL' : '') + '</span>';
@@ -495,6 +507,7 @@ function mostrarLanzador(ses, acc) {
         fila.innerHTML = (puedeCambiar ? '<button type="button" id="lzEditar">Editar</button> ' : '') +
             '<span class="tenue">' +
             (actor === 'tcp' ? 'TCP · ' + (pleno ? 'contabilidad completa (superó 500 000 CUP en ' + anio + ')' : 'Registro de Control (hasta 500 000 CUP)') : '') +
+            (actor === 'mipyme' ? 'MIPYME' : '') +
             (actor === 'pdl' ? 'PDL · Proyecto de Desarrollo Local' : '') + '</span>';
         const btnEditar = document.getElementById('lzEditar');
         if (btnEditar) btnEditar.addEventListener('click', () => {

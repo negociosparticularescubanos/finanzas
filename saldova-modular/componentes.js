@@ -106,7 +106,7 @@ function perfilSocioFilaHTML(s) {
         '<button type="button" class="secundario chico perfilSocioDel">Quitar</button></div>';
 }
 export function perfilVacio(actor) {
-    return { actor: actor || 'tcp', razon: '', nombreComercial: '', nit: '', telefono: '', correo: '', provincia: '', municipio: '', direccion: '', entreCalles: '', cp: '', inicioActividad: '', representante: { nombre: '', ci: '', cargo: '', telefono: '', correo: '' }, bancoCup: '', cuentaCup: '', bancoUsd: '', cuentaUsd: '', logo: '', qrPago: '', tcp: { actividad: '', regimen: 'general', licencia: '', codigoContribuyente: '', trabajadores: '', recienGraduado: false, zonaRural: false }, mipyme: { forma: 'S.U.R.L.', escrituraNumero: '', escrituraFecha: '', notaria: '', capitalSocial: '', objetoSocial: '', registroMercantilNumero: '', registroMercantilFecha: '', actividad: '', socios: [] }, pdl: { proyecto: '', entidadEjecutora: '', acuerdoNumero: '', acuerdoFecha: '', aporteCam: '', fuentes: [], responsableNombre: '', responsableCi: '', responsableTelefono: '', territorio: '', lineaEstrategica: '', duracionMeses: '', fechaInicio: '', fechaFin: '' } };
+    return { actor: actor || 'tcp', razon: '', nombreComercial: '', nit: '', telefono: '', correo: '', provincia: '', municipio: '', direccion: '', entreCalles: '', cp: '', inicioActividad: '', representante: { nombre: '', ci: '', cargo: '', telefono: '', correo: '' }, bancoCup: '', cuentaCup: '', bancoUsd: '', cuentaUsd: '', logo: '', qrPago: '', tcp: { actividad: '', regimen: 'general', licencia: '', codigoContribuyente: '', trabajadores: '', recienGraduado: false, zonaRural: false }, mipyme: { forma: 'S.U.R.L.', escrituraNumero: '', escrituraFecha: '', notaria: '', capitalSocial: '', objetoSocial: '', registroMercantilNumero: '', registroMercantilFecha: '', actividad: '', socios: [] }, pdl: { proyecto: '', entidadEjecutora: '', acuerdoNumero: '', acuerdoFecha: '', aporteCam: '', fuentes: [], responsableNombre: '', responsableCi: '', responsableTelefono: '', territorio: '', lineaEstrategica: '', edmVision: '', edmLineas: '', edmPoliticas: '', edmProgramas: '', edmProyectos: '', edmIndicadores: '', duracionMeses: '', fechaInicio: '', fechaFin: '' } };
 }
 /* El formulario completo del perfil para un actor. Las secciones
  * comunes van primero; la sección propia del actor, al final. */
@@ -115,7 +115,7 @@ export function perfilFormHTML(actor, p) {
     p.representante = Object.assign({ nombre: '', ci: '', cargo: '', telefono: '', correo: '' }, p.representante || {});
     p.tcp = Object.assign({ actividad: '', regimen: 'general', licencia: '', codigoContribuyente: '', trabajadores: '', recienGraduado: false, zonaRural: false }, p.tcp || {});
     p.mipyme = Object.assign({ forma: 'S.U.R.L.', escrituraNumero: '', escrituraFecha: '', notaria: '', capitalSocial: '', objetoSocial: '', registroMercantilNumero: '', registroMercantilFecha: '', actividad: '', socios: [] }, p.mipyme || {});
-    p.pdl = Object.assign({ proyecto: '', entidadEjecutora: '', acuerdoNumero: '', acuerdoFecha: '', aporteCam: '', fuentes: [], responsableNombre: '', responsableCi: '', responsableTelefono: '', territorio: '', lineaEstrategica: '', duracionMeses: '', fechaInicio: '', fechaFin: '' }, p.pdl || {});
+    p.pdl = Object.assign({ proyecto: '', entidadEjecutora: '', acuerdoNumero: '', acuerdoFecha: '', aporteCam: '', fuentes: [], responsableNombre: '', responsableCi: '', responsableTelefono: '', territorio: '', lineaEstrategica: '', edmVision: '', edmLineas: '', edmPoliticas: '', edmProgramas: '', edmProyectos: '', edmIndicadores: '', duracionMeses: '', fechaInicio: '', fechaFin: '' }, p.pdl || {});
     let h = '<div class="perfil-seccion"><h4>El negocio</h4>' +
         perfilIn('Razón social / nombre *', 'razon', p.razon) +
         perfilIn('Nombre comercial (si es distinto)', 'nombreComercial', p.nombreComercial) +
@@ -182,6 +182,13 @@ export function perfilFormHTML(actor, p) {
             perfilIn('% de aporte al CAM', 'pdl.aporteCam', p.pdl.aporteCam, 'number', ' min="0" max="100" step="0.1"') +
             perfilIn('Territorio (municipio del proyecto)', 'pdl.territorio', p.pdl.territorio) +
             perfilIn('Línea estratégica de la EDM a la que responde', 'pdl.lineaEstrategica', p.pdl.lineaEstrategica) +
+            '<h4 style="margin-top:10px">Estrategia de Desarrollo Municipal (Res. 70/2026)</h4>' +
+            perfilIn('Visión', 'pdl.edmVision', p.pdl.edmVision) +
+            perfilIn('Líneas / ejes estratégicos', 'pdl.edmLineas', p.pdl.edmLineas) +
+            perfilIn('Políticas públicas locales', 'pdl.edmPoliticas', p.pdl.edmPoliticas) +
+            perfilIn('Programas', 'pdl.edmProgramas', p.pdl.edmProgramas) +
+            perfilIn('Proyectos', 'pdl.edmProyectos', p.pdl.edmProyectos) +
+            perfilIn('Indicadores', 'pdl.edmIndicadores', p.pdl.edmIndicadores) +
             perfilIn('Duración (meses)', 'pdl.duracionMeses', p.pdl.duracionMeses, 'number', ' min="0" step="1"') +
             perfilIn('Fecha de inicio del proyecto', 'pdl.fechaInicio', p.pdl.fechaInicio, 'date') +
             perfilIn('Fecha de fin del proyecto', 'pdl.fechaFin', p.pdl.fechaFin, 'date') +
@@ -292,6 +299,7 @@ export function perfilResumenHTML(p) {
         h += linea('Acuerdo CAM', (p.pdl.acuerdoNumero ? 'N.º ' + p.pdl.acuerdoNumero : '') + (p.pdl.acuerdoFecha ? ' · ' + p.pdl.acuerdoFecha : ''));
         h += linea('Aporte al CAM', p.pdl.aporteCam === '' || p.pdl.aporteCam == null ? '' : String(p.pdl.aporteCam) + ' %');
         h += linea('Territorio', p.pdl.territorio) + linea('Línea estratégica', p.pdl.lineaEstrategica);
+        if (p.pdl.edmVision || p.pdl.edmLineas || p.pdl.edmPoliticas || p.pdl.edmProgramas || p.pdl.edmProyectos || p.pdl.edmIndicadores) h += '<div><b>EDM (Res. 70/2026):</b></div>' + linea('Visión', p.pdl.edmVision) + linea('Líneas / ejes', p.pdl.edmLineas) + linea('Políticas', p.pdl.edmPoliticas) + linea('Programas', p.pdl.edmProgramas) + linea('Proyectos', p.pdl.edmProyectos) + linea('Indicadores', p.pdl.edmIndicadores);
         if ((p.pdl.fuentes || []).length) h += '<div><b>Fuentes:</b> ' + p.pdl.fuentes.map(perfilEsc).join(' · ') + '</div>';
     }
     return h + '</div></div>';

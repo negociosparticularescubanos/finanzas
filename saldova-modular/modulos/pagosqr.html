@@ -33,7 +33,7 @@
 <body>
 <div class="tarjeta" id="cardRegistrar">
     <h1>📱 Pagos QR · Registro de pagos por QR</h1>
-    <p>Los pagos que te llegan por código QR (Transfermóvil o EnZona) y por transferencia, con su comprobante del banco. Pega el SMS de BANDEC y los datos se llenan solos; revísalos antes de guardar. Esto es un registro: el dinero también aparece en la Chequera cuando entra al banco.</p>
+    <p>Los pagos que te llegan por código QR (Transfermóvil o EnZona) y por transferencia, con su comprobante del banco. Pega el SMS de BANDEC o hazle una foto, y los datos se llenan solos; revísalos antes de guardar. Esto es un registro: el dinero también aparece en la Chequera cuando entra al banco.</p>
     <div id="sesionTxt"><p class="tenue">Cargando…</p></div>
     <h2>Pegar el SMS del banco</h2>
     <p class="tenue">Copia el SMS completo de BANDEC y pégalo aquí. Al leerlo, los datos se llenan solos en el formulario; puedes corregir cualquiera antes de guardar.</p>
@@ -43,6 +43,29 @@
         <button type="button" id="pqEjQr" class="secundario chico">Ejemplo: pago QR</button>
         <button type="button" id="pqEjTr" class="secundario chico">Ejemplo: transferencia</button>
         <button type="button" id="pqLimpiarSms" class="secundario chico">Limpiar</button>
+    </div>
+    <h2>O hazle una foto al SMS</h2>
+    <p class="tenue">Si el mensaje le llegó al cliente y no a ti, hazle una foto a su teléfono. La lectura se hace dentro de este teléfono: la foto no se sube a ningún sitio. La primera vez necesita internet para bajar el modelo en español; después queda guardado en el teléfono. Revisa bien los números antes de guardar: una foto torcida, con brillo o con la letra pequeña puede hacer que un dígito se lea mal.</p>
+    <div class="fila">
+        <button type="button" id="pqBtnCamara" class="secundario chico">Foto al SMS</button>
+        <button type="button" id="pqBtnGaleria" class="secundario chico">Elegir de la galería</button>
+        <input type="file" id="pqFotoCamara" accept="image/*" capture="environment" hidden>
+        <input type="file" id="pqFotoGaleria" accept="image/*" hidden>
+    </div>
+    <div id="pqOcrPreview" style="display:none">
+        <canvas id="pqOcrCanvas" style="max-width:100%"></canvas>
+        <p class="tenue">La vista previa ya viene en escala de grises y con más contraste, que es como mejor se lee. Si la foto es de una pantalla en modo oscuro (letra clara sobre fondo oscuro), pulsa «Invertir colores». Gira la foto hasta que el texto se lea derecho.</p>
+        <div class="fila">
+            <button type="button" id="pqRotL" class="secundario chico">Girar ←</button>
+            <button type="button" id="pqRotR" class="secundario chico">Girar →</button>
+            <button type="button" id="pqInvert" class="secundario chico">Invertir colores</button>
+            <button type="button" id="pqLeerFoto" class="secundario chico">Leer texto de la foto</button>
+        </div>
+        <p id="pqOcrStatus" class="tenue"></p>
+    </div>
+    <div id="pqOcrTextWrap" style="display:none">
+        <label>Texto leído de la foto (puedes corregirlo)<textarea id="pqOcrText" spellcheck="false"></textarea></label>
+        <div class="fila"><button type="button" id="pqUsarOcr">Usar este texto</button></div>
     </div>
     <div id="pqDetect"><p class="tenue">Sin SMS leído todavía.</p></div>
     <h2>El pago</h2>
@@ -277,6 +300,117 @@ function exportarCsv() {
         $('pqEjQr').addEventListener('click', () => { $('pqSms').value = 'Banco Bandec: Pago completado.\nFecha: 12/11/2026\nEntidad: Comercio Ejemplo\nId Compra: 9174997569\nImporte: 2500.00 CUP\nImporte pagado: 2400.00 CUP\nNo. Transaccion: KW6024QF67999\nSaldo disponible: CR 34376.19 CUP'; });
         $('pqEjTr').addEventListener('click', () => { $('pqSms').value = 'Banco Bandec: La Transferencia fue completada.\nFecha: 17/11/2026\nBeneficiario: 9234XXXXXXXX4083\nOrdenante: 9234XXXXXXXX8286\nMonto: 5000.00 CUP\nNro. Transaccion: KW6025VYCM999\nSaldo restante: CR 17956.60 CUP'; });
         $('pqLimpiarSms').addEventListener('click', () => { $('pqSms').value = ''; $('pqDetect').innerHTML = '<p class="tenue">Sin SMS leído todavía.</p>'; });
+        /* Foto al SMS (OCR con Tesseract.js): mismo motor que el
+         * Registro de Pagos. Se carga SOLO desde ../libs/ocr/ de la
+         * propia app (tesseract.min.js, worker.min.js, núcleo WASM
+         * y spa.traineddata), nunca desde un CDN, y solo cuando se
+         * pulsa «Leer texto de la foto». La foto nunca sale del
+         * teléfono: el reconocimiento corre aquí dentro. */
+        let pqOcrImg = null, pqOcrRotation = 0, pqOcrInverted = false, pqOcrBusy = false;
+        function pqLoadTesseract() {
+            if (window.Tesseract) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = '../libs/ocr/tesseract.min.js';
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error('sin-motor-ocr'));
+                document.head.appendChild(s);
+            });
+        }
+        function pqDrawOcrCanvas() {
+            if (!pqOcrImg) return;
+            const canvas = $('pqOcrCanvas');
+            const iw = pqOcrImg.naturalWidth, ih = pqOcrImg.naturalHeight;
+            if (!iw || !ih) return;
+            const scale = Math.min(1, 2000 / Math.max(iw, ih));
+            const w = Math.round(iw * scale), h = Math.round(ih * scale);
+            const rot = ((pqOcrRotation % 360) + 360) % 360;
+            const swap = (rot === 90 || rot === 270);
+            canvas.width = swap ? h : w;
+            canvas.height = swap ? w : h;
+            const ctx = canvas.getContext('2d');
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(rot * Math.PI / 180);
+            ctx.drawImage(pqOcrImg, -w / 2, -h / 2, w, h);
+            ctx.restore();
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const d = imgData.data;
+            const contrast = 1.35;
+            for (let i = 0; i < d.length; i += 4) {
+                let g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                g = (g - 128) * contrast + 128;
+                if (pqOcrInverted) g = 255 - g;
+                if (g < 0) g = 0; else if (g > 255) g = 255;
+                d[i] = g; d[i + 1] = g; d[i + 2] = g;
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+        function pqOnFotoChosen(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                pqOcrImg = img;
+                pqOcrRotation = 0;
+                pqOcrInverted = false;
+                pqDrawOcrCanvas();
+                $('pqOcrPreview').style.display = '';
+                $('pqOcrTextWrap').style.display = 'none';
+                $('pqOcrStatus').textContent = '';
+                URL.revokeObjectURL(url);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); aviso('No se pudo abrir esa foto', 'error'); };
+            img.src = url;
+        }
+        $('pqFotoCamara').addEventListener('change', function () { pqOnFotoChosen(this); });
+        $('pqFotoGaleria').addEventListener('change', function () { pqOnFotoChosen(this); });
+        $('pqBtnCamara').addEventListener('click', () => $('pqFotoCamara').click());
+        $('pqBtnGaleria').addEventListener('click', () => $('pqFotoGaleria').click());
+        $('pqRotL').addEventListener('click', () => { pqOcrRotation -= 90; pqDrawOcrCanvas(); });
+        $('pqRotR').addEventListener('click', () => { pqOcrRotation += 90; pqDrawOcrCanvas(); });
+        $('pqInvert').addEventListener('click', () => { pqOcrInverted = !pqOcrInverted; pqDrawOcrCanvas(); });
+        $('pqLeerFoto').addEventListener('click', function () {
+            if (!pqOcrImg || pqOcrBusy) return;
+            pqOcrBusy = true;
+            const btn = this;
+            btn.disabled = true;
+            $('pqOcrStatus').textContent = 'Leyendo la foto…';
+            pqLoadTesseract()
+                .then(() => Tesseract.recognize($('pqOcrCanvas'), 'spa', {
+                    workerPath: '../libs/ocr/worker.min.js',
+                    corePath: '../libs/ocr/',
+                    langPath: '../libs/ocr/lang/',
+                    cacheMethod: 'write',
+                    logger: (m) => {
+                        if (m.status === 'recognizing text') $('pqOcrStatus').textContent = 'Leyendo la foto… ' + Math.round((m.progress || 0) * 100) + '%';
+                        else if (m.status && m.status.indexOf('loading') === 0) $('pqOcrStatus').textContent = 'Preparando el lector en español… La primera vez baja el modelo y queda guardado en el teléfono; después funciona sin internet.';
+                    }
+                }))
+                .then((result) => {
+                    pqOcrBusy = false;
+                    btn.disabled = false;
+                    const text = (result && result.data && result.data.text) ? result.data.text.trim() : '';
+                    if (!text) { $('pqOcrStatus').textContent = 'No se leyó texto en la foto. Prueba otra vez, más cerca, sin brillo y con el texto derecho.'; return; }
+                    $('pqOcrStatus').textContent = 'Texto leído. Revísalo abajo, sobre todo los números, y pulsa «Usar este texto».';
+                    $('pqOcrText').value = text;
+                    $('pqOcrTextWrap').style.display = '';
+                })
+                .catch((err) => {
+                    pqOcrBusy = false;
+                    btn.disabled = false;
+                    $('pqOcrStatus').textContent = 'No se pudo leer la foto. ' + (err && err.message ? err.message : String(err));
+                });
+        });
+        $('pqUsarOcr').addEventListener('click', () => {
+            const text = $('pqOcrText').value.trim();
+            if (!text) { aviso('No hay texto para usar', 'error'); return; }
+            $('pqSms').value = text;
+            $('pqLeer').click();
+            $('pqSms').scrollIntoView({ block: 'center' });
+        });
         $('pqCancelar').addEventListener('click', limpiarForm);
         $('pqGuardar').addEventListener('click', async () => {
             const p = leerForm();

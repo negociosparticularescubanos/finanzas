@@ -54,6 +54,7 @@
         <button type="button" id="aAdd" class="secundario chico">Añadir activo</button>
     </div>
     <p class="tenue">La tasa la fija la política del negocio según la vida útil del activo. La depreciación contable y la fiscal pueden diferir: aquí se lleva la contable; la fiscal se revisa en el cierre.</p>
+    <p id="depPolitica" class="tenue"></p>
 </div>
 
 <div class="tarjeta">
@@ -254,13 +255,38 @@ async function pintarIndicador() {
 /* F8: si el guardado es rechazado, avisar y no seguir como si se
  * hubiera guardado (el aviso de éxito ya no sale). */
 async function guardar() { try { await bd().docGuardar(tokenSesion(), 'aft', aft); } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; } }
+/* Decisión F6 (2026-11-25, NCC 7): la depreciación empieza el mes
+ * de la puesta en servicio, con la cuota mensual completa (MIPYME
+ * y PDL). El TCP no deprecia mes a mes: una sola cuota anual del
+ * 10 % del costo antes del cierre, sin prorrateo aunque el activo
+ * se haya comprado a mitad de año. */
+function esTcpAft() { return !!(fiscal && fiscal.meta && fiscal.meta.tipo === 'tcp'); }
+function mesAnterior(mes) {
+    const [y, m] = String(mes || '').split('-').map(Number);
+    if (!y || !m) return mes;
+    return m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0');
+}
 function mesesEnServicio(a, hastaMes) {
     if (!a.fechaServicio) return 0;
     const [y1, m1] = a.fechaServicio.split('-').map(Number);
-    const [y2, m2] = hastaMes.split('-').map(Number);
-    return Math.max(0, (y2 - y1) * 12 + (m2 - m1));
+    const [y2, m2] = String(hastaMes || '').split('-').map(Number);
+    if (!y2 || !m2) return 0;
+    if (esTcpAft()) {
+        /* TCP: cada diciembre que pasa desde la puesta en servicio
+         * es una cuota anual del 10 %. */
+        let n = y2 - y1;
+        if (m2 === 12) n += 1;
+        return Math.max(0, n);
+    }
+    /* Empresarial: el mes de puesta en servicio ya cuenta (cuota
+     * completa desde el primer mes). */
+    return Math.max(0, (y2 - y1) * 12 + (m2 - m1) + 1);
 }
-function depMensual(a) { return r2((Number(a.costo) || 0) * (Number(a.tasa) || 0) / 100 / 12); }
+function depMensual(a) {
+    /* TCP: la «cuota del período» es la anual del 10 %. */
+    if (esTcpAft()) return r2((Number(a.costo) || 0) * 10 / 100);
+    return r2((Number(a.costo) || 0) * (Number(a.tasa) || 0) / 100 / 12);
+}
 function depAcumulada(a, hastaMes) {
     return Math.min(Number(a.costo) || 0, r2(depMensual(a) * mesesEnServicio(a, hastaMes)));
 }
@@ -490,8 +516,10 @@ function pintarDepreciacion() {
     const lista = (aft.activos || []).filter((a) => a.estado !== 'baja');
     let total = 0;
     const filas = lista.map((a) => {
-        const acumAntes = depAcumulada(a, mes.slice(0, 4) + '-' + String(Number(mes.slice(5)) - 1 || 12).padStart(2, '0'));
-        const delMes = depMensual(a) > 0 && mesesEnServicio(a, mes) > 0 && depAcumulada(a, mes) < (Number(a.costo) || 0) ? depMensual(a) : 0;
+        const acumAntes = depAcumulada(a, mesAnterior(mes));
+        /* La cuota del mes es la diferencia de la acumulada: para
+         * el TCP solo diciembre la mueve. */
+        const delMes = Math.max(0, r2(depAcumulada(a, mes) - acumAntes));
         total += delMes;
         return '<tr><td>' + esc(a.nombre) + '</td><td class="num">' + fmt(delMes) + '</td><td class="num">' + fmt(depAcumulada(a, mes)) + '</td></tr>';
     }).join('');
@@ -519,6 +547,7 @@ function pintarTodo() {
         aft.modificaciones = aft.modificaciones || [];
         aft.conteos = aft.conteos || [];
         fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+        $('depPolitica').textContent = esTcpAft() ? 'Regla de depreciación (TCP): una sola cuota anual del 10 % del costo antes del cierre, sin prorrateo.' : 'Regla de depreciación: cuota mensual completa desde el mes de puesta en servicio (el primer mes deprecia entero).';
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
         $('aAdd').addEventListener('click', async () => {
             const nombre = $('aNombre').value.trim();
@@ -572,10 +601,11 @@ function pintarTodo() {
             const porCuenta = new Map();
             let total = 0;
             for (const a of (aft.activos || []).filter((x) => x.estado !== 'baja')) {
-                if (depMensual(a) <= 0 || mesesEnServicio(a, mes) <= 0 || depAcumulada(a, mes) >= (Number(a.costo) || 0)) continue;
+                const delMes = Math.max(0, r2(depAcumulada(a, mes) - depAcumulada(a, mesAnterior(mes))));
+                if (delMes <= 0) continue;
                 const cta = cuentaACUM(a.categoria);
-                porCuenta.set(cta, r2((porCuenta.get(cta) || 0) + depMensual(a)));
-                total = r2(total + depMensual(a));
+                porCuenta.set(cta, r2((porCuenta.get(cta) || 0) + delMes));
+                total = r2(total + delMes);
             }
             if (total <= 0) { aviso('No hay depreciación que registrar en ' + mes, 'error'); return; }
             const lineas = [{ cuenta: cuentaAuto(conta.plan, 'gasto_depreciacion', '613-000'), debe: total, haber: 0 }];

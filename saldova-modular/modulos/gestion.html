@@ -60,6 +60,7 @@
         <label>Vence <input id="fVence" type="date"></label>
         <label>Término <select id="fTermino"><option value="contado">Contado</option><option value="15">15 días</option><option value="30">30 días</option><option value="50/50">50 % ahora y 50 % al entregar</option></select></label>
         <input id="fTotal" class="monto" type="number" step="0.01" min="0" placeholder="Total">
+        <span id="fDesglose" class="tenue"></span>
         <label>Moneda <select id="fMoneda"><option value="CUP">CUP</option><option value="USD">USD</option></select></label>
         <label id="fTasaWrap" style="display:none">Tasa (CUP por 1 USD) <input id="fTasa" type="number" step="0.01" min="0" style="width:100px"></label>
         <span id="fEquiv" class="tenue"></span>
@@ -508,6 +509,7 @@ function facturaImpresaHTML(factura, perfil) {
     const p = perfil || {};
     const negocio = p.nombreComercial || p.razon || 'Mi negocio';
     const saldo = saldoFac(factura);
+    const d = desgloseImpuesto(factura.total);
     return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Factura Nº ' + esc(factura.numero || '') + '</title><style>' +
         'body{font-family:Arial,sans-serif;color:#14324F;margin:24px} h1{font-size:20px;margin:0} table{border-collapse:collapse;width:100%;margin:12px 0} th,td{border:1px solid #999;padding:6px 9px;text-align:left;font-size:14px} th{background:#eee} .num{text-align:right} .qr{text-align:center;margin:16px 0} .tenue{color:#5A738C;font-size:13px}</style></head><body>' +
         (p.logo ? '<img src="' + esc(p.logo) + '" alt="Logo" style="max-width:120px;max-height:120px">' : '') +
@@ -517,6 +519,8 @@ function facturaImpresaHTML(factura, perfil) {
         'Cliente: <b>' + esc(factura.cliente || '') + '</b><br>Fecha: ' + esc(factura.fecha || '') + (factura.vencimiento ? ' · Vence: ' + esc(factura.vencimiento) : '') + '</p>' +
         '<table><thead><tr><th>Concepto</th><th class="num">Importe</th></tr></thead><tbody>' +
         '<tr><td>Factura Nº ' + esc(factura.numero || '') + '</td><td class="num">' + fmt(Number(factura.total) || 0) + ' ' + esc(factura.moneda || 'CUP') + '</td></tr>' +
+        '<tr><td>Base imponible (precio sin impuesto)</td><td class="num">' + fmt(d.base) + ' ' + esc(factura.moneda || 'CUP') + '</td></tr>' +
+        '<tr><td>Impuesto sobre las ventas y los servicios (10 %, incluido en el precio)</td><td class="num">' + fmt(d.impuesto) + ' ' + esc(factura.moneda || 'CUP') + (factura.moneda === 'USD' ? ' (≈ ' + fmt(equivalenteCup(d.impuesto, factura.tasa)) + ' CUP)' : '') + '</td></tr>' +
         ((factura.moneda === 'USD') ? '<tr><td>Equivalente en CUP (tasa ' + fmt(Number(factura.tasa) || 0) + ')</td><td class="num">' + fmt(totalCupFactura(factura)) + ' CUP</td></tr>' : '') +
         '<tr><td><b>Saldo pendiente</b></td><td class="num"><b>' + fmt(saldo) + ' ' + esc(factura.moneda || 'CUP') + '</b></td></tr>' +
         '</tbody></table>' +
@@ -556,6 +560,7 @@ function aplicarTotalFactura() {
     const rfIds = Array.from(document.querySelectorAll('[data-rf-factura]:checked')).map((c) => c.dataset.rfFactura);
     const hIds = Array.from(document.querySelectorAll('[data-hora-factura]:checked')).map((c) => c.dataset.horaFactura);
     $('fTotal').value = r2(fTotalBase + totalRefacturable(conta.gestion.refacturables || [], rfIds) + totalHoras((conta.gestion.horas || []), hIds));
+    pintarDesgloseFactura();
 }
 function pintarRefacturablesForm() {
     const cliente = $('fCliente').value.trim();
@@ -654,14 +659,28 @@ function estrategia(dias) {
     if (dias <= 30) return 'Mora media (16-30 días): aviso firme y propuesta de fecha de pago.';
     return 'Mora alta (+30 días): gestión directa, visita o llamada, y valorar pausar nuevas ventas a crédito.';
 }
+/* Impuesto en la factura (decisión 3, 2026-11-25): el 10 % va
+ * INCLUIDO en el precio. Total 10.000 = base 9.000 + impuesto
+ * 1.000; el cliente paga 10.000. */
+function desgloseImpuesto(total) {
+    const t = r2(Number(total) || 0);
+    const base = r2(t * 0.90);
+    return { base, impuesto: r2(t - base), total: t };
+}
+function pintarDesgloseFactura() {
+    const total = Number($('fTotal').value) || 0;
+    const d = desgloseImpuesto(total);
+    $('fDesglose').textContent = total > 0 ? 'Base ' + fmt(d.base) + ' · Impuesto sobre las ventas (10 %) ' + fmt(d.impuesto) + ' · Total ' + fmt(d.total) + ' ' + ($('fMoneda').value || 'CUP') : '';
+}
 function pintarFacturas() {
     const lista = conta.gestion.facturas || [];
     const filas = lista.map((f) => {
         const saldo = saldoFac(f);
+        const d = desgloseImpuesto(f.total);
         const vencida = saldo > 0 && f.vencimiento && f.vencimiento < hoy();
         const ct = f.contratoId ? (conta.gestion.contratos || []).find((x) => x.id === f.contratoId) : null;
         return '<tr><td>' + esc(f.numero) + '</td><td>' + esc(f.cliente) + (ct ? '<br><span class="tenue">Contrato ' + esc(ct.numero) + '</span>' : '') + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + (f.termino ? '<br><span class="tenue">' + esc(terminoTexto(f.termino)) + '</span>' : '') + '</td>' +
-            '<td class="num">' + fmt(f.total) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(totalCupFactura(f)) + ' CUP</span>' : '') + '</td><td class="num">' + fmt(saldo) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(pendienteFactura(f).pendienteCup) + ' CUP</span>' : '') + '</td>' +
+            '<td class="num">' + fmt(f.total) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(totalCupFactura(f)) + ' CUP</span>' : '') + '<br><span class="tenue">base ' + fmt(d.base) + ' · impuesto 10 % ' + fmt(d.impuesto) + (f.moneda === 'USD' ? ' USD' : '') + '</span></td><td class="num">' + fmt(saldo) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(pendienteFactura(f).pendienteCup) + ' CUP</span>' : '') + '</td>' +
             '<td>' + (saldo <= 0 ? 'Pagada' : vencida ? '<span class="rojo">Vencida</span>' : 'Pendiente') + '</td>' +
             '<td>' + (saldo > 0 ? '<input class="monto" type="number" step="0.01" min="0" placeholder="Cobro" data-cobro="' + f.id + '"> <button type="button" class="chico secundario" data-cobrar="' + f.id + '">Cobrar</button>' : '') +
             (saldo > 0 && !f.documentoId ? ' <button type="button" class="chico secundario" data-enlazar="' + f.id + '">Crear documento CxC</button>' : '') +
@@ -2005,6 +2024,8 @@ async function guardarModalOferta() {
             fTotalBase = 0;
             pintarTodo(); pintarRefacturablesForm(); pintarHorasForm(); aviso('Factura añadida' + (rDoc.ok ? ': documento CxC ' + rDoc.doc.id + ' creado (asiento nº ' + conta.seqAsiento + ')' : ' (sin documento CxC: ' + rDoc.motivo + ')'));
         });
+        $('fTotal').addEventListener('input', pintarDesgloseFactura);
+        $('fMoneda').addEventListener('change', pintarDesgloseFactura);
         $('fCsv').addEventListener('click', () => {
             const filas = [['Número', 'Cliente', 'Fecha', 'Vencimiento', 'Moneda', 'Total', 'Total CUP', 'Cobrado', 'Saldo', 'Saldo CUP', 'Estado']];
             for (const f of (conta.gestion.facturas || [])) {

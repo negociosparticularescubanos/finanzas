@@ -42,10 +42,11 @@
         <input id="tCargo" placeholder="Cargo" size="16" list="puestosList">
         <datalist id="puestosList"></datalist>
         <input id="tSalario" class="monto" type="number" step="0.01" min="0" placeholder="Salario">
-        <input id="tAlta" type="date" title="Fecha de alta">
+        <input id="tAlta" type="date" title="Fecha de alta: ¿desde qué fecha trabaja con nosotros?">
         <input id="tDireccion" placeholder="Dirección" style="min-width:180px">
         <button type="button" id="tAdd" class="secundario chico">Añadir trabajador</button>
     </div>
+    <p class="tenue">La fecha de alta es obligatoria: desde ahí se cuentan sus vacaciones (días trabajados ÷ 11, igual que en la nómina).</p>
 </div>
 
 <!-- Fase 12, bloque 4: puestos de trabajo (plazas aprobadas vs
@@ -1314,6 +1315,20 @@ function pintarNomina() {
         pintarNomina();
     }));
 }
+/* N3 (2026-11-25): al dar de alta un trabajador nuevo, la fecha
+ * de alta es obligatoria: desde ahí se cuentan sus vacaciones con
+ * la misma regla de la nómina (días trabajados ÷ 11). La base de
+ * Leonardo es nueva y no tiene trabajadores, así que no hay carga
+ * inicial de días viejos: el submayor nace con lo acumulado desde
+ * el alta hasta hoy. */
+function diasVacacionesDesdeAlta(fechaAlta, hoy) {
+    if (!fechaAlta || !hoy) return 0;
+    const a = new Date(String(fechaAlta).slice(0, 10) + 'T00:00:00');
+    const h = new Date(String(hoy).slice(0, 10) + 'T00:00:00');
+    if (isNaN(a) || isNaN(h) || h <= a) return 0;
+    const dias = Math.round((h - a) / 86400000);
+    return r2(dias / 11);
+}
 function pintarVacaciones() {
     const vac = rrhh.vacaciones || {};
     const filasV = (rrhh.trabajadores || []).map((t) => {
@@ -1350,10 +1365,16 @@ function pintarVacaciones() {
         $('tAdd').addEventListener('click', async () => {
             const nombre = $('tNombre').value.trim();
             const salario = Number($('tSalario').value) || 0;
-            if (!nombre || salario <= 0) { aviso('El trabajador necesita nombre y salario', 'error'); return; }
-            rrhh.trabajadores.push({ id: 't' + Date.now().toString(36), nombre, ci: $('tCi').value.trim(), sexo: $('tSexo').value || '', cargo: $('tCargo').value.trim(), salario, fechaAlta: $('tAlta').value || '', direccion: $('tDireccion').value.trim() });
+            const fechaAlta = $('tAlta').value || '';
+            if (!nombre || salario <= 0 || !fechaAlta) { aviso('El trabajador necesita nombre, salario y su fecha de alta (¿desde qué fecha trabaja con nosotros?)', 'error'); return; }
+            const idT = 't' + Date.now().toString(36);
+            rrhh.trabajadores.push({ id: idT, nombre, ci: $('tCi').value.trim(), sexo: $('tSexo').value || '', cargo: $('tCargo').value.trim(), salario, fechaAlta, direccion: $('tDireccion').value.trim() });
+            /* N3: las vacaciones empiezan a contar desde el alta. */
+            const diasIni = diasVacacionesDesdeAlta(fechaAlta, hoyLocal());
+            rrhh.vacaciones = rrhh.vacaciones || {};
+            rrhh.vacaciones[idT] = { dias: diasIni, dinero: 0, disfrutes: [] };
             await guardar(); $('tNombre').value = $('tCi').value = $('tCargo').value = $('tSalario').value = $('tAlta').value = $('tDireccion').value = ''; $('tSexo').value = '';
-            pintarTrabajadores(); aviso('Trabajador añadido');
+            pintarTrabajadores(); aviso('Trabajador añadido. Vacaciones acumuladas desde el alta: ' + fmt(diasIni) + ' días (se ven en el submayor de Vacaciones)');
         });
         $('nMes').value = mesLocal();
         $('nMes').addEventListener('change', () => { pintarNomina(); pintarPrenomina(); });

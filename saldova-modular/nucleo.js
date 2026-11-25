@@ -433,6 +433,39 @@ export function ingresosAnioCUP(movsDoc, manuales, tasa, anio) {
     }
     return total;
 }
+/* USD en CUP (2026-11-25): la contabilidad se lleva en CUP (NEC 17
+ * Mod. 1). Un movimiento de la Tarjeta USD se asienta con su monto
+ * en CUP (monto × tasa del segmento III del día); el movimiento
+ * guarda su monto original en USD, su moneda, su tasa y su
+ * equivalente. Sin tasa guardada, el asiento usa el monto tal cual
+ * (movimientos viejos: los arregla la herramienta de reparación). */
+export const esCuentaUsd = (cuenta) => cuenta === 'tarjeta_usd';
+export function montoEnCup(m) {
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    if (!m) return 0;
+    const monto = Math.abs(Number(m.monto) || 0);
+    if (m.moneda === 'USD' || (m.cuenta || 'chequera') === 'tarjeta_usd') {
+        if (Number(m.montoCup) > 0) return Number(m.montoCup);
+        if (Number(m.tasa) > 0) return r2(monto * Number(m.tasa));
+    }
+    return monto;
+}
+/* Tasa del segmento III de hoy (BCC, vía el servicio de tasas de
+ * FactiCuba). Devuelve { usd, eur, fecha } o null si no hay
+ * internet. La app nunca inventa una tasa: sin internet, el
+ * usuario la escribe a mano. */
+export async function tasaSegmentoIII() {
+    try {
+        const ctl = new AbortController();
+        const to = setTimeout(() => ctl.abort(), 8000);
+        const r = await fetch('https://facticuba-tasas.magisequipo5.workers.dev/tasas', { signal: ctl.signal });
+        clearTimeout(to);
+        const j = await r.json();
+        const usd = Number(j && j.formal && j.formal.USD) || 0;
+        if (!(usd > 0)) return null;
+        return { usd, eur: Number(j.formal.EUR) || 0, fecha: String(j.fechaBCC || j.fecha || '').slice(0, 10) };
+    } catch (e) { return null; }
+}
 /* Fase 14, bloque 4: reglas aprendidas (copia de Finanzas
  * ctaNormConcepto/ctaGuardarRegla/ctaReglaPara). La regla guarda el
  * patrón del concepto normalizado y la clasificación que el usuario

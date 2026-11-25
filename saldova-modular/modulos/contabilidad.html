@@ -82,7 +82,7 @@
 
 <div class="tarjeta">
     <h2>Facturas recibidas</h2>
-    <p class="tenue">Cada compra o gasto del mes y su papel: lo que tiene la factura pegada y lo que todavía no. Toca «Adjuntar» para pegarle la foto o el PDF al asiento.</p>
+    <p class="tenue">Cada compra o gasto del mes y su papel: lo que tiene la factura pegada, lo que todavía no, y lo que es electrónico y no lleva papel (las comisiones del banco, la nómina, la depreciación, los teléfonos). Toca «Adjuntar» para pegarle la foto o el PDF al asiento, o «No lleva papel» si es electrónico y la app no lo reconoció sola.</p>
     <div class="fila"><label>Mes <input type="month" id="frMes"></label></div>
     <div id="frTabla"><p class="tenue">Cargando…</p></div>
     <input type="file" id="adjFile" accept="image/*,.pdf" hidden>
@@ -284,6 +284,7 @@
     <div class="fila">
         <button type="button" id="planOficial" class="secundario chico">Cargar el plan oficial Res. 494/2016</button>
         <button type="button" id="planDueno" class="secundario chico">Volver al plan del dueño</button>
+        <button type="button" id="planNombres" class="secundario chico">Actualizar solo los nombres del plan</button>
     </div>
     <p class="tenue">El plan solo se cambia con la contabilidad vacía (sin asientos), igual que en la web: con asientos ya hechos, cambiar el plan descuadraría la historia. Al cargar el oficial, las cuentas automáticas se resuelven por las equivalencias (ventas 801→900, costo 695→810, mercancías 188→189…).</p>
 </div>
@@ -296,7 +297,7 @@
 @media print { body * { visibility: hidden; } #tarjetaSubmayor, #tarjetaSubmayor * { visibility: visible; } #tarjetaSubmayor { position: absolute; inset: 0; box-shadow: none; } }
 </style>
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, existeCuenta, validarLineasAsiento, CTA_AUTO_OFICIAL, hoyLocal, mesLocal, mesLocalDe, guardarMultiple, guardarArchivoReal, esOnat, descargarCSV, ordenCuentas } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, existeCuenta, validarLineasAsiento, CTA_AUTO_OFICIAL, hoyLocal, mesLocal, mesLocalDe, guardarMultiple, guardarArchivoReal, esOnat, descargarCSV, ordenCuentas, montoEnCup } from 'nucleo';
 import { adjuntoLeer } from 'componentes';
 import { aplicarFondo } from 'fondos';
 import { PLAN_DUENO } from 'plan';
@@ -366,7 +367,10 @@ function cuentaOnat(concepto) {
 function propuestaPara(m) {
     const banco = cuentaAuto(conta.plan, m.cuenta === 'tarjeta_usd' ? 'banco_divisa' : 'banco_cup', m.cuenta === 'tarjeta_usd' ? '110-020' : '110-010');
     const oSi = (cod) => existeCuenta(conta.plan, cod) ? cod : '';
-    const monto = Math.abs(Number(m.monto) || 0);
+    /* USD en CUP (2026-11-25): el asiento usa el monto en CUP del
+     * movimiento (monto × tasa del segmento III), no el monto en
+     * USD tal cual. */
+    const monto = montoEnCup(m);
     const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
     if (m.clase === 'transferencia') return null;
     if (m.clase === 'contingencia') return null;
@@ -418,7 +422,7 @@ function pintarBandeja() {
     if (!propuestas.length) caja.innerHTML = '<p class="tenue">No hay comprobantes esperando: todo lo clasificado ya tiene su asiento.</p>';
     else caja.innerHTML = propuestas.map(({ m, p }, i) =>
         '<div class="propuesta" data-i="' + i + '"><h3>' + m.fecha + ' · ' + esc(m.concepto) + '</h3>' +
-        '<div class="tenue">Clasificación: <b>' + esc(m.clasificacion) + '</b> · Cuenta: ' + m.cuenta + ' · Monto: ' + fmt(m.monto) + '</div>' +
+        '<div class="tenue">Clasificación: <b>' + esc(m.clasificacion) + '</b> · Cuenta: ' + m.cuenta + ' · Monto: ' + fmt(montoEnCup(m)) + (m.moneda === 'USD' ? ' CUP (' + fmt(m.monto) + ' USD · tasa ' + fmt(m.tasa) + ')' : '') + '</div>' +
         '<div class="motivo">Motivo: ' + p.motivo + '</div>' +
         p.lineas.map((l) =>
             '<div class="fila"><select class="cuenta">' + opcionesCuentas(l.cuenta) + '</select>' +
@@ -502,10 +506,31 @@ function montoCompra(a, plan) {
     }
     return s;
 }
+/* Evidencia física (2026-11-25): no todo gasto tiene papel. Los
+ * electrónicos y los cálculos internos no llevan foto; su evidencia
+ * es el registro que los generó. El internet y la electricidad SÍ
+ * tienen registro físico (su factura), así que siguen pidiendo
+ * papel. Los pagos QR no salen en esta tabla (son ingresos, no
+ * gastos) y su evidencia ya es el registro de QR. */
+function evidenciaAsiento(a, plan) {
+    if (a.sinPapel) return { tipo: 'electronico', texto: 'Marcado a mano: no lleva papel' };
+    const concepto = String(a.concepto || '');
+    if (/^Nómina de /i.test(concepto)) return { tipo: 'electronico', texto: 'Nómina del mes' };
+    if (/^Depreciación de /i.test(concepto)) return { tipo: 'electronico', texto: 'Registro AFT' };
+    if (/diferencia cambiaria/i.test(concepto)) return { tipo: 'electronico', texto: 'Tasa del día y cálculo de cierre' };
+    if (/ETECSA/i.test(concepto) || /tel[eé]fonos?\s+corporativos/i.test(concepto) || /pago\s+de\s+tel[eé]fono/i.test(concepto)) return { tipo: 'electronico', texto: 'Estado de cuenta (débito automático)' };
+    const esGastoFin = (a.lineas || []).some((l) => {
+        const c = (plan || []).find((x) => x.codigo === l.cuenta);
+        return c && c.auto === 'gastos_financieros';
+    });
+    if (esGastoFin) return { tipo: 'electronico', texto: 'Estado de cuenta' };
+    return { tipo: 'papel', texto: '' };
+}
 function bandejaFacturas(asientos, plan, mes) {
     return (asientos || []).filter((a) => (a.fecha || '').slice(0, 7) === mes && esCompra(a, plan))
         .sort((a, b) => (a.numero || 0) - (b.numero || 0))
         .map((a) => ({ id: a.id, numero: a.numero, fecha: a.fecha, concepto: a.concepto, monto: montoCompra(a, plan),
+            evidencia: evidenciaAsiento(a, plan),
             docs: (a.documentos || []).map((d) => ({ nombre: d.nombre, mime: d.mime, datos: d.datos })) }));
 }
 let pdfjsPromesa = null;
@@ -554,11 +579,25 @@ function pintarFacturas() {
     const filas = bandejaFacturas(conta.asientos, conta.plan, mes);
     $('frTabla').innerHTML = filas.length
         ? '<table><thead><tr><th>Nº</th><th>Fecha</th><th>Concepto</th><th class="num">Monto</th><th>Papel</th><th></th></tr></thead><tbody>' +
-            filas.map((f) => '<tr><td>' + f.numero + '</td><td>' + f.fecha + '</td><td>' + esc(f.concepto) + '</td><td class="num">$' + fmt(f.monto) + '</td><td>' +
-                (f.docs.length ? f.docs.map((d) => '<a href="' + d.datos + '" target="_blank" rel="noopener">' + esc(d.nombre) + '</a>').join(' · ') : '<span class="rojo">Sin papel</span>') +
-                '</td><td><button type="button" class="chico secundario" data-adjuntar="' + f.id + '">Adjuntar</button></td></tr>').join('') + '</tbody></table>'
+            filas.map((f) => {
+                const papelCelda = f.docs.length
+                    ? f.docs.map((d) => '<a href="' + d.datos + '" target="_blank" rel="noopener">' + esc(d.nombre) + '</a>').join(' · ')
+                    : (f.evidencia.tipo === 'electronico' ? '<span class="tenue">Electrónico — ' + esc(f.evidencia.texto) + '</span>' : '<span class="rojo">Sin papel</span>');
+                const botones = f.docs.length ? ''
+                    : (f.evidencia.tipo === 'electronico'
+                        ? (/^Marcado a mano/.test(f.evidencia.texto) ? '<button type="button" class="chico secundario" data-sinpapel="' + f.id + '">Quitar marca</button>' : '')
+                        : '<button type="button" class="chico secundario" data-adjuntar="' + f.id + '">Adjuntar</button> <button type="button" class="chico secundario" data-sinpapel="' + f.id + '">No lleva papel</button>');
+                return '<tr><td>' + f.numero + '</td><td>' + f.fecha + '</td><td>' + esc(f.concepto) + '</td><td class="num">$' + fmt(f.monto) + '</td><td>' + papelCelda + '</td><td>' + botones + '</td></tr>';
+            }).join('') + '</tbody></table>'
         : '<p class="tenue">No hay compras ni gastos con asiento en ' + mes + '.</p>';
     $('frTabla').querySelectorAll('[data-adjuntar]').forEach((b) => b.addEventListener('click', () => { adjuntarA = b.dataset.adjuntar; $('adjFile').click(); }));
+    $('frTabla').querySelectorAll('[data-sinpapel]').forEach((b) => b.addEventListener('click', async () => {
+        const a = (conta.asientos || []).find((x) => x.id === b.dataset.sinpapel);
+        if (!a) return;
+        a.sinPapel = !a.sinPapel;
+        try { await bd().docGuardar(tokenSesion(), 'conta', conta); pintarFacturas(); aviso(a.sinPapel ? 'Marcado: no lleva papel' : 'Marca quitada: vuelve a pedir papel'); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
 }
 /* Fase 18, bloque 2: paquete para el contador. Un solo archivo HTML
  * con el Diario, el Mayor, el Balance de comprobación, el Estado de
@@ -2079,6 +2118,26 @@ async function crearDocumento() {
             try { await guardarTodo(); aviso(n + ' asiento(s) confirmados de una vez' + (saltados ? '; ' + saltados + ' quedan para tu revisión' : '')); pintarTodo(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
+/* Punto 28 (2026-11-25): refresca SOLO los nombres de las cuentas
+ * del plan guardado con los del plan de referencia (oficial o del
+ * dueño), por código. No toca códigos, saldos, asientos ni nada
+ * más, así que vale aunque ya haya asientos. Devuelve cuántos
+ * nombres cambiaron y cuáles. */
+function refrescarNombresPlan(guardado, archivo) {
+    const porCodigo = {};
+    for (const c of (archivo || [])) porCodigo[String(c.codigo)] = c;
+    let cambiados = 0;
+    const lista = [];
+    for (const c of (guardado || [])) {
+        const ref = porCodigo[String(c.codigo)];
+        if (ref && String(ref.nombre || '') !== String(c.nombre || '')) {
+            lista.push({ codigo: c.codigo, antes: c.nombre, despues: ref.nombre });
+            c.nombre = ref.nombre;
+            cambiados++;
+        }
+    }
+    return { cambiados, lista };
+}
         $('planOficial').addEventListener('click', async () => {
             if ((conta.asientos || []).length) { aviso('Con asientos ya hechos no se puede cambiar el plan: descuadraría la historia', 'error'); return; }
             conta.plan = PLAN_OFICIAL.map((c) => ({ ...c, auto: c.auto || CTA_AUTO_OFICIAL[c.codigo] || '' }));
@@ -2091,6 +2150,13 @@ async function crearDocumento() {
             conta.plan = PLAN_DUENO;
             conta.planOrigen = 'dueno';
             try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Plan del dueño restaurado (' + conta.plan.length + ' cuentas)'); location.reload(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('planNombres').addEventListener('click', async () => {
+            const archivo = conta.planOrigen === 'oficial' ? PLAN_OFICIAL : PLAN_DUENO;
+            const r = refrescarNombresPlan(conta.plan || [], archivo);
+            if (!r.cambiados) { aviso('Los nombres del plan ya están al día'); return; }
+            try { await bd().docGuardar(tokenSesion(), 'conta', conta); aviso('Nombres actualizados: ' + r.cambiados + ' cuentas (' + r.lista.slice(0, 5).map((x) => x.codigo).join(', ') + (r.cambiados > 5 ? ', …' : '') + ')'); location.reload(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         $('feMes').value = mesLocal();
