@@ -43,11 +43,35 @@
     <div id="carrito"><p class="tenue">Venta vacía.</p></div>
     <div class="fila">
         <label>Medio de cobro <select id="vMedio"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="qr">QR / Transferencia</option><option value="credito">A crédito (crea su factura)</option></select></label>
-        <input id="vCliente" placeholder="Cliente (solo si es a crédito)" style="min-width:180px">
+        <input id="vCliente" placeholder="Cliente (a crédito, o para puntos/vale)" style="min-width:180px">
+        <input id="vVale" placeholder="Vale (ej. VALE-ABC)" style="width:150px">
         <span id="vTotal" style="font-weight:700"></span>
         <button type="button" id="vCobrar">Cobrar</button>
+        <button type="button" id="vBorrador" class="secundario chico">Guardar como borrador</button>
     </div>
-    <p class="tenue">Recuerda la norma: un cobro en efectivo por encima de 5 000 CUP debe bancarizarse (Res. 111/2023 BCC); el módulo Fiscal lo vigila.</p>
+    <p class="tenue">Recuerda la norma: un cobro en efectivo por encima de 5 000 CUP debe bancarizarse (Res. 111/2023 BCC); el módulo Fiscal lo vigila. Los puntos se ganan escribiendo el cliente: 1 punto por cada 100 CUP que pague (se cambia abajo).</p>
+</div>
+
+<!-- Fase 21 del plan, bloque 1: puntos y vales. El cliente gana
+     puntos con lo que paga y los canjea por un vale. El vale se
+     aplica en la venta escribiendo su código (y el cliente, que
+     tiene que ser el del vale). -->
+<div class="tarjeta">
+    <h2>Puntos y vales</h2>
+    <p class="tenue">Fidelización sencilla: el cliente gana puntos con cada compra y los canjea por un vale que descuenta en la próxima venta. Los puntos se ganan con lo que el cliente paga de verdad (después del vale, si lo usó).</p>
+    <div class="fila">
+        <label>1 punto por cada $ <input id="cfgPorCada" type="number" step="1" min="1" style="width:80px"></label>
+        <label>Puntos por cada tramo <input id="cfgPuntos" type="number" step="1" min="1" style="width:70px"></label>
+        <label>El vale cuesta (puntos) <input id="cfgValePuntos" type="number" step="1" min="1" style="width:80px"></label>
+        <label>El vale vale $ <input id="cfgValeValor" class="monto" type="number" step="0.01" min="0" style="width:90px"></label>
+        <button type="button" id="cfgGuardar" class="secundario chico">Guardar la regla</button>
+    </div>
+    <div id="pvSaldos"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="pvCliente" placeholder="Cliente que canjea sus puntos" style="min-width:200px">
+        <button type="button" id="pvCanjear">Canjear un vale con sus puntos</button>
+    </div>
+    <div id="pvVales"></div>
 </div>
 
 <div class="tarjeta">
@@ -78,8 +102,13 @@
         <input id="pCosto" class="monto" type="number" step="0.01" min="0" placeholder="Costo">
         <input id="pStock" type="number" step="1" min="0" placeholder="Stock" style="width:80px">
         <input id="pMin" type="number" step="1" min="0" placeholder="Mínimo" style="width:80px">
+        <select id="pVarianteDe" title="Variante de (talla, color)"><option value="">— producto solo —</option></select>
+        <input id="pVariante" placeholder="Variante (ej. Talla M, Rojo)" style="min-width:140px">
+        <input id="pConsignador" placeholder="Consignador (si es de otro)" style="min-width:160px">
+        <label>Comisión del negocio % <input id="pComision" type="number" step="0.01" min="0" max="99" style="width:70px" placeholder="20"></label>
         <button type="button" id="pAdd" class="secundario chico">Añadir producto</button>
     </div>
+    <p class="tenue">Variante: un producto que es la misma cosa en otra talla o color (ej. «Camisa» y su variante «Talla M»). En Inventarios la familia se ve junta y suma el stock de todas sus variantes. Consignación: el producto es de otro (el consignador) y se vende en tu tienda; la comisión es lo que te quedas tú de cada venta y el resto se le debe a él. El producto en consignación no tiene costo: no lo compraste.</p>
 </div>
 
 <div class="tarjeta" id="tarjetaPrecios">
@@ -143,16 +172,19 @@ async function pintarIndicador() {
 async function guardar() { try { await bd().docGuardar(tokenSesion(), 'pos', pos); } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); throw e; } }
 function pintarProductos() {
     const lista = pos.productos || [];
-    $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
+    const valVd = $('pVarianteDe').value;
+    $('pVarianteDe').innerHTML = '<option value="">— producto solo —</option>' + lista.map((p) => '<option value="' + esc(p.codigo) + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + '</option>').join('');
+    if (valVd) $('pVarianteDe').value = valVd;
+    $('vProducto').innerHTML = lista.map((p) => '<option value="' + p.id + '">' + esc(p.codigo) + ' · ' + esc(p.nombre + (p.variante ? ' (' + p.variante + ')' : '')) + ' · ' + fmt(p.precio) + ' (stock ' + p.stock + ')</option>').join('') || '<option value="">Sin productos</option>';
     const filas = lista.map((p) => {
         const costo = Number(p.costo) || 0;
         const margen = costo > 0 ? fmt(p.precio - costo) + ' (' + Math.round((p.precio - costo) / p.precio * 100) + ' %)' : '<span class="tenue">sin costo</span>';
-        return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num">' + fmt(p.precio) + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
+        return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre + (p.variante ? ' (' + p.variante + ')' : '') + (p.consignador ? ' · en consignación de ' + p.consignador + ' (comisión ' + (Number(p.comision) || 0) + ' %)' : '')) + '</td><td class="num">' + fmt(p.precio) + '</td><td>' + ((Number(p.precio) || 0) > 0 ? 'Sí' : '<span class="rojo">No</span>') + '</td><td class="num">' + (costo > 0 ? fmt(costo) : '—') + '</td><td class="num">' + margen + '</td>' +
         '<td class="num">' + (p.stock <= (p.stockMin || 0) ? '<span class="rojo">' + p.stock + '</span>' : p.stock) + '</td>' +
         '<td><input type="number" step="0.01" min="0" style="width:90px" placeholder="Nuevo" data-np="' + p.id + '"> <button type="button" class="chico secundario" data-fijar="' + p.id + '">Fijar precio</button> <button type="button" class="chico secundario" data-del="' + p.id + '">Quitar</button></td></tr>';
     }).join('');
-    $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th class="num">Costo</th><th class="num">Margen</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
-        (filas || '<tr><td colspan="7" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
+    $('productos').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Precio</th><th>Tiene precio</th><th class="num">Costo</th><th class="num">Margen</th><th class="num">Stock</th><th></th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="8" class="tenue">Sin productos todavía.</td></tr>') + '</tbody></table>';
     $('productos').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         pos.productos = pos.productos.filter((p) => p.id !== b.dataset.del);
         await guardar(); pintarTodo();
@@ -192,17 +224,146 @@ function pintarCarrito() {
     $('vTotal').textContent = carrito.length ? 'Total: ' + fmt(total) : '';
     $('carrito').querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => { carrito.splice(Number(b.dataset.q), 1); pintarCarrito(); }));
 }
+/* Fase 25, bloque 3: estados de venta. La venta pasa por borrador
+ * → confirmada → anulada. El borrador no toca el stock, no crea
+ * asiento ni consignación ni puntos: es solo el ticket guardado.
+ * La anulación devuelve todo lo que queda por devolver. */
+function borradorDeVenta(carrito, cliente, medio, fecha) {
+    const totalBruto = r2((carrito || []).reduce((s, l) => s + (Number(l.cant) || 0) * (Number(l.precio) || 0), 0));
+    return { id: 'V' + Date.now().toString(36).toUpperCase(), fecha, total: totalBruto, totalBruto, vale: null, lineas: JSON.parse(JSON.stringify(carrito || [])), cobros: [], cliente: cliente || '', medio: medio || 'efectivo', estado: 'borrador' };
+}
+function restantesPorDevolver(venta, devoluciones) {
+    return (venta.lineas || []).map((l) => {
+        let dev = 0;
+        for (const d of (devoluciones || [])) {
+            if (d.ventaId !== venta.id) continue;
+            for (const ld of (d.lineas || [])) if (ld.codigo === l.codigo) dev += Number(ld.cant) || 0;
+        }
+        return { codigo: l.codigo, nombre: l.nombre, cant: Math.max(0, (Number(l.cant) || 0) - dev), precio: l.precio };
+    }).filter((l) => l.cant > 0);
+}
+function anularVenta(venta, fecha, motivo) {
+    const copia = JSON.parse(JSON.stringify(venta));
+    copia.estado = 'anulada';
+    copia.anuladaEn = fecha;
+    copia.anuladaMotivo = motivo || '';
+    return copia;
+}
+/* Aplica una devolución (parcial o total) a una venta: repone el
+ * stock, registra la devolución con su asiento de ajuste si la
+ * venta ya tiene asiento, y baja la deuda con el consignador.
+ * La usa el formulario de devoluciones y la anulación. */
+async function aplicarDevolucion(v, lineasDev, fecha, conceptoAsiento) {
+    const total = r2(lineasDev.reduce((s, l) => s + (Number(l.cant) || 0) * (Number(l.precio) || 0), 0));
+    const medio = (v.cobros && v.cobros[0] && v.cobros[0].medio) || 'efectivo';
+    const cuentaH = medio === 'efectivo' ? cuentaAuto(conta.plan, 'caja', '101-010') : (medio === 'credito' ? cuentaAuto(conta.plan, 'clientes', '131-000') : cuentaAuto(conta.plan, 'banco_cup', '110-010'));
+    /* Fase 22: de lo devuelto, lo del consignador no es venta que
+     * se anula: es deuda que baja. */
+    let ventasDev = 0, porPagarDev = 0;
+    for (const ld of lineasDev) {
+        const pDev = pos.productos.find((x) => x.codigo === ld.codigo);
+        const importeDev = r2((Number(ld.cant) || 0) * (Number(ld.precio) || 0));
+        if (pDev && pDev.consignador) { const parte = parteConsignador(ld.precio, ld.cant, pDev.comision); ventasDev = r2(ventasDev + parte.comision); porPagarDev = r2(porPagarDev + parte.aPagar); }
+        else ventasDev = r2(ventasDev + importeDev);
+    }
+    const lineasDevAsiento = [];
+    if (ventasDev > 0) lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'ventas', '801-000'), debe: ventasDev, haber: 0 });
+    if (porPagarDev > 0) lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'por_pagar', '311-000'), debe: porPagarDev, haber: 0 });
+    lineasDevAsiento.push({ cuenta: cuentaH, debe: 0, haber: total });
+    /* F7: la devolución también devuelve el costo que el asiento
+     * del día ya había llevado a Costo de ventas. */
+    let costoDev = 0;
+    for (const ld of lineasDev) costoDev = r2(costoDev + (Number(ld.cant) || 0) * costoProducto(ld.codigo));
+    if (costoDev > 0) {
+        lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'mercancias', '188-000'), debe: costoDev, haber: 0 });
+        lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'costo_ventas', '695-000'), debe: 0, haber: costoDev });
+    }
+    if (v.asientoId) {
+        const errLin = validarLineasAsiento(conta.plan, lineasDevAsiento);
+        if (errLin) return { ok: false, motivo: errLin };
+    }
+    for (const ld of lineasDev) {
+        const l = v.lineas.find((x) => x.codigo === ld.codigo);
+        if (l) l.devueltas = (Number(l.devueltas) || 0) + ld.cant;
+        const p = pos.productos.find((x) => x.codigo === ld.codigo);
+        if (p) p.stock = (Number(p.stock) || 0) + ld.cant;
+        pos.inventario.push({ id: 'd' + Date.now().toString(36) + ld.codigo, fecha, tipo: 'entrada', codigo: ld.codigo, nombre: ld.nombre, cant: ld.cant, motivo: (conceptoAsiento || 'Devolución') + ' de la venta ' + v.id });
+        /* Fase 22: la deuda con el consignador baja con la
+         * devolución (entrada negativa, pendiente hasta el
+         * próximo pago). */
+        if (p && p.consignador) {
+            const parte = parteConsignador(ld.precio, ld.cant, p.comision);
+            pos.consignacion = pos.consignacion || [];
+            pos.consignacion.push({ id: 'CG' + Date.now().toString(36).toUpperCase() + 'D' + ld.codigo, fecha, ventaId: v.id, consignador: p.consignador, producto: ld.nombre, codigo: ld.codigo, cant: -ld.cant, precioVenta: Number(ld.precio) || 0, comisionPct: Number(p.comision) || 0, aPagar: -parte.aPagar, estado: 'pendiente', motivo: (conceptoAsiento || 'Devolución') + ' de la venta ' + v.id });
+        }
+    }
+    const dev = { id: 'dv' + Date.now().toString(36), fecha, ventaId: v.id, lineas: lineasDev, total, medio };
+    pos.devoluciones.push(dev);
+    let numAsiento = 0;
+    if (v.asientoId) {
+        conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+        numAsiento = conta.seqAsiento;
+        const idA = 'a' + Date.now().toString(36);
+        conta.asientos.push({ id: idA, numero: numAsiento, fecha, concepto: (conceptoAsiento || 'Devolución') + ' de la venta ' + v.id + ' del POS', origen: 'manual', estado: 'confirmado', lineas: lineasDevAsiento });
+        dev.asientoId = idA;
+        /* M-1: asiento de ajuste (conta) + devolución y stock
+         * (pos) en UNA transacción. */
+        await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
+    } else {
+        await guardar();
+    }
+    return { ok: true, total, numAsiento, porPagarDev };
+}
 function pintarVentasDia() {
     const fecha = $('vdFecha').value;
     const ventas = (pos.ventas || []).filter((v) => v.fecha === fecha);
-    const total = r2(ventas.reduce((s, v) => s + (Number(v.total) || 0), 0));
+    const confirmadas = ventas.filter((v) => (v.estado || 'confirmada') === 'confirmada');
+    const total = r2(confirmadas.reduce((s, v) => s + (Number(v.total) || 0), 0));
     $('ventasDia').innerHTML = ventas.map((v) => {
+        const estado = v.estado || 'confirmada';
         const dev = r2((pos.devoluciones || []).filter((d) => d.ventaId === v.id).reduce((sx, d) => sx + (Number(d.total) || 0), 0));
+        const margen = margenVenta(v, pos.productos);
+        let acciones = '';
+        if (estado === 'borrador') acciones = ' <button type="button" class="chico" data-v-cargar="' + v.id + '">Cargar en el formulario</button> <button type="button" class="chico secundario" data-v-anular="' + v.id + '">Anular</button>';
+        else if (estado === 'confirmada') acciones = ' <button type="button" class="chico secundario" data-v-anular="' + v.id + '">Anular</button>';
         return '<div class="fila"><span>' + v.id + '</span><span class="tenue">' + v.lineas.map((l) => esc(l.nombre) + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(v.total) + '</b>' +
-        '<span class="tenue">' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ') + (v.asientoId ? ' · ya en el asiento del día' : '') + (dev > 0 ? ' · <span class="rojo">devuelto: −' + fmt(dev) + '</span>' : '') + '</span></div>';
+        '<span class="tenue">' + (estado === 'borrador' ? '<b>Borrador</b>' : estado === 'anulada' ? '<span class="rojo">Anulada' + (v.anuladaEn ? ' el ' + esc(v.anuladaEn) : '') + '</span>' : 'margen $' + fmt(margen) + ' · ' + v.cobros.map((c) => c.medio + ' ' + fmt(c.monto)).join(', ')) + (v.asientoId && estado === 'confirmada' ? ' · ya en el asiento del día' : '') + (dev > 0 ? ' · <span class="rojo">devuelto: −' + fmt(dev) + '</span>' : '') + '</span>' + acciones + '</div>';
     }).join('') ||
         '<p class="tenue">Sin ventas en ' + fecha + '.</p>';
-    if (ventas.length) $('ventasDia').innerHTML += '<p><b>Total del día: ' + fmt(total) + '</b> · Sin asiento todavía: ' + ventas.filter((v) => !v.asientoId).length + ' venta(s).</p>';
+    if (ventas.length) $('ventasDia').innerHTML += '<p><b>Total del día (confirmadas): ' + fmt(total) + '</b> · Sin asiento todavía: ' + confirmadas.filter((v) => !v.asientoId).length + ' venta(s).</p>';
+    $('ventasDia').querySelectorAll('[data-v-cargar]').forEach((b) => b.addEventListener('click', () => {
+        const v = (pos.ventas || []).find((x) => x.id === b.dataset.vCargar);
+        if (!v) return;
+        carrito = JSON.parse(JSON.stringify(v.lineas || []));
+        $('vCliente').value = v.cliente || '';
+        $('vMedio').value = v.medio || 'efectivo';
+        pos.ventas = pos.ventas.filter((x) => x.id !== v.id);
+        guardar().then(() => { pintarTodo(); aviso('Borrador cargado en el formulario: revísalo y cobra'); });
+    }));
+    $('ventasDia').querySelectorAll('[data-v-anular]').forEach((b) => b.addEventListener('click', async () => {
+        const v = (pos.ventas || []).find((x) => x.id === b.dataset.vAnular);
+        if (!v) return;
+        const estado = v.estado || 'confirmada';
+        if (estado === 'borrador') {
+            const idx = pos.ventas.findIndex((x) => x.id === v.id);
+            pos.ventas[idx] = anularVenta(v, hoy(), 'Borrador anulado');
+            await guardar();
+            pintarTodo(); aviso('Borrador anulado: queda el rastro, no tocó el stock');
+            return;
+        }
+        if (!confirm('¿Anular la venta ' + v.id + ' por $' + fmt(v.total) + '? Se devuelve todo lo que queda por devolver.')) return;
+        if (conta.candados && conta.candados[hoy().slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede anular la venta', 'error'); return; }
+        const restantes = restantesPorDevolver(v, pos.devoluciones || []);
+        if (restantes.length) {
+            const r = await aplicarDevolucion(v, restantes, hoy(), 'Anulación');
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        }
+        const idx = pos.ventas.findIndex((x) => x.id === v.id);
+        pos.ventas[idx] = anularVenta(v, hoy(), 'Anulada por el cajero');
+        await guardar();
+        pintarTodo(); pintarDevoluciones();
+        aviso('Venta ' + v.id + ' anulada: queda el rastro' + (restantes.length ? ' y se devolvió lo que quedaba por $' + fmt(restantes.reduce((s, l) => s + (Number(l.cant) || 0) * (Number(l.precio) || 0), 0)) : ''));
+    }));
 }
 function pintarOcioso() {
     const ultimaVenta = new Map();
@@ -271,7 +432,46 @@ function pintarDvLineas() {
 }
 /* Costo promedio del producto (F7): para llevar el costo de lo
  * vendido al asiento del día y devolverlo si hay devolución. */
-function costoProducto(cod) { const p = (pos.productos || []).find((x) => x.codigo === cod); return Number(p && p.costo) || 0; }
+/* Fase 22: ventas en consignación. El producto es de otro (el
+ * consignador): la comisión es lo que se queda el negocio de cada
+ * venta y el resto se le debe a él. El producto en consignación no
+ * tiene costo (no se compró) y no entra en Mercancías. */
+function parteConsignador(precio, cant, comisionPct) {
+    const venta = r2((Number(precio) || 0) * (Number(cant) || 0));
+    const comision = r2(venta * (Number(comisionPct) || 0) / 100);
+    return { venta, comision, aPagar: r2(venta - comision) };
+}
+function consignacionDeVenta(venta, productos) {
+    const entradas = [];
+    for (const l of venta.lineas || []) {
+        const p = (productos || []).find((x) => x.codigo === l.codigo);
+        if (!p || !p.consignador) continue;
+        const parte = parteConsignador(l.precio, l.cant, p.comision);
+        entradas.push({ id: 'CG' + Date.now().toString(36).toUpperCase() + entradas.length, fecha: venta.fecha, ventaId: venta.id, consignador: p.consignador, producto: l.nombre, codigo: l.codigo, cant: Number(l.cant) || 0, precioVenta: Number(l.precio) || 0, comisionPct: Number(p.comision) || 0, aPagar: parte.aPagar, estado: 'pendiente' });
+    }
+    return entradas;
+}
+function margenVenta(venta, productos) {
+    let margen = 0;
+    for (const l of venta.lineas || []) {
+        const p = (productos || []).find((x) => x.codigo === l.codigo);
+        const costo = (p && p.consignador) ? 0 : (p ? (Number(p.costo) || 0) : 0);
+        const parteConsig = (p && p.consignador) ? r2((Number(l.precio) || 0) * (1 - (Number(p.comision) || 0) / 100)) : 0;
+        margen = r2(margen + (Number(l.cant) || 0) * (r2((Number(l.precio) || 0) - costo - parteConsig)));
+    }
+    /* El vale es una rebaja del negocio: también baja el margen. */
+    return r2(margen - (Number(venta.vale && venta.vale.valor) || 0));
+}
+function deudaConsignador(consignacion, consignador) {
+    let pendiente = 0, pagado = 0;
+    for (const e of consignacion || []) {
+        if (String(e.consignador || '').toLowerCase() !== String(consignador || '').toLowerCase()) continue;
+        if (e.estado === 'pendiente') pendiente = r2(pendiente + (Number(e.aPagar) || 0));
+        else if (e.estado === 'pagado') pagado = r2(pagado + (Number(e.aPagar) || 0));
+    }
+    return { pendiente, pagado, total: r2(pendiente + pagado) };
+}
+function costoProducto(cod) { const p = (pos.productos || []).find((x) => x.codigo === cod); if (p && p.consignador) return 0; return Number(p && p.costo) || 0; }
 function calcArqueo() {
     const fecha = $('arqFecha').value;
     let cobradoEf = 0;
@@ -298,7 +498,67 @@ function pintarArqueos() {
     $('arqLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Arqueos registrados:</b></p>' + lista.map((a) =>
         '<div class="fila"><span>' + a.fecha + '</span><span class="tenue">esperado ' + fmt(a.esperado) + ' · contado ' + fmt(a.contado) + ' · por ' + esc(a.por) + '</span><b class="' + (a.diferencia === 0 ? '' : 'rojo') + '">diferencia ' + (a.diferencia > 0 ? '+' : '') + fmt(a.diferencia) + '</b></div>').join('') : '';
 }
-function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
+/* Fase 21, bloque 1: puntos y vales. Los puntos se ganan con lo
+ * que el cliente paga de verdad (después del vale). El vale es de
+ * su cliente: no se aplica a otra persona. */
+function puntosPorCompra(total, cfg) {
+    const porCada = Number((cfg || {}).porCada) || 100, puntos = Number((cfg || {}).puntos) || 1;
+    if (porCada <= 0 || total <= 0) return 0;
+    return Math.floor(total / porCada) * puntos;
+}
+function acumularPuntos(puntos, cliente, total, fecha, ventaId, cfg) {
+    const ganados = puntosPorCompra(total, cfg);
+    if (!cliente || ganados <= 0) return { puntos, ganados: 0 };
+    const copia = JSON.parse(JSON.stringify(puntos || {}));
+    const clave = String(cliente).trim().toLowerCase();
+    copia[clave] = copia[clave] || { cliente: String(cliente).trim(), puntos: 0, movimientos: [] };
+    copia[clave].puntos += ganados;
+    copia[clave].movimientos.push({ fecha, puntos: ganados, motivo: 'Compra ' + (ventaId || ''), ventaId: ventaId || '' });
+    return { puntos: copia, ganados };
+}
+function canjearVale(puntos, vales, cliente, cfg, fecha) {
+    const valePuntos = Number((cfg || {}).valePuntos) || 100, valeValor = Number((cfg || {}).valeValor) || 50;
+    const clave = String(cliente || '').trim().toLowerCase();
+    const reg = (puntos || {})[clave];
+    if (!reg || (Number(reg.puntos) || 0) < valePuntos) return { ok: false, motivo: 'A ' + cliente + ' le faltan puntos: tiene ' + ((reg && reg.puntos) || 0) + ' y el vale cuesta ' + valePuntos };
+    const copiaP = JSON.parse(JSON.stringify(puntos));
+    const copiaV = JSON.parse(JSON.stringify(vales || []));
+    copiaP[clave].puntos -= valePuntos;
+    copiaP[clave].movimientos.push({ fecha, puntos: -valePuntos, motivo: 'Vale canjeado' });
+    const vale = { id: 'VALE-' + Date.now().toString(36).toUpperCase(), cliente: reg.cliente, fecha, valor: valeValor, estado: 'vigente' };
+    copiaV.push(vale);
+    return { ok: true, puntos: copiaP, vales: copiaV, vale };
+}
+function buscarVale(vales, codigo, cliente) {
+    const v = (vales || []).find((x) => String(x.id || '').toUpperCase() === String(codigo || '').trim().toUpperCase());
+    if (!v) return { ok: false, motivo: 'No hay ningún vale con ese código' };
+    if (v.estado !== 'vigente') return { ok: false, motivo: 'Ese vale ya está ' + v.estado };
+    if (cliente && String(v.cliente || '').toLowerCase() !== String(cliente).trim().toLowerCase()) return { ok: false, motivo: 'Ese vale es de ' + v.cliente };
+    return { ok: true, vale: v };
+}
+function pintarPuntos() {
+    const cfg = pos.puntosCfg || { porCada: 100, puntos: 1, valePuntos: 100, valeValor: 50 };
+    if (!$('cfgPorCada').value) { $('cfgPorCada').value = cfg.porCada; $('cfgPuntos').value = cfg.puntos; $('cfgValePuntos').value = cfg.valePuntos; $('cfgValeValor').value = cfg.valeValor; }
+    const saldos = Object.values(pos.puntos || {}).sort((a, b) => (Number(b.puntos) || 0) - (Number(a.puntos) || 0));
+    $('pvSaldos').innerHTML = saldos.length
+        ? '<table><thead><tr><th>Cliente</th><th class="num">Puntos</th><th>Último movimiento</th></tr></thead><tbody>' +
+            saldos.map((s) => { const u = (s.movimientos || [])[(s.movimientos || []).length - 1]; return '<tr><td>' + esc(s.cliente) + '</td><td class="num">' + (Number(s.puntos) || 0) + '</td><td>' + (u ? u.fecha + ' · ' + (u.puntos > 0 ? '+' : '') + u.puntos + ' · ' + esc(u.motivo || '') : '—') + '</td></tr>'; }).join('') + '</tbody></table>'
+        : '<p class="tenue">Nadie tiene puntos todavía: se ganan con la primera compra con cliente.</p>';
+    const vales = [...(pos.vales || [])].reverse();
+    $('pvVales').innerHTML = vales.length
+        ? '<table><thead><tr><th>Vale</th><th>Cliente</th><th>Fecha</th><th class="num">Valor</th><th>Estado</th><th></th></tr></thead><tbody>' +
+            vales.map((v) => '<tr><td>' + esc(v.id) + '</td><td>' + esc(v.cliente) + '</td><td>' + (v.fecha || '') + '</td><td class="num">$' + fmt(v.valor) + '</td><td>' + v.estado + '</td><td>' + (v.estado === 'vigente' ? '<button type="button" class="chico secundario" data-vale-anular="' + esc(v.id) + '">Anular</button>' : '') + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Sin vales todavía.</p>';
+    $('pvVales').querySelectorAll('[data-vale-anular]').forEach((b) => b.addEventListener('click', async () => {
+        const v = (pos.vales || []).find((x) => x.id === b.dataset.valeAnular);
+        if (!v || v.estado !== 'vigente') return;
+        if (!confirm('¿Anular el vale ' + v.id + ' de ' + v.cliente + '?')) return;
+        v.estado = 'anulado';
+        try { await guardar(); pintarPuntos(); aviso('Vale anulado'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); pintarPuntos(); }
 (async () => {
     try {
         pintarIndicador();
@@ -312,13 +572,42 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         pos.preciosHist = pos.preciosHist || [];
         pos.arqueos = pos.arqueos || [];
         pos.inventario = pos.inventario || [];
+        pos.puntosCfg = pos.puntosCfg || { porCada: 100, puntos: 1, valePuntos: 100, valeValor: 50 };
+        pos.puntos = pos.puntos || {};
+        pos.vales = pos.vales || [];
+        pos.consignacion = pos.consignacion || [];
+        pos.pagosConsignacion = pos.pagosConsignacion || [];
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        /* Fase 21, bloque 1: puntos y vales. */
+        $('cfgGuardar').addEventListener('click', async () => {
+            const porCada = Math.max(1, Math.floor(Number($('cfgPorCada').value) || 100));
+            const puntos = Math.max(1, Math.floor(Number($('cfgPuntos').value) || 1));
+            const valePuntos = Math.max(1, Math.floor(Number($('cfgValePuntos').value) || 100));
+            const valeValor = Math.max(0, Number($('cfgValeValor').value) || 0);
+            pos.puntosCfg = { porCada, puntos, valePuntos, valeValor };
+            try { await guardar(); pintarPuntos(); aviso('Regla de puntos guardada: ' + puntos + ' punto(s) por cada $' + porCada + '; el vale cuesta ' + valePuntos + ' puntos y vale $' + fmt(valeValor)); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        $('pvCanjear').addEventListener('click', async () => {
+            const cliente = $('pvCliente').value.trim();
+            if (!cliente) { aviso('Escribe el cliente que canjea sus puntos', 'error'); return; }
+            const r = canjearVale(pos.puntos, pos.vales, cliente, pos.puntosCfg, hoy());
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            pos.puntos = r.puntos; pos.vales = r.vales;
+            try { await guardar(); $('pvCliente').value = ''; pintarPuntos(); aviso('Vale ' + r.vale.id + ' creado para ' + r.vale.cliente + ' por $' + fmt(r.vale.valor) + ': se aplica en la venta escribiendo su código.'); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
         $('vdFecha').value = hoy();
         $('pAdd').addEventListener('click', async () => {
             const codigo = $('pCodigo').value.trim(), nombre = $('pNombre').value.trim(), precio = Number($('pPrecio').value) || 0;
             if (!codigo || !nombre || precio <= 0) { aviso('El producto necesita código, nombre y precio', 'error'); return; }
-            pos.productos.push({ id: 'p' + Date.now().toString(36), codigo, nombre, precio, costo: Number($('pCosto').value) || 0, stock: Number($('pStock').value) || 0, stockMin: Number($('pMin').value) || 0, fechaAlta: hoy() });
-            await guardar(); $('pCodigo').value = $('pNombre').value = $('pPrecio').value = $('pCosto').value = $('pStock').value = $('pMin').value = '';
+            const varianteDe = $('pVarianteDe').value, variante = $('pVariante').value.trim();
+            if (varianteDe && !variante) { aviso('La variante necesita su talla o color (ej. Talla M)', 'error'); return; }
+            if (varianteDe && varianteDe === codigo) { aviso('Un producto no puede ser variante de sí mismo', 'error'); return; }
+            const consignador = $('pConsignador').value.trim(), comision = Number($('pComision').value) || 0;
+            if (consignador && (comision <= 0 || comision >= 100)) { aviso('El producto en consignación necesita la comisión del negocio (entre 0 y 100 %)', 'error'); return; }
+            pos.productos.push({ id: 'p' + Date.now().toString(36), codigo, nombre, precio, costo: consignador ? 0 : (Number($('pCosto').value) || 0), stock: Number($('pStock').value) || 0, stockMin: Number($('pMin').value) || 0, fechaAlta: hoy(), varianteDe: varianteDe || '', variante, consignador, comision: consignador ? comision : 0 });
+            await guardar(); $('pCodigo').value = $('pNombre').value = $('pPrecio').value = $('pCosto').value = $('pStock').value = $('pMin').value = ''; $('pVarianteDe').value = ''; $('pVariante').value = ''; $('pConsignador').value = ''; $('pComision').value = '';
             pintarTodo(); aviso('Producto añadido');
         });
         $('vAdd').addEventListener('click', () => {
@@ -335,15 +624,43 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             const medioSel = $('vMedio').value;
             const clienteCred = $('vCliente').value.trim();
             if (medioSel === 'credito' && !clienteCred) { aviso('Una venta a crédito necesita el nombre del cliente: su factura sale sola y entra en TeleCobranzas', 'error'); return; }
-            const total = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
+            const totalBruto = r2(carrito.reduce((s, l) => s + l.cant * l.precio, 0));
+            /* Fase 21, bloque 1: el vale descuenta y es de su cliente. */
+            let valeAplicado = null, total = totalBruto;
+            const codigoVale = $('vVale').value.trim();
+            if (codigoVale) {
+                const rVale = buscarVale(pos.vales || [], codigoVale, clienteCred);
+                if (!rVale.ok) { aviso(rVale.motivo, 'error'); return; }
+                valeAplicado = rVale.vale;
+                total = Math.max(0, r2(totalBruto - (Number(valeAplicado.valor) || 0)));
+            }
             for (const l of carrito) {
                 const p = pos.productos.find((x) => x.codigo === l.codigo);
                 if (p && (Number(p.stock) || 0) < l.cant) { aviso('No hay stock suficiente de ' + l.nombre, 'error'); return; }
             }
             for (const l of carrito) { const p = pos.productos.find((x) => x.codigo === l.codigo); if (p) p.stock = (Number(p.stock) || 0) - l.cant; }
-            const ventaNueva = { id: 'V' + Date.now().toString(36).toUpperCase(), fecha: hoy(), total, lineas: [...carrito], cobros: [{ medio: medioSel, monto: total }] };
+            const ventaNueva = { id: 'V' + Date.now().toString(36).toUpperCase(), fecha: hoy(), total, totalBruto, vale: valeAplicado ? { id: valeAplicado.id, valor: Number(valeAplicado.valor) || 0 } : null, lineas: [...carrito], cobros: [{ medio: medioSel, monto: total }], estado: 'confirmada' };
             pos.ventas.push(ventaNueva);
+            /* Fase 22: lo del consignador queda como deuda. El vale es
+             * una rebaja del negocio: no le quita nada al consignador. */
+            pos.consignacion = pos.consignacion || [];
+            const entradasCg = consignacionDeVenta(ventaNueva, pos.productos);
+            pos.consignacion.push(...entradasCg);
             let avisoExtra = '';
+            if (entradasCg.length) {
+                const porConsig = {};
+                for (const e of entradasCg) porConsig[e.consignador] = r2((porConsig[e.consignador] || 0) + e.aPagar);
+                avisoExtra += ' · Consignación: ' + Object.entries(porConsig).map(([c, m]) => '$' + fmt(m) + ' para ' + c).join(', ');
+            }
+            if (valeAplicado) {
+                valeAplicado.estado = 'canjeado'; valeAplicado.ventaId = ventaNueva.id;
+                avisoExtra += ' · Vale ' + valeAplicado.id + ' aplicado (-$' + fmt(valeAplicado.valor) + ')';
+            }
+            if (clienteCred) {
+                const rP = acumularPuntos(pos.puntos, clienteCred, total, hoy(), ventaNueva.id, pos.puntosCfg);
+                pos.puntos = rP.puntos;
+                if (rP.ganados > 0) avisoExtra += ' · +' + rP.ganados + ' puntos para ' + clienteCred;
+            }
             if (medioSel === 'credito') {
                 conta.gestion = conta.gestion || { contratos: [], facturas: [] };
                 conta.gestion.facturas = conta.gestion.facturas || [];
@@ -359,8 +676,16 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
              * la factura quedaba sin su venta. */
             if (medioSel === 'credito') await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             else await guardar();
-            carrito = []; pintarTodo(); pintarDevoluciones();
+            carrito = []; $('vVale').value = ''; pintarTodo(); pintarDevoluciones();
             aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
+        });
+        $('vBorrador').addEventListener('click', async () => {
+            if (!carrito.length) { aviso('La venta está vacía', 'error'); return; }
+            const b = borradorDeVenta(carrito, $('vCliente').value.trim(), $('vMedio').value, hoy());
+            pos.ventas.push(b);
+            await guardar();
+            carrito = []; $('vVale').value = ''; pintarTodo();
+            aviso('Borrador guardado: no tocó el stock ni creó asiento. Se confirma desde «Ventas del día».');
         });
         $('lpImprimir').addEventListener('click', () => window.print());
         $('vdCsv').addEventListener('click', () => {
@@ -380,7 +705,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         $('vdFecha').addEventListener('change', pintarVentasDia);
         $('vdAsiento').addEventListener('click', async () => {
             const fecha = $('vdFecha').value;
-            const pendientes = (pos.ventas || []).filter((v) => v.fecha === fecha && !v.asientoId);
+            const pendientes = (pos.ventas || []).filter((v) => v.fecha === fecha && !v.asientoId && (v.estado || 'confirmada') === 'confirmada');
             if (!pendientes.length) { aviso('No hay ventas sin asiento en ' + fecha, 'error'); return; }
             if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('El mes de ' + fecha + ' está cerrado: no se puede crear el asiento del día en un período cerrado', 'error'); return; }
             let efectivo = 0, banco = 0, creditoC = 0;
@@ -413,7 +738,18 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
             if (efectivo > 0) lineas.push(L(cuentaAuto(conta.plan, 'caja', '101-010'), efectivo));
             if (banco > 0) lineas.push(L(cuentaAuto(conta.plan, 'banco_cup', '110-010'), banco));
             if (creditoC > 0) lineas.push(L(cuentaAuto(conta.plan, 'clientes', '131-000'), creditoC));
-            lineas.push(L(cuentaAuto(conta.plan, 'ventas', '801-000'), 0, total));
+            /* Fase 22: de lo vendido, lo del consignador no es venta
+             * del negocio: es una deuda con él (CxP). Las entradas de
+             * consignación pendientes de estas ventas —incluidas las
+             * negativas de sus devoluciones— dicen cuánto es. */
+            const idsPend = new Set(pendientes.map((v) => v.id));
+            let porPagar = 0;
+            for (const e of (pos.consignacion || [])) {
+                if (e.estado === 'pendiente' && idsPend.has(e.ventaId)) porPagar = r2(porPagar + (Number(e.aPagar) || 0));
+            }
+            if (porPagar < 0) porPagar = 0;
+            lineas.push(L(cuentaAuto(conta.plan, 'ventas', '801-000'), 0, r2(total - porPagar)));
+            if (porPagar > 0) lineas.push(L(cuentaAuto(conta.plan, 'por_pagar', '311-000'), 0, porPagar));
             /* F7: el costo de lo vendido, neto de devoluciones del
              * día: sin él, Informes decía costo 0,00 aunque se
              * vendiera, y el stock bajaba sin salir de Mercancías. */
@@ -442,8 +778,9 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
         $('dvRegistrar').addEventListener('click', async () => {
             const v = (pos.ventas || []).find((x) => x.id === $('dvVenta').value);
             if (!v) { aviso('Elige la venta de la devolución', 'error'); return; }
+            if ((v.estado || 'confirmada') !== 'confirmada') { aviso('Solo se puede devolver una venta confirmada', 'error'); return; }
             const lineasDev = [];
-            let total = 0, okCant = true;
+            let okCant = true;
             $('dvLineas').querySelectorAll('[data-dv]').forEach((inp) => {
                 const cant = Math.floor(Number(inp.value) || 0);
                 if (cant <= 0) return;
@@ -451,51 +788,15 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); }
                 if (!l) return;
                 if (cant > (Number(l.cant) || 0) - (Number(l.devueltas) || 0)) okCant = false;
                 lineasDev.push({ codigo: l.codigo, nombre: l.nombre, cant, precio: l.precio });
-                total = r2(total + cant * (Number(l.precio) || 0));
             });
             if (!lineasDev.length) { aviso('Marca al menos una unidad a devolver', 'error'); return; }
             if (!okCant) { aviso('No se puede devolver más de lo vendido y no devuelto', 'error'); return; }
-            const medio = (v.cobros && v.cobros[0] && v.cobros[0].medio) || 'efectivo';
             const fHoy = hoy();
             if (conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
-            const cuentaH = medio === 'efectivo' ? cuentaAuto(conta.plan, 'caja', '101-010') : (medio === 'credito' ? cuentaAuto(conta.plan, 'clientes', '131-000') : cuentaAuto(conta.plan, 'banco_cup', '110-010'));
-            const lineasDevAsiento = [{ cuenta: cuentaAuto(conta.plan, 'ventas', '801-000'), debe: total, haber: 0 }, { cuenta: cuentaH, debe: 0, haber: total }];
-            /* F7: la devolución también devuelve el costo que el
-             * asiento del día ya había llevado a Costo de ventas. */
-            let costoDev = 0;
-            for (const ld of lineasDev) costoDev = r2(costoDev + (Number(ld.cant) || 0) * costoProducto(ld.codigo));
-            if (costoDev > 0) {
-                lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'mercancias', '188-000'), debe: costoDev, haber: 0 });
-                lineasDevAsiento.push({ cuenta: cuentaAuto(conta.plan, 'costo_ventas', '695-000'), debe: 0, haber: costoDev });
-            }
-            if (v.asientoId) {
-                const errLin = validarLineasAsiento(conta.plan, lineasDevAsiento);
-                if (errLin) { aviso(errLin, 'error'); return; }
-            }
-            for (const ld of lineasDev) {
-                const l = v.lineas.find((x) => x.codigo === ld.codigo);
-                l.devueltas = (Number(l.devueltas) || 0) + ld.cant;
-                const p = pos.productos.find((x) => x.codigo === ld.codigo);
-                if (p) p.stock = (Number(p.stock) || 0) + ld.cant;
-                pos.inventario.push({ id: 'd' + Date.now().toString(36) + ld.codigo, fecha: fHoy, tipo: 'entrada', codigo: ld.codigo, nombre: ld.nombre, cant: ld.cant, motivo: 'Devolución de la venta ' + v.id });
-            }
-            const dev = { id: 'dv' + Date.now().toString(36), fecha: fHoy, ventaId: v.id, lineas: lineasDev, total, medio };
-            pos.devoluciones.push(dev);
-            let extra = ' Se neta en el asiento del día de la venta.';
-            if (v.asientoId) {
-                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
-                const idA = 'a' + Date.now().toString(36);
-                conta.asientos.push({ id: idA, numero: conta.seqAsiento, fecha: fHoy, concepto: 'Devolución de la venta ' + v.id + ' del POS', origen: 'manual', estado: 'confirmado', lineas: lineasDevAsiento });
-                dev.asientoId = idA;
-                extra = ' Asiento de ajuste nº ' + conta.seqAsiento + ' creado.';
-                /* M-1: asiento de ajuste (conta) + devolución y stock
-                 * (pos) en UNA transacción. */
-                await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
-            } else {
-                await guardar();
-            }
+            const r = await aplicarDevolucion(v, lineasDev, fHoy, 'Devolución');
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
             pintarTodo(); pintarDevoluciones();
-            aviso('Devolución registrada por ' + fmt(total) + ': el stock quedó repuesto.' + extra);
+            aviso('Devolución registrada por ' + fmt(r.total) + ': el stock quedó repuesto.' + (r.porPagarDev > 0 ? ' La deuda con el consignador bajó $' + fmt(r.porPagarDev) + '.' : '') + (r.numAsiento ? ' Asiento de ajuste nº ' + r.numAsiento + ' creado.' : ' Se neta en el asiento del día de la venta.'));
         });
         $('arqFecha').value = hoy();
         $('arqVer').addEventListener('click', pintarArqueo);

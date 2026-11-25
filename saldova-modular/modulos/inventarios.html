@@ -33,12 +33,16 @@
         <label>Fecha <input id="dFecha" type="date"></label>
         <label>Tipo <select id="dTipo"><option value="entrada">Entrada</option><option value="salida">Salida</option></select></label>
         <label>Producto <select id="dProducto"></select></label>
+        <label>Almacén <select id="dAlmacen"></select></label>
         <label>Cantidad <input id="dCant" type="number" step="1" min="1" style="width:80px"></label>
         <label>Costo unitario (solo entradas) <input id="dCosto" type="number" step="0.01" min="0" style="width:100px" placeholder="0.00"></label>
+        <label>Lote (solo entradas) <input id="dLote" placeholder="L-001" style="width:110px"></label>
+        <label>Vence (solo entradas) <input id="dVence" type="date"></label>
         <label>Motivo <input id="dMotivo" type="text" placeholder="Compra, merma, traslado…" style="width:190px"></label>
+        <label><input type="checkbox" id="dCargaInicial"> Carga inicial (concepto 101)</label>
         <button type="button" id="dRegistrar">Registrar documento</button>
     </div>
-    <p class="tenue">Una salida no puede dejar el stock en negativo. Las ventas del POS ya descuentan solas: no las dupliques aquí. Al entrar mercancía con su costo, el costo del producto pasa a ser el <strong>promedio ponderado</strong> de lo que había y lo que entra: así el inventario se valora a costo real y el POS enseña el margen de cada producto.</p>
+    <p class="tenue">Una salida no puede dejar el stock en negativo. Las ventas del POS ya descuentan solas: no las dupliques aquí. Al entrar mercancía con su costo, el costo del producto pasa a ser el <strong>promedio ponderado</strong> de lo que había y lo que entra: así el inventario se valora a costo real y el POS enseña el margen de cada producto. La <strong>carga inicial (concepto 101)</strong> entra el stock inicial <strong>sin comprobante contable</strong>: no crea asiento y, si el producto no tenía stock, su costo pasa a ser el que escribas.</p>
 </div>
 
 <div class="tarjeta">
@@ -52,6 +56,140 @@
     </div>
     <div id="conteo"><p class="tenue">Pulsa «Preparar la hoja de conteo» y escribe lo contado de cada producto.</p></div>
     <div id="ajuste"></div>
+</div>
+
+<!-- Fase 37, bloque 2: expediente por diferencia. Cada diferencia
+     del conteo físico (sobrante o faltante) genera su expediente
+     con su estado: pendiente mientras no se aplica el ajuste,
+     ajustado cuando se aplica (con su número de asiento). -->
+<div class="tarjeta">
+    <h2>Expedientes por diferencia</h2>
+    <p class="tenue">Cada diferencia del conteo físico genera su expediente: qué se contó, cuánto sobra o falta y si ya se ajustó. El pendiente es lo que falta por resolver.</p>
+    <div class="fila">
+        <label>Ver <select id="exFiltro"><option value="todos">Todos</option><option value="pendiente">Pendientes</option><option value="ajustado">Ajustados</option></select></label>
+    </div>
+    <div id="expedientes"></div>
+</div>
+
+<div class="tarjeta">
+    <h2 style="margin-top:0">Órdenes de compra</h2>
+    <p class="tenue">Pides la mercancía y cuando llega la recibes: al recibir, el stock sube y el costo promedio se actualiza como con cualquier entrada. La orden no crea asiento: la compra se asienta con su documento en Contabilidad, como las entradas manuales.</p>
+    <div class="fila">
+        <label>Proveedor <input id="ocProveedor" style="min-width:170px" placeholder="A quién se le pide"></label>
+        <label>Fecha <input id="ocFecha" type="date"></label>
+    </div>
+    <div class="fila">
+        <label>Producto <select id="ocProducto" style="min-width:220px"></select></label>
+        <label>Cantidad <input id="ocCant" type="number" step="1" min="1" style="width:80px"></label>
+        <label>Costo unitario $ <input id="ocCosto" class="monto" type="number" step="0.01" min="0" style="width:100px"></label>
+        <button type="button" id="ocAddLinea" class="secundario chico">Añadir línea</button>
+    </div>
+    <div id="ocLineas"></div>
+    <div class="fila"><span id="ocResumen" class="tenue"></span><button type="button" id="ocCrear">Crear orden de compra</button></div>
+    <div id="ocLista"></div>
+</div>
+
+<!-- Fase 26, bloque 1: útiles por custodio. Las herramientas que
+     se usan no son stock para vender: son útiles en manos de una
+     persona, con su entrega y su devolución. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Útiles por custodio</h2>
+    <p class="tenue">Las herramientas y útiles en uso, con quién los tiene. No son mercancía para vender: salen del inventario cuando se entregan y vuelven cuando se devuelven.</p>
+    <div class="fila">
+        <label>Útil <input id="uNombre" placeholder="Ej. Taladro" style="min-width:150px"></label>
+        <label>Código <input id="uCodigo" placeholder="Ej. UT-01" style="width:100px"></label>
+        <label>¿A quién se le entrega? <input id="uCustodio" placeholder="Ej. Juan" style="min-width:140px"></label>
+        <label>Fecha <input id="uFecha" type="date"></label>
+        <button type="button" id="uEntregar">Entregar</button>
+    </div>
+    <div id="utiles"><p class="tenue">Sin útiles registrados.</p></div>
+</div>
+
+<!-- Fase 26, bloque 2: varios almacenes. El stock se separa por
+     local: la primera es donde vende el POS (la tienda) y las
+     demás son almacenes. El documento de entrada o salida dice en
+     qué almacén, y el traslado mueve mercancía de uno a otro. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Almacenes</h2>
+    <p class="tenue">El stock separado por local. La primera es donde vende el POS; las ventas descuentan de ella y, si no alcanza, del resto en orden. Los documentos viejos, sin almacén, cuentan en la primera.</p>
+    <div class="fila">
+        <label>Nombre del almacén <input id="alNombre" placeholder="Ej. Almacén" style="min-width:150px"></label>
+        <button type="button" id="alCrear">Crear almacén</button>
+    </div>
+    <div id="almacenes"></div>
+    <h2>Trasladar mercancía entre almacenes</h2>
+    <div class="fila">
+        <label>Producto <select id="trProducto"></select></label>
+        <label>Cantidad <input id="trCant" type="number" step="1" min="1" style="width:80px"></label>
+        <label>De <select id="trDe"></select></label>
+        <label>A <select id="trA"></select></label>
+        <label>Fecha <input id="trFecha" type="date"></label>
+        <button type="button" id="trMover">Trasladar</button>
+    </div>
+</div>
+
+<!-- Fase 26, bloque 3: recodificar productos. Cambiarle el código
+     a un producto sin perder su historia: el kardex, las ventas,
+     las órdenes y las consignaciones pasan al código nuevo. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Recodificar un producto</h2>
+    <p class="tenue">Cambiarle el código a un producto sin perder su historia: el kardex, las ventas, las órdenes de compra, las devoluciones, las consignaciones y los trabajos pasan al código nuevo. El stock y el costo no se tocan.</p>
+    <div class="fila">
+        <label>Producto <select id="rcProducto"></select></label>
+        <label>Código nuevo <input id="rcNuevo" placeholder="Ej. ARZ-001" style="min-width:130px"></label>
+        <button type="button" id="rcAplicar">Cambiar el código</button>
+    </div>
+    <div id="rcNota"></div>
+</div>
+
+<!-- Fase 26, bloque 4: solicitudes de compra. Alguien pide
+     comprar algo, el dueño lo aprueba y sale la orden al proveedor;
+     al recibir, entra al stock. La orden ya existe (fase 20); lo
+     nuevo es la solicitud con su aprobación. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Solicitudes de compra</h2>
+    <p class="tenue">Alguien pide comprar algo y el dueño lo aprueba o lo rechaza. La solicitud aprobada se vuelve orden de compra: las líneas pasan al formulario de órdenes para ponerle el proveedor y el costo.</p>
+    <div class="fila">
+        <label>¿Quién pide? <input id="scQuien" placeholder="Ej. Juan" style="min-width:140px"></label>
+        <label>Fecha <input id="scFecha" type="date"></label>
+    </div>
+    <div class="fila">
+        <label>Producto <select id="scProducto" style="min-width:220px"></select></label>
+        <label>Cantidad <input id="scCant" type="number" step="1" min="1" style="width:80px"></label>
+        <button type="button" id="scAddLinea" class="secundario chico">Añadir línea</button>
+    </div>
+    <div id="scLineas"></div>
+    <div class="fila"><button type="button" id="scPedir">Pedir la compra</button></div>
+    <div id="solicitudes"></div>
+</div>
+
+<!-- Fase 26, bloque 5: plan de compras. De los consumos previstos
+     sale la lista de lo que hay que comprar: lo que se espera
+     consumir en el mes menos lo que hay y lo que ya viene en
+     camino. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Plan de compras</h2>
+    <p class="tenue">De los consumos previstos sale lo que hay que comprar: consumo del mes menos lo que hay en stock menos lo que ya viene en camino en órdenes pendientes. Pon el consumo mensual que esperas de cada producto.</p>
+    <div class="fila">
+        <label>Producto <select id="pcProducto" style="min-width:220px"></select></label>
+        <label>Consumo mensual que se espera <input id="pcConsumo" type="number" step="1" min="0" style="width:100px"></label>
+        <button type="button" id="pcGuardar">Guardar el consumo</button>
+    </div>
+    <div id="planCompras"><p class="tenue">Sin consumos previstos todavía.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2 style="margin-top:0">Lotes y caducidad</h2>
+    <p class="tenue">Cada entrada trae su lote y su fecha de vencimiento. Las salidas y las ventas consumen el lote más viejo primero. Lo vencido no se vende: sale en rojo.</p>
+    <div id="lotesResumen"></div>
+    <div class="fila"><label>Producto <select id="lProducto"></select></label></div>
+    <div id="lotes"><p class="tenue">Elige un producto: verás sus lotes con lo que queda y cuándo vencen.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2 style="margin-top:0">Alertas de inventario</h2>
+    <p class="tenue">Lo que hay que pedir antes de que falte: productos por debajo de su mínimo (con cuánto comprar para volver al mínimo), productos agotados y productos sin mínimo puesto.</p>
+    <div id="alertas"><p class="tenue">Cargando…</p></div>
 </div>
 
 <div class="tarjeta">
@@ -73,23 +211,423 @@ const fmt = (n) => (Number(n) || 0).toLocaleString('es-CU', { minimumFractionDig
 let pos = null, conta = null;
 async function guardar() { await bd().docGuardar(tokenSesion(), 'pos', pos); }
 function producto(cod) { return (pos.productos || []).find((p) => p.codigo === cod); }
+/* Fase 20, bloque 1: alertas de inventario. Por debajo del mínimo
+ * (con cuánto comprar para volver al mínimo), agotados y sin mínimo
+ * puesto. */
+function alertasInventario(productos) {
+    const bajo = [], agotado = [], sinMinimo = [];
+    for (const p of productos || []) {
+        const stock = Number(p.stock) || 0, min = Number(p.stockMin) || 0;
+        if (stock <= 0) agotado.push({ codigo: p.codigo, nombre: p.nombre, stock, stockMin: min });
+        else if (min > 0 && stock < min) bajo.push({ codigo: p.codigo, nombre: p.nombre, stock, stockMin: min, comprar: min - stock });
+        else if (min <= 0) sinMinimo.push({ codigo: p.codigo, nombre: p.nombre, stock, stockMin: min });
+    }
+    bajo.sort((a, b) => a.stock - b.stock);
+    agotado.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+    return { bajo, agotado, sinMinimo, total: bajo.length + agotado.length };
+}
+/* Fase 20, bloque 2: lotes y caducidad. Las salidas y las ventas
+ * consumen el lote más viejo primero (FIFO por fecha de entrada).
+ * El lote de una entrada vieja sin lote es «Sin lote». */
+function diasHasta(fecha, hoy) {
+    if (!fecha) return null;
+    return Math.floor((new Date(fecha + 'T12:00:00Z') - new Date(hoy + 'T12:00:00Z')) / 86400000);
+}
+function estadoLote(lote, hoy) {
+    if (!lote.queda) return 'agotado';
+    if (!lote.vencimiento) return 'sin vencimiento';
+    const d = diasHasta(lote.vencimiento, hoy);
+    if (d < 0) return 'vencido';
+    if (d <= 30) return 'vence pronto';
+    if (d <= 90) return 'vence en 90 días';
+    return 'bien';
+}
+function lotesProducto(inventario, ventas, codigo, hoy) {
+    const movs = [];
+    for (const d of inventario || []) {
+        if (d.codigo !== codigo) continue;
+        movs.push({ fecha: d.fecha || '', tipo: d.tipo, cant: Number(d.cant) || 0, lote: d.lote || '', vencimiento: d.vencimiento || '', orden: movs.length });
+    }
+    for (const v of ventas || []) for (const l of (v.lineas || [])) {
+        if (l.codigo !== codigo) continue;
+        movs.push({ fecha: String(v.fecha || '').slice(0, 10), tipo: 'salida', cant: Number(l.cant) || 0, lote: '', vencimiento: '', orden: movs.length });
+    }
+    movs.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.orden - b.orden));
+    const lotes = [];
+    const porLote = (nombre) => {
+        let l = lotes.find((x) => x.lote === nombre);
+        if (!l) { l = { lote: nombre || 'Sin lote', vencimiento: '', entradas: 0, queda: 0 }; lotes.push(l); }
+        return l;
+    };
+    for (const m of movs) {
+        if (m.tipo === 'entrada') {
+            const l = porLote(m.lote);
+            if (!l.vencimiento && m.vencimiento) l.vencimiento = m.vencimiento;
+            l.entradas += m.cant; l.queda += m.cant;
+        } else {
+            let falta = m.cant;
+            /* FIFO: el lote más viejo primero (por fecha de su
+             * primera entrada; «Sin lote» va al final). */
+            const ordenados = [...lotes].sort((a, b) => {
+                const fa = movs.find((x) => (x.lote || 'Sin lote') === a.lote && x.tipo === 'entrada');
+                const fb = movs.find((x) => (x.lote || 'Sin lote') === b.lote && x.tipo === 'entrada');
+                const da = fa ? fa.fecha : '', db = fb ? fb.fecha : '';
+                if (a.lote === 'Sin lote') return 1;
+                if (b.lote === 'Sin lote') return -1;
+                return da < db ? -1 : da > db ? 1 : 0;
+            });
+            for (const l of ordenados) {
+                if (falta <= 0) break;
+                const toma = Math.min(l.queda, falta);
+                l.queda -= toma; falta -= toma;
+            }
+        }
+    }
+    for (const l of lotes) l.estado = estadoLote(l, hoy);
+    lotes.sort((a, b) => {
+        if (!a.vencimiento && b.vencimiento) return 1;
+        if (a.vencimiento && !b.vencimiento) return -1;
+        return String(a.vencimiento || '').localeCompare(String(b.vencimiento || ''));
+    });
+    return lotes;
+}
+function resumenLotes(inventario, ventas, productos, hoy) {
+    let vencidos = 0, vencidosUnid = 0, proximos = 0, proximosUnid = 0;
+    for (const p of productos || []) {
+        for (const l of lotesProducto(inventario, ventas, p.codigo, hoy)) {
+            if (l.estado === 'vencido') { vencidos++; vencidosUnid += l.queda; }
+            else if (l.estado === 'vence pronto') { proximos++; proximosUnid += l.queda; }
+        }
+    }
+    return { vencidos, vencidosUnid, proximos, proximosUnid };
+}
+function pintarLotes() {
+    const r = resumenLotes(pos.inventario || [], pos.ventas || [], pos.productos || [], hoyLocal());
+    $('lotesResumen').innerHTML =
+        (r.vencidos ? '<p><span class="mal">Vencidos: ' + r.vencidos + ' lote(s) con ' + r.vencidosUnid + ' unidad(es) que no se pueden vender.</span></p>' : '<p class="ok">Ningún lote vencido.</p>') +
+        (r.proximos ? '<p>Vencen en 30 días o menos: ' + r.proximos + ' lote(s) con ' + r.proximosUnid + ' unidad(es).</p>' : '');
+    const cod = $('lProducto').value;
+    if (!cod) { $('lotes').innerHTML = '<p class="tenue">Elige un producto: verás sus lotes con lo que queda y cuándo vencen.</p>'; return; }
+    const lotes = lotesProducto(pos.inventario || [], pos.ventas || [], cod, hoyLocal());
+    $('lotes').innerHTML = lotes.length
+        ? '<table><thead><tr><th>Lote</th><th>Vence</th><th class="num">Entradas</th><th class="num">Queda</th><th>Estado</th></tr></thead><tbody>' +
+            lotes.map((l) => '<tr><td>' + esc(l.lote) + '</td><td>' + (l.vencimiento || '—') + '</td><td class="num">' + l.entradas + '</td><td class="num">' + l.queda + '</td><td>' + (l.estado === 'vencido' ? '<span class="mal">Vencido</span>' : l.estado === 'vence pronto' ? '<span class="mal">Vence pronto</span>' : l.estado === 'agotado' ? '<span class="tenue">Agotado</span>' : l.estado === 'sin vencimiento' ? '<span class="tenue">Sin vencimiento</span>' : l.estado === 'vence en 90 días' ? 'Vence en 90 días' : '<span class="ok">Bien</span>') + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Este producto aún no tiene movimientos con lote.</p>';
+}
+/* Fase 20, bloque 3: variantes. Un producto puede ser variante de
+ * otro (talla, color): la base agrupa a sus variantes y la familia
+ * suma el stock de todas. La variante huérfana (su base se borró)
+ * queda como producto solo. */
+function familiasProductos(productos) {
+    const porCod = {};
+    for (const p of productos || []) porCod[p.codigo] = p;
+    const fams = [];
+    for (const p of productos || []) {
+        if (p.varianteDe && porCod[p.varianteDe]) continue;
+        const variantes = (productos || []).filter((x) => x.varianteDe === p.codigo);
+        fams.push({ base: p, variantes, stockTotal: variantes.reduce((s, v) => s + (Number(v.stock) || 0), Number(p.stock) || 0), tieneVariantes: variantes.length > 0 });
+    }
+    return fams;
+}
+/* Fase 20, bloque 4: órdenes de compra. Al recibir, el stock sube
+ * y el costo promedio se actualiza con la misma regla que las
+ * entradas manuales. La orden no crea asiento: la compra se
+ * asienta con su documento en Contabilidad. */
+function recibirOrden(orden, productos, inventario, fecha) {
+    const copia = JSON.parse(JSON.stringify(productos || []));
+    const entradas = [];
+    let valor = 0;
+    for (const l of orden.lineas || []) {
+        const p = copia.find((x) => x.codigo === l.codigo);
+        if (!p) return { ok: false, motivo: 'El producto ' + l.codigo + ' ya no existe' };
+        const cant = Number(l.cant) || 0, costoEnt = Number(l.costo) || 0;
+        if (cant <= 0) return { ok: false, motivo: 'La línea de ' + (p.nombre || l.codigo) + ' no tiene cantidad' };
+        const antes = Number(p.stock) || 0, costoAntes = Number(p.costo) || 0;
+        if (costoEnt > 0) p.costo = r2(((antes * costoAntes) + (cant * costoEnt)) / ((antes + cant) || 1));
+        p.stock = antes + cant;
+        valor = r2(valor + cant * costoEnt);
+        entradas.push({ id: 'd' + Date.now().toString(36) + l.codigo, fecha, tipo: 'entrada', codigo: p.codigo, nombre: p.nombre, cant, motivo: 'Orden de compra ' + orden.id, costo: costoEnt });
+    }
+    return { ok: true, productos: copia, entradas, valor };
+}
+let ocLineasEdit = [];
+let solicitudEnOrden = null;
+let scLineasEdit = [];
+function pintarOcEdit() {
+    $('ocLineas').innerHTML = ocLineasEdit.map((l, i) =>
+        '<div class="fila"><span>' + esc(l.nombre) + ' × ' + l.cant + '</span><span class="tenue">costo ' + fmt(l.costo) + ' · ' + fmt(r2(l.cant * l.costo)) + '</span>' +
+        '<button type="button" class="chico secundario" data-ocl="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Sin líneas todavía.</p>';
+    $('ocLineas').querySelectorAll('[data-ocl]').forEach((b) => b.addEventListener('click', () => { ocLineasEdit.splice(Number(b.dataset.ocl), 1); pintarOcEdit(); }));
+    $('ocResumen').textContent = ocLineasEdit.length ? 'Total de la orden: $' + fmt(ocLineasEdit.reduce((s, l) => s + r2(l.cant * l.costo), 0)) : '';
+}
+function pintarOrdenesCompra() {
+    const lista = [...(pos.ordenesCompra || [])].reverse();
+    $('ocLista').innerHTML = lista.length ? lista.map((o) =>
+        '<div class="fila" style="align-items:flex-start"><span><b>' + o.id + '</b> · ' + (o.fecha || '') + ' · ' + esc(o.proveedor || 'Sin proveedor') + ' · ' + (o.estado === 'recibida' ? '<span class="ok">Recibida' + (o.fechaRecibida ? ' el ' + o.fechaRecibida : '') + '</span>' : o.estado === 'anulada' ? '<span class="mal">Anulada</span>' : 'Pendiente') + '<br>' +
+        '<span class="tenue">' + (o.lineas || []).map((l) => esc(l.nombre) + ' × ' + l.cant + ' ($' + fmt(l.costo) + ')').join(' · ') + '</span></span>' +
+        (o.estado === 'pendiente' ? '<button type="button" class="chico" data-oc-recibir="' + o.id + '">Recibir</button> <button type="button" class="chico secundario" data-oc-anular="' + o.id + '">Anular</button>' : '') + '</div>').join('') : '<p class="tenue">Sin órdenes de compra todavía.</p>';
+    $('ocLista').querySelectorAll('[data-oc-recibir]').forEach((b) => b.addEventListener('click', async () => {
+        const o = (pos.ordenesCompra || []).find((x) => x.id === b.dataset.ocRecibir);
+        if (!o || o.estado !== 'pendiente') return;
+        const fecha = hoyLocal();
+        if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se reciben órdenes en un período cerrado', 'error'); return; }
+        const r = recibirOrden(o, pos.productos, pos.inventario, fecha);
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        pos.productos = r.productos;
+        pos.inventario.push(...r.entradas);
+        o.estado = 'recibida'; o.fechaRecibida = fecha;
+        try { await guardar(); pintar(); aviso('Orden ' + o.id + ' recibida: ' + r.entradas.length + ' entrada(s) por $' + fmt(r.valor) + '.'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+    $('ocLista').querySelectorAll('[data-oc-anular]').forEach((b) => b.addEventListener('click', async () => {
+        const o = (pos.ordenesCompra || []).find((x) => x.id === b.dataset.ocAnular);
+        if (!o || o.estado !== 'pendiente') return;
+        if (!confirm('¿Anular la orden ' + o.id + '?')) return;
+        o.estado = 'anulada';
+        try { await guardar(); pintar(); aviso('Orden anulada'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarAlertas() {
+    const a = alertasInventario(pos.productos || []);
+    $('alertas').innerHTML =
+        (a.agotado.length ? '<p><span class="mal">Agotados (' + a.agotado.length + '):</span> ' + a.agotado.map((p) => esc(p.nombre) + ' (mínimo ' + p.stockMin + ')').join(' · ') + '</p>' : '') +
+        (a.bajo.length ? '<table><thead><tr><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Comprar para volver al mínimo</th></tr></thead><tbody>' +
+            a.bajo.map((p) => '<tr><td>' + esc(p.codigo + ' · ' + p.nombre) + '</td><td class="num">' + p.stock + '</td><td class="num">' + p.stockMin + '</td><td class="num">' + p.comprar + '</td></tr>').join('') + '</tbody></table>' : '') +
+        (!a.total ? '<p class="ok">Nada por debajo del mínimo.</p>' : '') +
+        (a.sinMinimo.length ? '<p class="tenue">Sin mínimo puesto (' + a.sinMinimo.length + '): ' + a.sinMinimo.map((p) => esc(p.nombre)).join(' · ') + '. Ponles el mínimo en el Punto de Venta para que la app te avise.</p>' : '');
+}
+/* Fase 26, bloque 1: útiles por custodio. */
+function movimientoUtil(util, tipo, fecha, nota) {
+    if (tipo === 'entrega' && util.estado === 'en uso') return { ok: false, motivo: '«' + util.nombre + '» ya está en manos de ' + (util.custodio || '') };
+    if (tipo === 'devolucion' && util.estado !== 'en uso') return { ok: false, motivo: '«' + util.nombre + '» no está en uso: no hay nada que devolver' };
+    const copia = JSON.parse(JSON.stringify(util));
+    copia.movimientos = copia.movimientos || [];
+    copia.movimientos.push({ fecha, tipo, nota: nota || '' });
+    copia.estado = tipo === 'entrega' ? 'en uso' : 'devuelto';
+    return { ok: true, util: copia };
+}
+function utilesPorCustodio(utiles) {
+    const res = {};
+    for (const u of (utiles || [])) {
+        const c = u.custodio || 'Sin custodio';
+        res[c] = res[c] || { custodio: c, enUso: 0, devueltos: 0 };
+        if (u.estado === 'en uso') res[c].enUso++;
+        else res[c].devueltos++;
+    }
+    return Object.values(res).sort((a, b) => a.custodio.localeCompare(b.custodio));
+}
+/* Fase 26, bloque 2: varios almacenes. El stock por almacén sale
+ * de los documentos (cada uno con su almacén) menos las ventas,
+ * que descuentan de la primera y, si no alcanza, del resto en
+ * orden. Los documentos viejos, sin almacén, cuentan en la
+ * primera. */
+function stockPorAlmacen(inventario, ventas, productos, almacenes) {
+    const ids = (almacenes || []).map((a) => a.id);
+    if (!ids.length) ids.push('alm1');
+    const res = {};
+    for (const p of (productos || [])) { res[p.codigo] = { total: 0 }; for (const id of ids) res[p.codigo][id] = 0; }
+    for (const d of (inventario || [])) {
+        if (!res[d.codigo]) continue;
+        const alm = ids.includes(d.almacen) ? d.almacen : ids[0];
+        const cant = Number(d.cant) || 0;
+        if (d.tipo === 'entrada') { res[d.codigo][alm] += cant; res[d.codigo].total += cant; }
+        else if (d.tipo === 'salida') { res[d.codigo][alm] -= cant; res[d.codigo].total -= cant; }
+    }
+    for (const v of (ventas || [])) {
+        if ((v.estado || 'confirmada') !== 'confirmada') continue;
+        for (const l of (v.lineas || [])) {
+            if (!res[l.codigo]) continue;
+            let queda = (Number(l.cant) || 0) - (Number(l.devueltas) || 0);
+            for (const id of ids) {
+                if (queda <= 0) break;
+                const toma = Math.min(res[l.codigo][id], queda);
+                res[l.codigo][id] -= toma;
+                queda -= toma;
+            }
+            res[l.codigo].total -= (Number(l.cant) || 0) - (Number(l.devueltas) || 0);
+        }
+    }
+    return res;
+}
+/* Fase 26, bloque 3: recodificar productos. El código cambia en
+ * todas partes a la vez: producto, ventas, documentos, órdenes,
+ * devoluciones, consignación, trabajos, recetas y producción. */
+function recodificarProducto(pos, codigoViejo, codigoNuevo) {
+    const viejo = String(codigoViejo || '').trim();
+    const nuevo = String(codigoNuevo || '').trim();
+    if (!viejo) return { ok: false, motivo: 'Elige el producto a recodificar' };
+    if (!nuevo) return { ok: false, motivo: 'Escribe el código nuevo' };
+    if (viejo === nuevo) return { ok: false, motivo: 'El código nuevo es el mismo que el de antes' };
+    const prods = pos.productos || [];
+    if (!prods.some((p) => p.codigo === viejo)) return { ok: false, motivo: 'No existe un producto con el código «' + viejo + '»' };
+    if (prods.some((p) => p.codigo === nuevo)) return { ok: false, motivo: 'Ya existe un producto con el código «' + nuevo + '»' };
+    const copia = JSON.parse(JSON.stringify(pos));
+    const renombrar = (lista, campo) => { for (const x of (lista || [])) if (x && x[campo] === viejo) x[campo] = nuevo; };
+    for (const p of copia.productos) { if (p.codigo === viejo) p.codigo = nuevo; if (p.varianteDe === viejo) p.varianteDe = nuevo; }
+    for (const v of (copia.ventas || [])) renombrar(v.lineas, 'codigo');
+    renombrar(copia.inventario, 'codigo');
+    for (const o of (copia.ordenesCompra || [])) renombrar(o.lineas, 'codigo');
+    renombrar(copia.consignacion, 'codigo');
+    for (const d of (copia.devoluciones || [])) renombrar(d.lineas, 'codigo');
+    for (const t of (copia.trabajos || [])) renombrar(t.materiales, 'codigo');
+    renombrar(copia.recetas, 'codigo');
+    renombrar(copia.produccion, 'codigo');
+    renombrar(copia.preciosHist, 'codigo');
+    return { ok: true, pos: copia };
+}
+/* Fase 26, bloque 4: solicitudes de compra. */
+function aprobarSolicitud(solicitud) {
+    if (solicitud.estado !== 'pedida') return { ok: false, motivo: 'Solo se puede aprobar una solicitud pedida' };
+    const copia = JSON.parse(JSON.stringify(solicitud));
+    copia.estado = 'aprobada';
+    return { ok: true, solicitud: copia };
+}
+function rechazarSolicitud(solicitud) {
+    if (solicitud.estado !== 'pedida') return { ok: false, motivo: 'Solo se puede rechazar una solicitud pedida' };
+    const copia = JSON.parse(JSON.stringify(solicitud));
+    copia.estado = 'rechazada';
+    return { ok: true, solicitud: copia };
+}
+/* Fase 26, bloque 5: plan de compras. */
+function planDeCompras(productos, ordenes, plan) {
+    const enCamino = {};
+    for (const o of (ordenes || [])) {
+        if (o.estado !== 'pendiente') continue;
+        for (const l of (o.lineas || [])) enCamino[l.codigo] = (enCamino[l.codigo] || 0) + (Number(l.cant) || 0);
+    }
+    const filas = [];
+    for (const p of (productos || [])) {
+        const consumo = Number((plan || {})[p.codigo]) || 0;
+        if (!(consumo > 0)) continue;
+        const stock = Number(p.stock) || 0;
+        const camino = enCamino[p.codigo] || 0;
+        filas.push({ codigo: p.codigo, nombre: p.nombre, consumo, stock, enCamino: camino, aComprar: Math.max(0, consumo - stock - camino) });
+    }
+    filas.sort((a, b) => b.aComprar - a.aComprar);
+    return filas;
+}
+function pintarPlanCompras() {
+    const filas = planDeCompras(pos.productos || [], pos.ordenesCompra || [], pos.planCompras || {});
+    $('planCompras').innerHTML = filas.length ? '<table><thead><tr><th>Producto</th><th class="num">Consumo del mes</th><th class="num">En stock</th><th class="num">En camino</th><th class="num">Hay que comprar</th><th></th></tr></thead><tbody>' +
+        filas.map((f) => '<tr><td>' + esc(f.nombre) + '</td><td class="num">' + f.consumo + '</td><td class="num">' + f.stock + '</td><td class="num">' + f.enCamino + '</td><td class="num"><b>' + f.aComprar + '</b></td><td>' + (f.aComprar > 0 ? '<button type="button" class="chico" data-pc-orden="' + esc(f.codigo) + '">Crear orden</button>' : '<span class="ok">Alcanza</span>') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin consumos previstos todavía: pon el consumo mensual de cada producto.</p>';
+    $('planCompras').querySelectorAll('[data-pc-orden]').forEach((b) => b.addEventListener('click', () => {
+        const f = filas.find((x) => x.codigo === b.dataset.pcOrden);
+        if (!f) return;
+        ocLineasEdit = [{ codigo: f.codigo, nombre: f.nombre, cant: f.aComprar, costo: 0 }];
+        solicitudEnOrden = null;
+        pintarOcEdit();
+        aviso('La cantidad a comprar está en el formulario de órdenes: ponle el proveedor y el costo y crea la orden');
+    }));
+}
+function pintarSolicitudes() {
+    const lista = [...(pos.solicitudes || [])].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    const estadoTxt = { pedida: 'Pedida', aprobada: 'Aprobada', rechazada: 'Rechazada', 'pedida al proveedor': 'Pedida al proveedor' };
+    $('solicitudes').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>¿Quién?</th><th>Qué pide</th><th>Estado</th><th></th></tr></thead><tbody>' +
+        lista.map((s) => '<tr><td>' + esc(s.fecha || '') + '</td><td>' + esc(s.quien || '') + '</td><td>' + (s.lineas || []).map((l) => esc(l.nombre) + ' ×' + l.cant).join(', ') + '</td><td>' + (estadoTxt[s.estado] || s.estado) + (s.ordenId ? ' · ' + esc(s.ordenId) : '') + '</td><td>' +
+        (s.estado === 'pedida' ? '<button type="button" class="chico" data-sc-aprobar="' + s.id + '">Aprobar</button> <button type="button" class="chico secundario" data-sc-rechazar="' + s.id + '">Rechazar</button>' : '') +
+        (s.estado === 'aprobada' ? '<button type="button" class="chico" data-sc-orden="' + s.id + '">Crear orden de compra</button>' : '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin solicitudes todavía.</p>';
+    $('solicitudes').querySelectorAll('[data-sc-aprobar]').forEach((b) => b.addEventListener('click', async () => {
+        const s = (pos.solicitudes || []).find((x) => x.id === b.dataset.scAprobar);
+        if (!s) return;
+        const r = aprobarSolicitud(s);
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        pos.solicitudes[pos.solicitudes.findIndex((x) => x.id === s.id)] = r.solicitud;
+        await guardar(); pintarSolicitudes(); aviso('Solicitud aprobada');
+    }));
+    $('solicitudes').querySelectorAll('[data-sc-rechazar]').forEach((b) => b.addEventListener('click', async () => {
+        const s = (pos.solicitudes || []).find((x) => x.id === b.dataset.scRechazar);
+        if (!s) return;
+        const r = rechazarSolicitud(s);
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        pos.solicitudes[pos.solicitudes.findIndex((x) => x.id === s.id)] = r.solicitud;
+        await guardar(); pintarSolicitudes(); aviso('Solicitud rechazada');
+    }));
+    $('solicitudes').querySelectorAll('[data-sc-orden]').forEach((b) => b.addEventListener('click', async () => {
+        const s = (pos.solicitudes || []).find((x) => x.id === b.dataset.scOrden);
+        if (!s) return;
+        ocLineasEdit = (s.lineas || []).map((l) => ({ codigo: l.codigo, nombre: l.nombre, cant: l.cant, costo: 0 }));
+        solicitudEnOrden = s.id;
+        pintarOcEdit();
+        document.querySelector('h2') && window.scrollTo({ top: document.querySelector('.tarjeta').offsetTop, behavior: 'smooth' });
+        aviso('Las líneas de la solicitud están en el formulario de órdenes: ponle el proveedor y el costo y crea la orden');
+    }));
+}
+function pintarAlmacenes() {
+    const lista = pos.almacenes || [];
+    $('almacenes').innerHTML = lista.map((a, i) => '<div class="fila"><span><b>' + esc(a.nombre) + '</b>' + (i === 0 ? ' <span class="tenue">(aquí vende el POS)</span>' : '') + '</span></div>').join('') || '<p class="tenue">Sin almacenes.</p>';
+    const opts = lista.map((a) => '<option value="' + a.id + '">' + esc(a.nombre) + '</option>').join('');
+    $('dAlmacen').innerHTML = opts;
+    $('trDe').innerHTML = opts;
+    $('trA').innerHTML = opts;
+    $('trProducto').innerHTML = (pos.productos || []).map((p) => '<option value="' + esc(p.codigo) + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + '</option>').join('') || '<option value="">— sin productos —</option>';
+    $('rcProducto').innerHTML = (pos.productos || []).map((p) => '<option value="' + esc(p.codigo) + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + '</option>').join('') || '<option value="">— sin productos —</option>';
+}
+function pintarUtiles() {
+    const lista = [...(pos.utiles || [])].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
+    const resumen = utilesPorCustodio(pos.utiles || []);
+    $('utiles').innerHTML = (resumen.length ? '<p>' + resumen.map((r) => '<b>' + esc(r.custodio) + '</b>: ' + r.enUso + ' en uso' + (r.devueltos ? ' · ' + r.devueltos + ' devuelto(s)' : '')).join(' &nbsp;·&nbsp; ') + '</p>' : '') +
+        (lista.length ? '<table><thead><tr><th>Útil</th><th>Código</th><th>Custodio</th><th>Estado</th><th>Historial</th><th></th></tr></thead><tbody>' +
+        lista.map((u) => '<tr><td>' + esc(u.nombre) + '</td><td>' + esc(u.codigo || '') + '</td><td>' + esc(u.custodio || '—') + '</td><td>' + (u.estado === 'en uso' ? '<span class="mal">En uso</span>' : '<span class="ok">Devuelto</span>') + '</td><td class="tenue">' + (u.movimientos || []).map((m) => esc(m.fecha || '') + ' ' + (m.tipo === 'entrega' ? 'entrega' : 'devolución') + (m.nota ? ' (' + esc(m.nota) + ')' : '')).join('<br>') + '</td><td>' + (u.estado === 'en uso' ? '<button type="button" class="chico secundario" data-u-devolver="' + u.id + '">Devolver</button>' : '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin útiles registrados.</p>');
+    $('utiles').querySelectorAll('[data-u-devolver]').forEach((b) => b.addEventListener('click', async () => {
+        const u = (pos.utiles || []).find((x) => x.id === b.dataset.uDevolver);
+        if (!u) return;
+        const r = movimientoUtil(u, 'devolucion', hoyLocal(), '');
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        const idx = pos.utiles.findIndex((x) => x.id === u.id);
+        pos.utiles[idx] = r.util;
+        await guardar();
+        pintarUtiles(); aviso('«' + u.nombre + '» devuelto por ' + (u.custodio || ''));
+    }));
+}
 function pintar() {
     const prods = pos.productos || [];
     const opciones = prods.map((p) => '<option value="' + esc(p.codigo) + '">' + esc(p.codigo) + ' · ' + esc(p.nombre) + ' (stock ' + (Number(p.stock) || 0) + ')</option>').join('');
+    const valK = $('kProducto').value, valL = $('lProducto').value;
     $('dProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
     $('kProducto').innerHTML = '<option value="">— elige —</option>' + opciones;
+    $('lProducto').innerHTML = '<option value="">— elige —</option>' + opciones;
+    $('ocProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
+    $('scProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
+    $('pcProducto').innerHTML = opciones || '<option value="">— sin productos: créalos en el POS —</option>';
+    if (valK) $('kProducto').value = valK;
+    if (valL) $('lProducto').value = valL;
     let totalValor = 0, totalCosto = 0;
-    $('existencias').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Costo prom.</th><th class="num">Valor a costo</th><th class="num">Valor a precio de venta</th><th>Estado</th></tr></thead><tbody>' +
-        (prods.map((p) => {
-            const valor = r2((Number(p.stock) || 0) * (Number(p.precio) || 0));
-            const valorCosto = r2((Number(p.stock) || 0) * (Number(p.costo) || 0));
-            totalValor = r2(totalValor + valor);
-            totalCosto = r2(totalCosto + valorCosto);
-            const bajo = (Number(p.stock) || 0) < (Number(p.stockMin) || 0);
-            return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num">' + (Number(p.stock) || 0) + '</td><td class="num">' + (Number(p.stockMin) || 0) + '</td><td class="num">' + ((Number(p.costo) || 0) > 0 ? fmt(p.costo) : '—') + '</td><td class="num">' + fmt(valorCosto) + '</td><td class="num">' + fmt(valor) + '</td><td>' + (bajo ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>';
-        }).join('') || '<tr><td colspan="8" class="tenue">Sin productos todavía: créalos en el módulo Punto de Venta.</td></tr>') +
-        '<tr class="totales"><td colspan="5">VALOR TOTAL DEL INVENTARIO</td><td class="num">' + fmt(totalCosto) + ' (a costo)</td><td class="num">' + fmt(totalValor) + ' (a precio)</td><td></td></tr></tbody></table>';
+    for (const p of prods) { totalValor = r2(totalValor + (Number(p.stock) || 0) * (Number(p.precio) || 0)); totalCosto = r2(totalCosto + (Number(p.stock) || 0) * (Number(p.costo) || 0)); }
+    const almacenes = pos.almacenes || [];
+    const porAlm = stockPorAlmacen(pos.inventario || [], pos.ventas || [], pos.productos || [], almacenes);
+    const celdasAlm = (p) => almacenes.map((a) => '<td class="num">' + (((porAlm[p.codigo] || {})[a.id]) || 0) + '</td>').join('');
+    const thAlm = almacenes.map((a) => '<th class="num">' + esc(a.nombre) + '</th>').join('');
+    const filaProducto = (p, nombreMostrado) => {
+        const valor = r2((Number(p.stock) || 0) * (Number(p.precio) || 0));
+        const valorCosto = r2((Number(p.stock) || 0) * (Number(p.costo) || 0));
+        const bajo = (Number(p.stock) || 0) < (Number(p.stockMin) || 0);
+        return '<tr><td>' + esc(p.codigo) + '</td><td>' + esc(nombreMostrado || p.nombre) + '</td><td class="num">' + (Number(p.stock) || 0) + '</td>' + celdasAlm(p) + '<td class="num">' + (Number(p.stockMin) || 0) + '</td><td class="num">' + ((Number(p.costo) || 0) > 0 ? fmt(p.costo) : '—') + '</td><td>' + ((Number(p.precio) || 0) > 0 ? 'Sí' : '<span class="rojo">No</span>') + '</td><td class="num">' + fmt(valorCosto) + '</td><td class="num">' + fmt(valor) + '</td><td>' + (bajo ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>';
+    };
+    const filasExistencias = familiasProductos(prods).map((f) => {
+        if (!f.tieneVariantes) return filaProducto(f.base);
+        const minTotal = (Number(f.base.stockMin) || 0) + f.variantes.reduce((s, v) => s + (Number(v.stockMin) || 0), 0);
+        const valorCostoFam = r2((Number(f.base.stock) || 0) * (Number(f.base.costo) || 0)) + f.variantes.reduce((s, v) => s + r2((Number(v.stock) || 0) * (Number(v.costo) || 0)), 0);
+        const valorFam = r2((Number(f.base.stock) || 0) * (Number(f.base.precio) || 0)) + f.variantes.reduce((s, v) => s + r2((Number(v.stock) || 0) * (Number(v.precio) || 0)), 0);
+        const bajoFam = (Number(f.base.stock) || 0) < (Number(f.base.stockMin) || 0) || f.variantes.some((v) => (Number(v.stock) || 0) < (Number(v.stockMin) || 0));
+        return '<tr class="totales"><td>' + esc(f.base.codigo) + '</td><td>' + esc(f.base.nombre) + ' (familia)</td><td class="num">' + f.stockTotal + '</td>' + almacenes.map((a) => '<td class="num">' + ((((porAlm[f.base.codigo] || {})[a.id]) || 0) + f.variantes.reduce((sx, v) => sx + (((porAlm[v.codigo] || {})[a.id]) || 0), 0)) + '</td>').join('') + '<td class="num">' + minTotal + '</td><td class="num">—</td><td>' + ((Number(f.base.precio) || 0) > 0 || f.variantes.some((v) => (Number(v.precio) || 0) > 0) ? 'Sí' : '<span class="rojo">No</span>') + '</td><td class="num">' + fmt(valorCostoFam) + '</td><td class="num">' + fmt(valorFam) + '</td><td>' + (bajoFam ? '<span class="mal">Bajo mínimo</span>' : '<span class="ok">Bien</span>') + '</td></tr>' +
+            filaProducto(f.base, f.base.nombre + ' (base)') +
+            f.variantes.map((v) => filaProducto(v, '↳ ' + v.nombre + (v.variante ? ' (' + v.variante + ')' : ''))).join('');
+    }).join('') || '<tr><td colspan="' + (9 + almacenes.length) + '" class="tenue">Sin productos todavía: créalos en el módulo Punto de Venta.</td></tr>';
+    const nProductos = prods.length, sinExistencia = prods.filter((p) => (Number(p.stock) || 0) <= 0).length, sinPrecio = prods.filter((p) => !(Number(p.precio) || 0) > 0).length;
+    $('existencias').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Stock</th>' + thAlm + '<th class="num">Mínimo</th><th class="num">Costo prom.</th><th>Tiene precio</th><th class="num">Valor a costo</th><th class="num">Valor a precio de venta</th><th>Estado</th></tr></thead><tbody>' +
+        filasExistencias +
+        '<tr class="totales"><td colspan="' + (6 + almacenes.length) + '">VALOR TOTAL DEL INVENTARIO</td><td class="num">' + fmt(totalCosto) + ' (a costo)</td><td class="num">' + fmt(totalValor) + ' (a precio)</td><td></td></tr></tbody></table>' +
+        '<p class="tenue">' + nProductos + ' producto(s) (Sin existencia: ' + sinExistencia + ' · Sin precio: ' + sinPrecio + ').</p>';
     pintarKardex();
+    pintarAlertas();
+    pintarLotes();
+    pintarOrdenesCompra();
+    pintarUtiles();
+    pintarAlmacenes();
+    pintarSolicitudes();
+    pintarPlanCompras();
+    pintarExpedientes();
 }
 function pintarKardex() {
     const cod = $('kProducto').value;
@@ -104,6 +642,38 @@ function pintarKardex() {
         '</tbody></table><p class="tenue">El acumulado suma solo los movimientos registrados aquí (documentos y ventas); el stock real del producto es el de la tabla de Existencias.</p>';
 }
 let diferenciasConteo = [];
+/* Fase 37, bloque 1: carga inicial (concepto 101). */
+function costoCargaInicial(p, cant, costoEnt) {
+    const antes = Number(p.stock) || 0, costoAntes = Number(p.costo) || 0;
+    if (antes <= 0) return { costo: r2(costoEnt), nota: 'Costo inicial: ' + fmt(r2(costoEnt)) + '.' };
+    return { costo: r2(((antes * costoAntes) + (cant * costoEnt)) / ((antes + cant) || 1)), nota: 'El producto ya tenía stock: el costo sigue siendo el promedio ponderado: ' + fmt(r2(((antes * costoAntes) + (cant * costoEnt)) / ((antes + cant) || 1))) + '.' };
+}
+function esCargaInicial(doc) { return String(doc && doc.motivo || '').indexOf('Carga Inicial') === 0; }
+/* Fase 37, bloque 2: expediente por diferencia. */
+function expedienteDeDiferencia(d, fecha) {
+    return { id: 'ex' + Date.now().toString(36) + d.codigo, fecha, codigo: d.codigo, nombre: d.nombre, libros: (Number(d.libros) || 0), contado: (Number(d.contado) || 0), dif: d.dif, valor: d.valor, estado: 'pendiente', asientoNumero: null };
+}
+function registrarExpedientes(expedientes, diferencias, fecha) {
+    const copia = (expedientes || []).slice();
+    for (const d of (diferencias || [])) {
+        const ex = copia.find((x) => x.fecha === fecha && x.codigo === d.codigo && x.estado === 'pendiente');
+        if (ex) { ex.libros = Number(d.libros) || 0; ex.contado = Number(d.contado) || 0; ex.dif = d.dif; ex.valor = d.valor; continue; }
+        copia.push(expedienteDeDiferencia(d, fecha));
+    }
+    return copia;
+}
+function marcarExpedientesAjustados(expedientes, fecha, asientoNumero) {
+    return (expedientes || []).map((x) => (x.fecha === fecha && x.estado === 'pendiente') ? { ...x, estado: 'ajustado', asientoNumero: asientoNumero || null } : x);
+}
+function expedientesPendientes(expedientes) { return (expedientes || []).filter((x) => x.estado === 'pendiente').length; }
+function pintarExpedientes() {
+    const filtro = $('exFiltro').value;
+    const lista = (pos.expedientesConteo || []).slice().reverse().filter((x) => filtro === 'todos' || x.estado === filtro);
+    const pend = expedientesPendientes(pos.expedientesConteo || []);
+    $('expedientes').innerHTML = (pend > 0 ? '<p><b>' + pend + ' diferencia(s) pendiente(s) de ajustar.</b></p>' : '<p class="ok">Sin diferencias pendientes.</p>') +
+        (lista.length ? '<table><thead><tr><th>Fecha</th><th>Producto</th><th class="num">Según libros</th><th class="num">Contado</th><th>Diferencia</th><th class="num">Valor</th><th>Estado</th></tr></thead><tbody>' +
+            lista.map((x) => '<tr><td>' + esc(x.fecha || '') + '</td><td>' + esc(x.nombre || '') + '</td><td class="num">' + (Number(x.libros) || 0) + '</td><td class="num">' + (Number(x.contado) || 0) + '</td><td>' + (x.dif > 0 ? '<span class="ok">Sobrante +' + x.dif + '</span>' : '<span class="mal">Faltante ' + x.dif + '</span>') + '</td><td class="num">' + fmt(Number(x.valor) || 0) + '</td><td>' + (x.estado === 'ajustado' ? '<span class="ok">Ajustado' + (x.asientoNumero ? ' · asiento nº ' + x.asientoNumero : '') + '</span>' : '<span class="mal">Pendiente</span>') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin expedientes todavía: compara un conteo y las diferencias salen aquí.</p>');
+}
 function pintarHojaConteo() {
     const mostrar = $('cMostrar').checked;
     const prods = pos.productos || [];
@@ -127,10 +697,14 @@ function pintarComparacion() {
         const dif = contado - libros;
         if (dif === 0) { filas.push('<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num">' + libros + '</td><td class="num">' + contado + '</td><td><span class="ok">Cuadra</span></td><td class="num">0,00</td></tr>'); return; }
         const valor = r2(Math.abs(dif) * (Number(p.costo) || 0));
-        diferenciasConteo.push({ codigo: p.codigo, nombre: p.nombre, dif, valor });
+        diferenciasConteo.push({ codigo: p.codigo, nombre: p.nombre, libros, contado, dif, valor });
         filas.push('<tr><td>' + esc(p.codigo) + '</td><td>' + esc(p.nombre) + '</td><td class="num">' + libros + '</td><td class="num">' + contado + '</td><td>' + (dif > 0 ? '<span class="ok">Sobrante +' + dif + '</span>' : '<span class="mal">Faltante ' + dif + '</span>') + '</td><td class="num">' + fmt(valor) + ' (a costo)</td></tr>');
     });
     if (!filas.length) { $('ajuste').innerHTML = '<p class="tenue">No contaste ningún producto todavía.</p>'; return; }
+    /* Fase 37, bloque 2: cada diferencia genera su expediente. */
+    pos.expedientesConteo = registrarExpedientes(pos.expedientesConteo || [], diferenciasConteo, $('cFecha').value);
+    guardar().catch(() => {});
+    pintarExpedientes();
     let sobra = 0, falta = 0;
     for (const d of diferenciasConteo) { if (d.dif > 0) sobra = r2(sobra + d.valor); else falta = r2(falta + d.valor); }
     $('ajuste').innerHTML = '<table><thead><tr><th>Código</th><th>Producto</th><th class="num">Según libros</th><th class="num">Contado</th><th>Diferencia</th><th class="num">Valor</th></tr></thead><tbody>' + filas.join('') + '</tbody></table>' +
@@ -165,10 +739,13 @@ async function aplicarAjustes() {
         conta.seqAsiento = (conta.seqAsiento || 0) + 1;
         conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: 'Ajuste de inventario por conteo físico del ' + fecha, origen: 'manual', estado: 'confirmado', lineas });
         asientoTxt = ' Asiento nº ' + conta.seqAsiento + ' creado en Contabilidad.';
+        /* Fase 37, bloque 2: los expedientes de este conteo quedan ajustados. */
+        pos.expedientesConteo = marcarExpedientesAjustados(pos.expedientesConteo || [], fecha, conta.seqAsiento);
         /* M-1: asiento (conta) + stock y kardex (pos) en UNA transacción. */
         await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
     } else {
         asientoTxt = ' Sin asiento: los productos con diferencia no tienen costo registrado, así que el ajuste mueve solo unidades.';
+        pos.expedientesConteo = marcarExpedientesAjustados(pos.expedientesConteo || [], fecha, null);
         await guardar();
     }
     aviso('Ajustes aplicados: el stock ya es el contado.' + asientoTxt);
@@ -183,10 +760,127 @@ async function aplicarAjustes() {
         if (!s) { $('existencias').innerHTML = '<p class="mal">Sin sesión: entra desde la ventana principal.</p>'; return; }
         pos = (await bd().docLeer(tokenSesion(), 'pos')) || { productos: [], ventas: [] };
         pos.inventario = pos.inventario || [];
+        pos.ordenesCompra = pos.ordenesCompra || [];
+        pos.utiles = pos.utiles || [];
+        pos.almacenes = pos.almacenes || [];
+        if (!pos.almacenes.length) pos.almacenes.push({ id: 'alm1', nombre: 'Tienda' });
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { candados: {} };
         $('dFecha').value = hoyLocal();
         $('cFecha').value = hoyLocal();
+        $('ocFecha').value = hoyLocal();
+        $('uFecha').value = hoyLocal();
+        $('trFecha').value = hoyLocal();
+        $('scFecha').value = hoyLocal();
+        pos.solicitudes = pos.solicitudes || [];
+        pos.planCompras = pos.planCompras || {};
+        /* Fase 37, bloque 2: expediente por diferencia. */
+        pos.expedientesConteo = pos.expedientesConteo || [];
+        $('exFiltro').addEventListener('change', pintarExpedientes);
+        /* Fase 26, bloque 5: plan de compras. */
+        $('pcGuardar').addEventListener('click', async () => {
+            const codigo = $('pcProducto').value;
+            const consumo = Math.floor(Number($('pcConsumo').value) || 0);
+            if (!codigo) { aviso('Elige el producto', 'error'); return; }
+            if (consumo > 0) pos.planCompras[codigo] = consumo;
+            else delete pos.planCompras[codigo];
+            await guardar();
+            $('pcConsumo').value = '';
+            pintarPlanCompras(); aviso(consumo > 0 ? 'Consumo mensual guardado' : 'Consumo quitado del plan');
+        });
+        /* Fase 26, bloque 4: solicitudes de compra. */
+        const pintarScEdit = () => {
+            $('scLineas').innerHTML = scLineasEdit.map((l, i) => '<div class="fila"><span>' + esc(l.nombre) + ' ×' + l.cant + '</span><button type="button" class="chico secundario" data-scl="' + i + '">Quitar</button></div>').join('');
+            $('scLineas').querySelectorAll('[data-scl]').forEach((b) => b.addEventListener('click', () => { scLineasEdit.splice(Number(b.dataset.scl), 1); pintarScEdit(); }));
+        };
+        $('scAddLinea').addEventListener('click', () => {
+            const p = producto($('scProducto').value), cant = Math.floor(Number($('scCant').value) || 0);
+            if (!p || cant <= 0) { aviso('Elige el producto y su cantidad', 'error'); return; }
+            const ex = scLineasEdit.find((l) => l.codigo === p.codigo);
+            if (ex) ex.cant += cant;
+            else scLineasEdit.push({ codigo: p.codigo, nombre: p.nombre, cant });
+            pintarScEdit();
+        });
+        $('scPedir').addEventListener('click', async () => {
+            const quien = $('scQuien').value.trim();
+            if (!quien) { aviso('La solicitud necesita quién la pide', 'error'); return; }
+            if (!scLineasEdit.length) { aviso('La solicitud necesita al menos una línea', 'error'); return; }
+            pos.solicitudes.push({ id: 'SC-' + Date.now().toString(36).toUpperCase(), fecha: $('scFecha').value || hoyLocal(), quien, estado: 'pedida', lineas: [...scLineasEdit] });
+            await guardar();
+            scLineasEdit = []; $('scQuien').value = ''; pintarScEdit(); pintarSolicitudes();
+            aviso('Solicitud de compra registrada: el dueño la aprueba o la rechaza');
+        });
+        /* Fase 26, bloque 3: recodificar productos. */
+        $('rcAplicar').addEventListener('click', async () => {
+            const r = recodificarProducto(pos, $('rcProducto').value, $('rcNuevo').value);
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            pos = r.pos;
+            await guardar();
+            $('rcNuevo').value = '';
+            $('rcNota').innerHTML = '<p class="ok">Código cambiado: la historia del producto (kardex, ventas, órdenes) pasó al código nuevo.</p>';
+            pintar(); aviso('Producto recodificado');
+        });
+        $('alCrear').addEventListener('click', async () => {
+            const nombre = $('alNombre').value.trim();
+            if (!nombre) { aviso('El almacén necesita un nombre', 'error'); return; }
+            if (pos.almacenes.some((a) => a.nombre.toLowerCase() === nombre.toLowerCase())) { aviso('Ya existe un almacén con ese nombre', 'error'); return; }
+            pos.almacenes.push({ id: 'alm' + Date.now().toString(36), nombre });
+            await guardar();
+            $('alNombre').value = '';
+            pintar(); aviso('Almacén «' + nombre + '» creado');
+        });
+        $('trMover').addEventListener('click', async () => {
+            const p = producto($('trProducto').value);
+            const cant = Math.floor(Number($('trCant').value) || 0);
+            const de = $('trDe').value, a = $('trA').value;
+            if (!p || cant <= 0) { aviso('Elige el producto y su cantidad', 'error'); return; }
+            if (de === a) { aviso('El almacén de origen y el de destino son el mismo', 'error'); return; }
+            const fecha = $('trFecha').value;
+            if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('Ese mes está cerrado: no se puede trasladar mercancía', 'error'); return; }
+            const porAlm = stockPorAlmacen(pos.inventario || [], pos.ventas || [], pos.productos || [], pos.almacenes || []);
+            if (((porAlm[p.codigo] || {})[de] || 0) < cant) { aviso('En «' + ((pos.almacenes.find((x) => x.id === de) || {}).nombre || '') + '» solo hay ' + (((porAlm[p.codigo] || {})[de]) || 0) + ' de ' + p.nombre, 'error'); return; }
+            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo: 'salida', codigo: p.codigo, nombre: p.nombre, cant, motivo: 'Traslado a ' + ((pos.almacenes.find((x) => x.id === a) || {}).nombre || ''), costo: 0, almacen: de });
+            pos.inventario.push({ id: 'd' + Date.now().toString(36) + 't', fecha, tipo: 'entrada', codigo: p.codigo, nombre: p.nombre, cant, motivo: 'Traslado desde ' + ((pos.almacenes.find((x) => x.id === de) || {}).nombre || ''), costo: 0, almacen: a });
+            await guardar();
+            pintar(); aviso('Traslado de ' + cant + ' × ' + p.nombre + ' registrado');
+        });
+        /* Fase 26, bloque 1: útiles por custodio. */
+        $('uEntregar').addEventListener('click', async () => {
+            const nombre = $('uNombre').value.trim();
+            const codigo = $('uCodigo').value.trim();
+            const custodio = $('uCustodio').value.trim();
+            if (!nombre || !custodio) { aviso('El útil necesita nombre y a quién se le entrega', 'error'); return; }
+            if ((pos.utiles || []).some((u) => u.estado === 'en uso' && (u.codigo || '') === codigo && codigo)) { aviso('Ese código ya está en uso', 'error'); return; }
+            const util = { id: 'ut' + Date.now().toString(36), nombre, codigo, custodio, fechaEntrega: $('uFecha').value, estado: 'en uso', movimientos: [{ fecha: $('uFecha').value, tipo: 'entrega', nota: '' }] };
+            pos.utiles.push(util);
+            await guardar();
+            $('uNombre').value = ''; $('uCodigo').value = ''; $('uCustodio').value = '';
+            pintarUtiles(); aviso('«' + nombre + '» entregado a ' + custodio);
+        });
+        /* Fase 20, bloque 4: órdenes de compra. */
+        $('ocAddLinea').addEventListener('click', () => {
+            const p = producto($('ocProducto').value), cant = Math.floor(Number($('ocCant').value) || 0), costo = Number($('ocCosto').value) || 0;
+            if (!p || cant <= 0) { aviso('Elige el producto y su cantidad', 'error'); return; }
+            const ex = ocLineasEdit.find((l) => l.codigo === p.codigo);
+            if (ex) { ex.cant += cant; ex.costo = costo; }
+            else ocLineasEdit.push({ codigo: p.codigo, nombre: p.nombre, cant, costo });
+            pintarOcEdit();
+        });
+        $('ocCrear').addEventListener('click', async () => {
+            const proveedor = $('ocProveedor').value.trim();
+            if (!proveedor) { aviso('La orden necesita el proveedor', 'error'); return; }
+            if (!ocLineasEdit.length) { aviso('La orden necesita al menos una línea', 'error'); return; }
+            pos.ordenesCompra.push({ id: 'OC-' + Date.now().toString(36).toUpperCase(), fecha: $('ocFecha').value || hoyLocal(), proveedor, estado: 'pendiente', lineas: [...ocLineasEdit], solicitudId: solicitudEnOrden || '' });
+            if (solicitudEnOrden) {
+                const s = (pos.solicitudes || []).find((x) => x.id === solicitudEnOrden);
+                if (s) { s.estado = 'pedida al proveedor'; s.ordenId = pos.ordenesCompra[pos.ordenesCompra.length - 1].id; }
+                solicitudEnOrden = null;
+            }
+            try { await guardar(); ocLineasEdit = []; $('ocProveedor').value = ''; pintarOcEdit(); pintar(); aviso('Orden de compra creada'); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        pintarOcEdit();
         $('kProducto').addEventListener('change', pintarKardex);
+        $('lProducto').addEventListener('change', pintarLotes);
         $('cHoja').addEventListener('click', pintarHojaConteo);
         $('cMostrar').addEventListener('change', () => { if ($('conteo').querySelector('[data-conteo]')) pintarHojaConteo(); });
         $('cComparar').addEventListener('click', pintarComparacion);
@@ -210,14 +904,20 @@ async function aplicarAjustes() {
             if (tipo === 'salida' && (Number(p.stock) || 0) < cant) { aviso('No hay stock suficiente: quedan ' + (Number(p.stock) || 0), 'error'); return; }
             const costoEnt = Number($('dCosto').value) || 0;
             let avisoCosto = '';
-            if (tipo === 'entrada' && costoEnt > 0) {
+            /* Fase 37, bloque 1: carga inicial (concepto 101) sin comprobante. */
+            const esCarga = $('dCargaInicial').checked && tipo === 'entrada';
+            if (esCarga) {
+                const r = costoCargaInicial(p, cant, costoEnt);
+                p.costo = r.costo;
+                avisoCosto = ' ' + r.nota + ' Sin comprobante contable (concepto 101).';
+            } else if (tipo === 'entrada' && costoEnt > 0) {
                 const antes = Number(p.stock) || 0, costoAntes = Number(p.costo) || 0;
                 p.costo = r2(((antes * costoAntes) + (cant * costoEnt)) / ((antes + cant) || 1));
                 avisoCosto = ' Costo promedio actualizado: ' + fmt(p.costo) + '.';
             }
             p.stock = (Number(p.stock) || 0) + (tipo === 'entrada' ? cant : -cant);
-            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo, codigo: p.codigo, nombre: p.nombre, cant, motivo: $('dMotivo').value.trim(), costo: tipo === 'entrada' ? costoEnt : 0 });
-            try { await guardar(); aviso('Documento registrado: ' + tipo + ' de ' + cant + ' × ' + p.nombre + ' (stock ' + p.stock + ').' + avisoCosto); $('dCant').value = ''; $('dMotivo').value = ''; $('dCosto').value = ''; pintar(); }
+            pos.inventario.push({ id: 'd' + Date.now().toString(36), fecha, tipo, codigo: p.codigo, nombre: p.nombre, cant, motivo: esCarga ? 'Carga Inicial (concepto 101)' : $('dMotivo').value.trim(), costo: tipo === 'entrada' ? costoEnt : 0, lote: tipo === 'entrada' ? $('dLote').value.trim() : '', vencimiento: tipo === 'entrada' ? $('dVence').value : '', almacen: $('dAlmacen').value || ((pos.almacenes || [])[0] || {}).id || 'alm1' });
+            try { await guardar(); aviso('Documento registrado: ' + tipo + ' de ' + cant + ' × ' + p.nombre + ' (stock ' + p.stock + ').' + avisoCosto); $('dCant').value = ''; $('dMotivo').value = ''; $('dCosto').value = ''; $('dLote').value = ''; $('dVence').value = ''; $('dCargaInicial').checked = false; pintar(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         pintar();

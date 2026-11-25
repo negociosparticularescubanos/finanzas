@@ -53,6 +53,13 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Datos del negocio</h2>
+    <p class="tenue">La ficha completa del negocio: del teléfono al logo. Se pidió al crear la base; aquí se consulta y se actualiza.</p>
+    <div id="perfilCaja"></div>
+    <div class="fila" id="perfilBotones"></div>
+</div>
+
+<div class="tarjeta">
     <h2>Créditos bancarios</h2>
     <p class="tenue">La ficha de cada crédito con su tabla de amortización: cuánto pagas cada mes, cuánto es interés y cuánto baja la deuda. El alta y el pago de la cuota hacen su asiento solos (la deuda, los intereses y el banco, según el plan de cuentas activo).</p>
     <div class="fila">
@@ -112,7 +119,7 @@
 </style>
 <script type="module">
 import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal, esOnat } from 'nucleo';
-import 'componentes';
+import { perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm, perfilVacio } from 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(3);
 
@@ -274,7 +281,7 @@ function pintarCreditos() {
 }
 (function pestFiscal() {
     const grupos = [['negocio', 'Negocio'], ['impuestos', 'Impuestos'], ['pdl', 'PDL']];
-    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Datos fiscales|Créditos/.test(x)) return 'negocio'; if (/Ficha del PDL/.test(x)) return 'pdl'; return 'impuestos'; };
+    const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Datos fiscales|Datos del negocio|Créditos/.test(x)) return 'negocio'; if (/Ficha del PDL/.test(x)) return 'pdl'; return 'impuestos'; };
     const bar = document.createElement('div'); bar.className = 'pest-bar';
     bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
     const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
@@ -283,6 +290,40 @@ function pintarCreditos() {
     ir('negocio');
 })();
 async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal); }
+/* Tarjeta «Datos del negocio» (fase 38): la ficha completa, con
+ * su logo, y su edición con el mismo formulario del asistente. */
+function pintarPerfil() {
+    const caja = $('perfilCaja');
+    const botones = $('perfilBotones');
+    const p = (fiscal.meta && fiscal.meta.perfil) || null;
+    caja.innerHTML = perfilResumenHTML(p);
+    botones.innerHTML = '<button type="button" id="perfilEditar">' + (p ? 'Editar datos del negocio' : 'Completar la ficha del negocio') + '</button>';
+    $('perfilEditar').addEventListener('click', pintarPerfilForm);
+}
+function pintarPerfilForm() {
+    const tipo = (fiscal.meta && fiscal.meta.tipo) || 'tcp';
+    const p = (fiscal.meta && fiscal.meta.perfil) || perfilVacio(tipo);
+    const caja = $('perfilCaja');
+    caja.innerHTML = perfilFormHTML(tipo, p);
+    perfilCablearForm(caja);
+    $('perfilBotones').innerHTML = '<button type="button" id="perfilGuardar">Guardar ficha</button> <button type="button" id="perfilCancelar" class="secundario">Cancelar</button>';
+    $('perfilCancelar').addEventListener('click', pintarPerfil);
+    $('perfilGuardar').addEventListener('click', async () => {
+        const nuevo = perfilLeerForm(tipo, caja);
+        const faltan = perfilValidar(nuevo);
+        if (faltan.length) { aviso('Falta: ' + faltan.join(', '), 'error'); return; }
+        fiscal.meta.perfil = nuevo;
+        fiscal.meta.tipo = nuevo.actor;
+        fiscal.meta.nit = nuevo.nit;
+        fiscal.meta.razon = nuevo.razon;
+        fiscal.meta.cuentaFiscal = nuevo.cuentaCup;
+        try {
+            await guardar();
+            $('fTipo').value = fiscal.meta.tipo; $('fNit').value = fiscal.meta.nit; $('fRazon').value = fiscal.meta.razon; $('fCuenta').value = fiscal.meta.cuentaFiscal;
+            pintarPerfil(); aviso('Ficha del negocio guardada');
+        } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+}
 (async () => {
     try {
         pintarIndicador();
@@ -303,9 +344,13 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal
         $('pfTipo').innerHTML = FUENTES.map((f) => '<option>' + f + '</option>').join('');
         $('fGuardar').addEventListener('click', async () => {
             fiscal.meta = Object.assign({}, fiscal.meta, { tipo: $('fTipo').value, nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() });
-            try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); }
+            if (fiscal.meta.perfil) fiscal.meta.perfil.actor = $('fTipo').value;
+            try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); pintarPerfil(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
+        pintarPerfil();
+        /* El % de aporte al CAM sale de la ficha del PDL si está puesto. */
+        if (fiscal.meta && fiscal.meta.perfil && fiscal.meta.perfil.pdl && fiscal.meta.perfil.pdl.aporteCam !== '' && fiscal.meta.perfil.pdl.aporteCam != null) $('pdCam').value = fiscal.meta.perfil.pdl.aporteCam;
         fiscal.creditos = fiscal.creditos || [];
         $('crInicio').value = hoyLocal();
         $('crAdd').addEventListener('click', async () => {

@@ -99,12 +99,21 @@
     .lz-info button.secundario, #lzBases button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
     .lz-info button.chico, #lzBases button.chico { padding: 4px 10px; font-size: 12.5px; }
     .lz-info .tenue { color: #5A738C; font-size: 12.5px; }
+    .lz-modo { padding: 0 16px 6px; font-size: 13px; color: #33536E; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .lz-modo .tenue { color: #5A738C; font-size: 12.5px; }
     .lz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 12px; padding: 16px; }
     .lz-tile { background: linear-gradient(180deg, #FFFFFF, #E7F0FA); border: 1px solid #8FA8C8; border-radius: 10px; padding: 13px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; }
     .lz-tile img { width: 54px; height: 54px; }
     .lz-tile span { text-align: center; line-height: 1.2; }
     .lz-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 9px 19px rgba(20,50,79,.3); border-color: #F48C1E; }
     .lz-tile:hover img { animation: tileBounce .5s ease; }
+    .lz-seccion { grid-column: 1 / -1; color: #1A3E5E; font-size: 15px; font-weight: 700; margin: 8px 0 0; }
+    .lz-tile-wrap { position: relative; }
+    .lz-tile-wrap .lz-fav, .lz-tile-wrap .lz-hide { position: absolute; top: 4px; width: 22px; height: 22px; border: 1px solid #8FA8C8; border-radius: 50%; background: #fff; color: #33536E; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
+    .lz-tile-wrap .lz-fav { right: 4px; }
+    .lz-tile-wrap .lz-fav.on { color: #F48C1E; border-color: #F48C1E; }
+    .lz-tile-wrap .lz-hide { right: 30px; }
+    .lz-restaurar { grid-column: 1 / -1; background: none; border: none; color: #33536E; text-decoration: underline; cursor: pointer; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; text-align: left; padding: 0; }
     @keyframes tileIn { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: none; } }
     @keyframes tileBounce { 0% { transform: scale(1); } 35% { transform: scale(1.15) rotate(-3deg); } 70% { transform: scale(1.06) rotate(2deg); } 100% { transform: scale(1); } }
     #lzBases { padding: 6px 16px 16px; }
@@ -132,11 +141,13 @@
         <span class="der"><button type="button" id="lzSonido" title="Sonido">🔊</button><button type="button" id="lzSalir">Salir</button></span>
     </div>
     <div class="lz-info">
+        <span id="lzNegocio"></span>
         <span><span id="lzPunto" class="punto"></span><span id="lzEstado">Comprobando la base…</span></span>
         <span>Base: <b id="lzBase">—</b> <button type="button" id="lzCambiar" class="secundario chico">Cambiar base</button></span>
         <span>Fecha contable: <b id="lzFecha">—</b></span>
         <span>Dólar hoy: Banco (BCC) <b id="lzBanco">—</b> · Informal (elTOQUE) <b id="lzInformal">—</b> <span id="lzTasasNota" class="tenue"></span></span>
     </div>
+    <div id="lzModo" class="lz-modo"></div>
     <div id="lzModulos" class="lz-grid"></div>
     <div id="lzBases" style="display:none"></div>
   </div>
@@ -152,7 +163,8 @@
     </section>
 </main>
 <script type="module">
-import { bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal, mensajeImport, mesLocalDe } from 'nucleo';
+import { esc, bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal, mensajeImport, mesLocalDe } from 'nucleo';
+import { PERFIL_ACTORES, perfilVacio, perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm } from 'componentes';
 import { aplicarFondo } from 'fondos';
 import 'componentes';
 
@@ -173,6 +185,7 @@ let resumenAutoAbierto = false;
 const MODULOS = [
     { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.svg', activo: true, ancho: 900, alto: 640 },
     { id: 'trimestres', titulo: 'Trimestres · Utilidad por trimestre', url: 'modulos/trimestres.html', icono: 'iconos/trimestres.svg', activo: true, ancho: 940, alto: 700 },
+    { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.svg', activo: true, ancho: 940, alto: 700 },
     { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.svg', activo: true, ancho: 860, alto: 620 },
     { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.svg', activo: true, ancho: 920, alto: 640 },
     { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.svg', activo: true, ancho: 940, alto: 660 },
@@ -191,6 +204,87 @@ const MODULOS = [
 ];
 
 const cinta = document.getElementById('cinta');
+/* Fase 14, bloque 5: modo simple y visibilidad por actor. El modo
+ * simple esconde Contabilidad, Gestión, Activos Fijos, Tasas y
+ * Trimestres (y con Gestión, las Ideas). Por actor: el TCP sin
+ * contabilidad completa solo ve Registro/Chequera/Resumen/Fiscal/
+ * Nómina/POS/Inventarios/Producción/Cierre/Tasas/Informes/Panel/
+ * Gestor/Ayuda; el TCP que superó los 500 000 CUP del año recupera
+ * Contabilidad y Gestión; el PDL no ve AFT; la MIPYME lo ve todo.
+ * El Registro solo es para el TCP (decisión 1: el trimestre es
+ * para MIPYME y PDL). */
+const MODULOS_SIMPLE_OCULTOS = ['conta', 'gestion', 'aft', 'tasas', 'trimestres'];
+function modulosVisibles(modulos, actor, pleno, modoSimple) {
+    return (modulos || []).filter((m) => {
+        if (!m.activo) return false;
+        if (modoSimple && MODULOS_SIMPLE_OCULTOS.includes(m.id)) return false;
+        if (actor === 'tcp') {
+            if (m.id === 'registro') return true;
+            if (m.id === 'conta' || m.id === 'gestion') return !!pleno;
+            if (m.id === 'aft' || m.id === 'trimestres') return false;
+        }
+        if (actor === 'mipyme' && m.id === 'registro') return false;
+        if (actor === 'pdl') {
+            if (m.id === 'registro') return false;
+            if (m.id === 'aft') return false;
+        }
+        return true;
+    });
+}
+/* Fase 35: atajos en el lanzador. Cada uno fija sus módulos
+ * favoritos arriba del lanzador (y quita los que no usa), para
+ * entrar en un toque a lo de todos los días. Se guarda en el
+ * equipo (localStorage), no en la base: es gusto de quien usa
+ * ese equipo. */
+function leerAtajos() {
+    try { const a = JSON.parse(localStorage.getItem('saldova_atajos') || 'null'); return { favs: (a && a.favs) || [], ocultos: (a && a.ocultos) || [] }; }
+    catch (e) { return { favs: [], ocultos: [] }; }
+}
+function guardarAtajos(a) { try { localStorage.setItem('saldova_atajos', JSON.stringify({ favs: a.favs || [], ocultos: a.ocultos || [] })); } catch (e) {} }
+function ordenarAtajos(modulos, atajos) {
+    const favs = (atajos.favs || []).filter((id) => (modulos || []).some((m) => m.id === id));
+    const ocultos = new Set(atajos.ocultos || []);
+    const favoritos = favs.map((id) => (modulos || []).find((m) => m.id === id));
+    const resto = (modulos || []).filter((m) => !favs.includes(m.id) && !ocultos.has(m.id));
+    return { favoritos, resto, hayOcultos: (modulos || []).some((m) => ocultos.has(m.id)) };
+}
+function alternarFavorito(atajos, id) {
+    const favs = (atajos.favs || []).slice();
+    const i = favs.indexOf(id);
+    if (i >= 0) favs.splice(i, 1); else favs.push(id);
+    return { favs, ocultos: (atajos.ocultos || []).slice() };
+}
+function ocultarModuloAtajo(atajos, id) {
+    return { favs: (atajos.favs || []).filter((x) => x !== id), ocultos: Array.from(new Set([...(atajos.ocultos || []), id])) };
+}
+function mostrarModulosAtajo(atajos) {
+    return { favs: (atajos.favs || []).slice(), ocultos: [] };
+}
+/* Ingresos del año en CUP, la misma regla del Registro: las
+ * transferencias entre cuentas propias no son ingresos; la USD se
+ * convierte con la tasa vigente (sin tasa, ese movimiento no entra);
+ * las anotaciones manuales del Registro también cuentan. */
+function ingresosAnioCUP(movsDoc, manuales, tasa, anio) {
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    let total = 0;
+    for (const m of (movsDoc || [])) {
+        if (String(m.fecha || '').slice(0, 4) !== String(anio)) continue;
+        if (String(m.clasificacion || '') === 'transferencia') continue;
+        if (m.tipo !== 'ingreso') continue;
+        let v = Number(m.monto) || 0;
+        if ((m.cuenta || 'chequera') === 'tarjeta_usd') {
+            if (!(Number(tasa) > 0)) continue;
+            v = r2(v * Number(tasa));
+        }
+        total = r2(total + v);
+    }
+    for (const x of (manuales || [])) {
+        if (String(x.fecha || '').slice(0, 4) !== String(anio)) continue;
+        if (x.tipo === 'gasto') continue;
+        total = r2(total + (Number(x.monto) || 0));
+    }
+    return total;
+}
 cinta.modulos = MODULOS;
 if (!SND.isOn()) cinta.querySelector('button.sonido').textContent = '🔇';
 document.addEventListener('pointerdown', () => SND.ac(), { once: true });
@@ -385,29 +479,104 @@ function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
     document.getElementById('lzVer').textContent = '· v40';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
-    const g = document.getElementById('lzModulos');
-    g.innerHTML = '';
-    MODULOS.filter((m) => m.activo).forEach((m, i) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'lz-tile';
-        b.style.animationDelay = (i * 45) + 'ms';
-        const img = document.createElement('img');
-        img.src = m.icono;
-        img.alt = '';
-        const sp = document.createElement('span');
-        sp.textContent = m.titulo;
-        b.appendChild(img);
-        b.appendChild(sp);
-        b.addEventListener('click', () => abrirModulo(m.id));
-        g.appendChild(b);
-    });
     document.getElementById('lzBases').style.display = 'none';
-    g.style.display = '';
     document.getElementById('lanzador').style.display = '';
     ponerSonido();
     refrescarEstadoLanzador();
     refrescarFechaYTasas();
+    /* La ficha del negocio en el lanzador (logo y razón social) y
+     * qué módulos se ven (modo simple + actor + pleno). */
+    (async () => {
+        let fiscal = {}, movsDoc = [], regDoc = {}, fxDoc = {}, cfg = {};
+        try {
+            fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+            movsDoc = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+            regDoc = (await bd().docLeer(tokenSesion(), 'registro')) || {};
+            fxDoc = (await bd().docLeer(tokenSesion(), 'fx')) || {};
+            cfg = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
+        } catch (e) { /* con lo que haya */ }
+        const p = (fiscal.meta && fiscal.meta.perfil) || null;
+        const actor = (fiscal.meta && fiscal.meta.tipo) || (p && p.actor) || '';
+        const anio = new Date().getFullYear();
+        const pleno = ingresosAnioCUP(movsDoc, regDoc.manuales, fxDoc.tasa, anio) > 500000;
+        const el = document.getElementById('lzNegocio');
+        if (el) {
+            if (p && p.razon) el.innerHTML = (p.logo ? '<img src="' + esc(p.logo) + '" alt="" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;border-radius:4px;background:#fff;border:1px solid #8FA8C8"> ' : '') + '<b>' + esc(p.razon) + '</b> <span class="tenue">· ' + esc(p.actor === 'tcp' ? 'TCP' : p.actor === 'mipyme' ? 'MIPYME' : p.actor === 'pdl' ? 'PDL' : '') + '</span>';
+            else el.textContent = '';
+        }
+        /* El interruptor de modo simple (solo quien puede editar). */
+        const fila = document.getElementById('lzModo');
+        const puedeCambiar = ses.role !== 'consultor';
+        fila.innerHTML = '<label><input type="checkbox" id="lzModoSimple"' + (cfg.modoSimple ? ' checked' : '') + (puedeCambiar ? '' : ' disabled') + '> Modo simple</label> ' +
+            '<span class="tenue">Esconde Contabilidad, Gestión, Activos Fijos, Tasas y Trimestres.' +
+            (actor === 'tcp' ? ' TCP · ' + (pleno ? 'contabilidad completa (superó 500 000 CUP en ' + anio + ')' : 'Registro de Control (hasta 500 000 CUP)') : '') +
+            (actor === 'pdl' ? ' PDL · Proyecto de Desarrollo Local' : '') + '</span>';
+        const chk = document.getElementById('lzModoSimple');
+        if (chk && puedeCambiar) chk.addEventListener('change', async () => {
+            cfg.modoSimple = chk.checked;
+            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); } catch (e) { /* se guarda al próximo cambio */ }
+            pintarTiles();
+        });
+        function pintarTiles() {
+            const g = document.getElementById('lzModulos');
+            g.innerHTML = '';
+            const vis = modulosVisibles(MODULOS, actor, pleno, !!(cfg && cfg.modoSimple));
+            const atajos = leerAtajos();
+            const { favoritos, resto, hayOcultos } = ordenarAtajos(vis, atajos);
+            let i = 0;
+            const crearTile = (m, esFavorito) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'lz-tile-wrap';
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'lz-tile';
+                b.style.animationDelay = (i++ * 45) + 'ms';
+                const img = document.createElement('img');
+                img.src = m.icono;
+                img.alt = '';
+                const sp = document.createElement('span');
+                sp.textContent = m.titulo;
+                b.appendChild(img);
+                b.appendChild(sp);
+                b.addEventListener('click', () => abrirModulo(m.id));
+                wrap.appendChild(b);
+                const fav = document.createElement('button');
+                fav.type = 'button';
+                fav.className = 'lz-fav' + (esFavorito ? ' on' : '');
+                fav.textContent = '★';
+                fav.title = esFavorito ? 'Quitar de favoritos' : 'Fijar arriba como favorito';
+                fav.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(alternarFavorito(leerAtajos(), m.id)); pintarTiles(); });
+                wrap.appendChild(fav);
+                const hide = document.createElement('button');
+                hide.type = 'button';
+                hide.className = 'lz-hide';
+                hide.textContent = '×';
+                hide.title = 'Esconder este módulo del lanzador';
+                hide.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(ocultarModuloAtajo(leerAtajos(), m.id)); pintarTiles(); });
+                wrap.appendChild(hide);
+                return wrap;
+            };
+            const seccion = (texto) => { const h = document.createElement('div'); h.className = 'lz-seccion'; h.textContent = texto; g.appendChild(h); };
+            if (favoritos.length) {
+                seccion('Favoritos');
+                favoritos.forEach((m) => g.appendChild(crearTile(m, true)));
+            }
+            if (resto.length) {
+                if (favoritos.length) seccion('Todos los módulos');
+                resto.forEach((m) => g.appendChild(crearTile(m, false)));
+            }
+            if (hayOcultos) {
+                const r = document.createElement('button');
+                r.type = 'button';
+                r.className = 'lz-restaurar';
+                r.textContent = 'Mostrar los módulos escondidos';
+                r.addEventListener('click', () => { guardarAtajos(mostrarModulosAtajo(leerAtajos())); pintarTiles(); });
+                g.appendChild(r);
+            }
+            g.style.display = '';
+        }
+        pintarTiles();
+    })();
 }
 function volverAlLanzador() {
     barraOcultar();
@@ -527,43 +696,88 @@ async function pintarPuerta() {
         return;
     }
     if (!acc.hayUsuarios) {
-        puerta.innerHTML = '<h2>Primero: la base de datos inicial</h2>' +
-            '<p class="nota">Aquí se crea la base con los datos del administrador general y tu PIN de creador ' +
-            '(el PIN se pide para crear otras bases; guárdalo bien, no se puede recuperar). ' +
-            'Hasta que la base esté cargada no se ve ningún módulo: después de crearla, ' +
-            'entras con el administrador y ya dentro creas los negocios y los usuarios.</p>' +
-            '<label>Nombre de la base<input id="pBase" value="Principal"></label>' +
-            '<p class="nota">Ubicación de la base: el almacenamiento propio de este navegador ' +
-            '(archivo <b>saldova.db</b>). Si ya tienes una base de Saldova guardada en un archivo, ' +
-            'localízala en vez de crear una nueva:</p>' +
-            '<button type="button" id="pLocalizar" class="secundario">Localizar una base existente (.db)</button>' +
-            '<label>Usuario administrador<input id="pUsuario" autocomplete="username"></label>' +
-            '<label>Contraseña (mínimo 6)<input id="pClave" type="password" autocomplete="new-password"></label>' +
-            '<label>Repite la contraseña<input id="pClave2" type="password" autocomplete="new-password"></label>' +
-            '<label>PIN de creador (4 a 12)<input id="pPin" type="password" inputmode="numeric"></label>' +
-            '<label>Repite el PIN<input id="pPin2" type="password" inputmode="numeric"></label>' +
-            '<button type="button" id="pCrear">Crear la base y entrar</button>' + errHtml;
-        document.getElementById('pCrear').addEventListener('click', async () => {
-            const base = document.getElementById('pBase').value.trim();
-            const usuario = document.getElementById('pUsuario').value.trim();
-            const clave = document.getElementById('pClave').value;
-            const pin = document.getElementById('pPin').value;
-            try {
-                if (clave !== document.getElementById('pClave2').value) throw new Error('Las contraseñas no coinciden');
-                if (pin !== document.getElementById('pPin2').value) throw new Error('Los PIN no coinciden');
-                await bd().inicializar({ base, usuario, clave, pin });
-                location.reload();
-            } catch (e) { puertaFallo(e); }
-        });
-        document.getElementById('pLocalizar').addEventListener('click', async () => {
-            try {
-                const bytes = await abrirArchivoReal('.db');
-                if (!bytes) return;
-                const r = await bd().importar(tokenSesion(), bytes);
-                try { sessionStorage.setItem('saldova_aviso_import', mensajeImport(r)); } catch (e) {}
-                location.reload();
-            } catch (e) { puertaFallo(e); }
-        });
+        /* Asistente de arranque (fase 38): antes de crear la base se
+         * pide la ficha completa del actor económico. Paso 1: el actor
+         * y el acceso. Paso 2: la ficha (los campos cambian con el
+         * actor). Paso 3: la ficha como tarjeta y crear la base. La
+         * ficha se guarda en fiscal.meta.perfil justo después de
+         * entrar con el administrador recién creado. */
+        let pPaso = 1, pActor = 'tcp', pPerfil = null;
+        const pAcceso = { base: 'Principal', usuario: '', clave: '', clave2: '', pin: '', pin2: '' };
+        const escA = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const leerAcceso = () => {
+            pAcceso.base = document.getElementById('pBase').value.trim() || 'Principal';
+            pAcceso.usuario = document.getElementById('pUsuario').value.trim();
+            pAcceso.clave = document.getElementById('pClave').value;
+            pAcceso.clave2 = document.getElementById('pClave2').value;
+            pAcceso.pin = document.getElementById('pPin').value;
+            pAcceso.pin2 = document.getElementById('pPin2').value;
+        };
+        const pintarAsistente = () => {
+            if (pPaso === 1) {
+                puerta.innerHTML = '<h2>Primero: tu negocio</h2><p class="nota">Paso 1 de 3 — Antes de crear la base, Saldova te pide la ficha completa de tu negocio: qué actor económico eres y todos sus datos, del teléfono al logo. Lo que escribas aquí ya queda guardado en la base y la app lo usa en Fiscal, en Ideas y en el lanzador.</p>' +
+                    '<p class="nota"><b>¿Qué actor económico eres?</b></p>' +
+                    PERFIL_ACTORES.map((a) => '<button type="button" class="pActor" data-actor="' + a.id + '" style="display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border-radius:8px;cursor:pointer;border:' + (pActor === a.id ? '2px solid #1A5C9E;background:#EAF2FB' : '1px solid #8FA8C8;background:#fff') + '"><b>' + a.nombre + '</b><br><span style="font-size:13px;color:#33536E">' + a.desc + '</span></button>').join('') +
+                    '<label>Nombre de la base<input id="pBase" value="' + escA(pAcceso.base) + '"></label>' +
+                    '<p class="nota">Ubicación de la base: el almacenamiento propio de este navegador ' +
+                    '(archivo <b>saldova.db</b>). Si ya tienes una base de Saldova guardada en un archivo, ' +
+                    'localízala en vez de crear una nueva:</p>' +
+                    '<button type="button" id="pLocalizar" class="secundario">Localizar una base existente (.db)</button>' +
+                    '<label>Usuario administrador<input id="pUsuario" autocomplete="username" value="' + escA(pAcceso.usuario) + '"></label>' +
+                    '<label>Contraseña (mínimo 6)<input id="pClave" type="password" autocomplete="new-password"></label>' +
+                    '<label>Repite la contraseña<input id="pClave2" type="password" autocomplete="new-password"></label>' +
+                    '<label>PIN de creador (4 a 12)<input id="pPin" type="password" inputmode="numeric"></label>' +
+                    '<label>Repite el PIN<input id="pPin2" type="password" inputmode="numeric"></label>' +
+                    '<p class="nota">El PIN se pide para crear otras bases; guárdalo bien, no se puede recuperar.</p>' +
+                    '<button type="button" id="pSig1">Siguiente: los datos del negocio →</button>' + errHtml;
+                document.getElementById('pClave').value = pAcceso.clave;
+                document.getElementById('pClave2').value = pAcceso.clave2;
+                document.getElementById('pPin').value = pAcceso.pin;
+                document.getElementById('pPin2').value = pAcceso.pin2;
+                puerta.querySelectorAll('.pActor').forEach((b) => b.addEventListener('click', () => { pActor = b.dataset.actor; pPerfil = null; pintarAsistente(); }));
+                document.getElementById('pSig1').addEventListener('click', () => { leerAcceso(); pPaso = 2; pintarAsistente(); });
+                document.getElementById('pLocalizar').addEventListener('click', async () => {
+                    try {
+                        const bytes = await abrirArchivoReal('.db');
+                        if (!bytes) return;
+                        const r = await bd().importar(tokenSesion(), bytes);
+                        try { sessionStorage.setItem('saldova_aviso_import', mensajeImport(r)); } catch (e) {}
+                        location.reload();
+                    } catch (e) { puertaFallo(e); }
+                });
+            } else if (pPaso === 2) {
+                const actor = PERFIL_ACTORES.find((a) => a.id === pActor);
+                puerta.innerHTML = '<h2>Los datos de tu negocio</h2><p class="nota">Paso 2 de 3 — ' + actor.nombre + '. Los campos con * son los mínimos para identificar el negocio; todo lo demás se puede completar después en Fiscal.</p>' +
+                    '<div id="pPerfilForm">' + perfilFormHTML(pActor, pPerfil || perfilVacio(pActor)) + '</div>' +
+                    '<button type="button" id="pAtras2" class="secundario">← Atrás</button> <button type="button" id="pSig2">Siguiente: revisa tu ficha →</button>' + errHtml;
+                perfilCablearForm(document.getElementById('pPerfilForm'));
+                document.getElementById('pAtras2').addEventListener('click', () => { pPerfil = perfilLeerForm(pActor, document.getElementById('pPerfilForm')); pPaso = 1; pintarAsistente(); });
+                document.getElementById('pSig2').addEventListener('click', () => {
+                    pPerfil = perfilLeerForm(pActor, document.getElementById('pPerfilForm'));
+                    const faltan = perfilValidar(pPerfil);
+                    if (faltan.length) { puertaFallo(new Error('Falta: ' + faltan.join(', '))); return; }
+                    pPaso = 3; pintarAsistente();
+                });
+            } else {
+                puerta.innerHTML = '<h2>Tu ficha</h2><p class="nota">Paso 3 de 3 — Así queda tu negocio en Saldova. La ficha se guarda en la base y la app la usa: en Fiscal (datos del negocio), en Ideas (por ejemplo, si eres recién graduado o de zona rural, o tu aporte al CAM si eres PDL) y en el lanzador (tu logo y tu nombre).</p>' +
+                    perfilResumenHTML(pPerfil) +
+                    '<p class="nota">Base: <b>' + escA(pAcceso.base) + '</b> · Administrador: <b>' + escA(pAcceso.usuario) + '</b></p>' +
+                    '<button type="button" id="pAtras3" class="secundario">← Atrás</button> <button type="button" id="pCrear">Crear la base y entrar</button>' + errHtml;
+                document.getElementById('pAtras3').addEventListener('click', () => { pPaso = 2; pintarAsistente(); });
+                document.getElementById('pCrear').addEventListener('click', async () => {
+                    try {
+                        if (pAcceso.clave !== pAcceso.clave2) throw new Error('Las contraseñas no coinciden');
+                        if (pAcceso.pin !== pAcceso.pin2) throw new Error('Los PIN no coinciden');
+                        await bd().inicializar({ base: pAcceso.base, usuario: pAcceso.usuario, clave: pAcceso.clave, pin: pAcceso.pin });
+                        const s = await bd().entrar(pAcceso.usuario, pAcceso.clave);
+                        guardarSesion(s.token);
+                        await bd().docGuardar(s.token, 'fiscal', { meta: { tipo: pActor, nit: pPerfil.nit, razon: pPerfil.razon, cuentaFiscal: pPerfil.cuentaCup, perfil: pPerfil } });
+                        location.reload();
+                    } catch (e) { puertaFallo(e); }
+                });
+            }
+        };
+        pintarAsistente();
         return;
     }
     const opciones = acc.bases.map((b) => '<option' + (b === acc.activa ? ' selected' : '') + '>' + b + '</option>').join('');

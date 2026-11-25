@@ -67,6 +67,17 @@
     <div id="obligaciones"><p class="tenue">Cargando…</p></div>
 </div>
 
+<!-- Fase 27, bloque 1: vista del auditor. Una sola pantalla con
+     todo lo importante de la base en el período elegido: banco,
+     inventario, nómina, activos, facturas y costos. Es de solo
+     lectura: sirve para el dueño y para entregársela al contador. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Vista del auditor</h2>
+    <p class="tenue">Todo lo importante de la base en el período elegido, en una sola pantalla y sin entrar módulo por módulo. Es de solo lectura: sirve para ti y para entregársela al contador.</p>
+    <div class="fila no-imprimir"><label>Mes <input type="month" id="auMes"></label><button type="button" id="auVer" class="secundario chico">Ver</button></div>
+    <div id="auditor"><p class="tenue">Elige el mes.</p></div>
+</div>
+
 <div class="tarjeta">
     <h2 style="margin-top:0">Presupuesto contra real del mes</h2>
     <p class="tenue">Escribe cuánto pensabas ingresar y gastar por cuenta este mes y compáralo con lo que de verdad se movió según los asientos.</p>
@@ -95,6 +106,32 @@
     <div id="mcLista"></div>
 </div>
 
+<!-- Fase 27, bloque 2: diseñador de reportes. El dueño arma sus
+     propios informes: filas con su etiqueta y su fórmula sobre sus
+     cuentas (el mismo evaluador de los indicadores de la fase 23:
+     no ejecuta código, solo suma, resta, multiplica y divide).
+     Cada fila se ve en dos columnas: el mes y lo acumulado del año. -->
+<div class="tarjeta">
+    <h2 style="margin-top:0">Mis informes a medida</h2>
+    <p class="tenue">Arma tus propios informes: cada fila es una etiqueta con su fórmula sobre tus cuentas («801-000 − 695-000», «gasto / trabajadores»…). Las cuentas de resultado se toman del mes; las de balance, acumuladas. No se ejecuta código: solo suma, resta, multiplica y divide.</p>
+    <div class="fila no-imprimir">
+        <label>Nombre del informe <input id="inNombre" placeholder="Ej. Mi informe del mes" style="min-width:200px"></label>
+        <button type="button" id="inCrear" class="secundario chico">Crear informe</button>
+    </div>
+    <div class="fila no-imprimir">
+        <label>Informe <select id="inReporte" style="min-width:200px"></select></label>
+        <label>Mes <input type="month" id="inMes"></label>
+        <button type="button" id="inVer" class="secundario chico">Ver</button>
+        <button type="button" id="inQuitar" class="secundario chico">Borrar este informe</button>
+    </div>
+    <div class="fila no-imprimir">
+        <label>Fila <input id="inEtiqueta" placeholder="Ej. Ventas menos costo" style="min-width:180px"></label>
+        <label>Fórmula <input id="inFormula" placeholder="Ej. 801-000 - 695-000" style="min-width:200px"></label>
+        <button type="button" id="inAddFila" class="secundario chico">Añadir fila</button>
+    </div>
+    <div id="inTabla"><p class="tenue">Crea un informe o elige uno.</p></div>
+</div>
+
 <script type="module">
 import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, cuentaAuto, mesLocal } from 'nucleo';
 import 'componentes';
@@ -105,6 +142,8 @@ const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 let conta = null, presupuesto = null, fiscal = null, consultas = [];
+let movs = [], pos = null, aft = null, rrhh = null;
+let informesDoc = { reportes: [] };
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -117,6 +156,253 @@ async function pintarIndicador() {
     } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
 }
 function cuenta(cod) { return (conta.plan || []).find((c) => c.codigo === cod) || { nombre: '', grupo: '', naturaleza: 'deudora' }; }
+/* Fase 27, bloque 1: vista del auditor. `datos` trae {movs,
+ * conta, pos, aft, rrhh}. Todo es de solo lectura: nada se
+ * modifica desde aquí. */
+function depMensualAud(a) { return r2((Number(a.costo) || 0) * (Number(a.tasa) || 0) / 100 / 12); }
+function mesesEnServicioAud(a, hastaMes) {
+    const f = String(a.fechaServicio || '').slice(0, 7);
+    if (!f || f > hastaMes) return 0;
+    return (Number(hastaMes.slice(0, 4)) - Number(f.slice(0, 4))) * 12 + (Number(hastaMes.slice(5, 7)) - Number(f.slice(5, 7)));
+}
+function depAcumuladaAud(a, hastaMes) { return Math.min(Number(a.costo) || 0, r2(depMensualAud(a) * mesesEnServicioAud(a, hastaMes))); }
+function vistaAuditor(datos, mes) {
+    const conta = datos.conta || {}, movs = datos.movs || [], pos = datos.pos || {}, aft = datos.aft || {}, rrhh = datos.rrhh || {};
+    const plan = conta.plan || [];
+    const saldoCta = (codigo) => {
+        let s = 0;
+        for (const a of (conta.asientos || [])) for (const l of (a.lineas || [])) if (l.cuenta === codigo) s = r2(s + (Number(l.debe) || 0) - (Number(l.haber) || 0));
+        return s;
+    };
+    const banco = [];
+    for (const c of [{ id: 'chequera', nombre: 'Chequera (banco CUP)' }, { id: 'tarjeta_cup', nombre: 'Tarjeta CUP' }, { id: 'tarjeta_usd', nombre: 'Tarjeta USD' }]) {
+        const delMes = movs.filter((m) => m.cuenta === c.id && String(m.fecha || '').slice(0, 7) === mes);
+        const ing = r2(delMes.filter((m) => m.tipo === 'ingreso').reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+        const gas = r2(delMes.filter((m) => m.tipo !== 'ingreso').reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+        let saldo = 0;
+        for (const m of movs.filter((x) => x.cuenta === c.id)) saldo = r2(saldo + (m.tipo === 'ingreso' ? 1 : -1) * Math.abs(Number(m.monto) || 0));
+        banco.push({ cuenta: c.nombre, movimientos: delMes.length, ingresos: ing, gastos: gas, saldo });
+    }
+    const productos = pos.productos || [];
+    const valorCosto = r2(productos.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.costo) || 0), 0));
+    const valorVenta = r2(productos.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.precio) || 0), 0));
+    const bajoMin = productos.filter((p) => (Number(p.stock) || 0) < (Number(p.stockMin) || 0)).length;
+    const agotados = productos.filter((p) => (Number(p.stock) || 0) <= 0).length;
+    const nom = (rrhh.nominas || {})[mes];
+    const nomina = nom ? { trabajadores: (nom.trabajadores || []).length, bruto: r2((nom.trabajadores || []).reduce((s, t) => s + (Number(t.bruto) || 0), 0)), liquido: r2((nom.trabajadores || []).reduce((s, t) => s + (Number(t.bruto) || 0) - (Number(t.impPersonal) || 0) - (Number(t.descuento) || 0), 0)), asiento: !!nom.asientoId } : null;
+    const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
+    const costoAft = r2(activos.reduce((s, a) => s + (Number(a.costo) || 0), 0));
+    const acumAft = r2(activos.reduce((s, a) => s + depAcumuladaAud(a, mes), 0));
+    const facturas = (conta.gestion && conta.gestion.facturas) || [];
+    let cxc = 0, vencidas = 0;
+    const hoy = mes + '-31';
+    for (const f of facturas) {
+        const cobrado = r2((f.cobros || []).reduce((s, c) => s + (Number(c.montoCup != null ? c.montoCup : c.monto) || 0), 0));
+        const totalCup = (f.moneda === 'USD') ? r2((Number(f.total) || 0) * (Number(f.tasa) || 0)) : r2(Number(f.total) || 0);
+        const pend = r2(totalCup - cobrado);
+        if (pend > 0) { cxc = r2(cxc + pend); if (f.vencimiento && f.vencimiento < hoy) vencidas++; }
+    }
+    const cxpCod = (conta.plan || []).find((c) => c.codigo === '405-000') ? '405-000' : '311-000';
+    const cxp = Math.abs(saldoCta(cxpCod));
+    const costoVentas = Math.abs(saldoCta((() => { const c = plan.find((x) => x.auto === 'costo_ventas'); return c ? c.codigo : '695-000'; })()));
+    let gastosMes = 0;
+    for (const a of (conta.asientos || [])) {
+        if (String(a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of (a.lineas || [])) {
+            const c = plan.find((x) => x.codigo === l.cuenta);
+            if (c && c.grupo === 'gasto') gastosMes = r2(gastosMes + (Number(l.debe) || 0) - (Number(l.haber) || 0));
+        }
+    }
+    return { mes, banco, inventario: { productos: productos.length, valorCosto, valorVenta, bajoMin, agotados }, nomina, aft: { activos: activos.length, costo: costoAft, depreciacion: acumAft, enLibros: r2(costoAft - acumAft) }, facturas: { cxc, vencidas, cxp }, costos: { costoVentas, gastosMes } };
+}
+/* Fase 27, bloque 2: diseñador de reportes. El evaluador de
+ * fórmulas es el mismo de los indicadores de la fase 23: no
+ * ejecuta código. Las cuentas de resultado se toman del mes; las
+ * de balance, acumuladas. */
+function saldosMayor(asientos, mes) {
+    const m = {};
+    for (const a of asientos || []) {
+        if (mes && (a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of a.lineas || []) {
+            const e = m[l.cuenta] || (m[l.cuenta] = { debe: 0, haber: 0 });
+            e.debe += Number(l.debe) || 0; e.haber += Number(l.haber) || 0;
+        }
+    }
+    return m;
+}
+
+function saldosMayorHasta(asientos, mes) {
+    const m = {};
+    for (const a of asientos || []) {
+        if (String(a.fecha || '').slice(0, 7) > mes || String(a.fecha || '').slice(0, 4) !== mes.slice(0, 4)) continue;
+        for (const l of a.lineas || []) {
+            const e = m[l.cuenta] || (m[l.cuenta] = { debe: 0, haber: 0 });
+            e.debe += Number(l.debe) || 0; e.haber += Number(l.haber) || 0;
+        }
+    }
+    return m;
+}
+function evaluarIndicador(formula, resolver) {
+    const tokens = [];
+    const s = String(formula || '');
+    let i = 0;
+    while (i < s.length) {
+        const c = s[i];
+        if (c === ' ' || c === '\t') { i++; continue; }
+        if (c === '(' || c === ')' || c === '+' || c === '-' || c === '*' || c === '/') { tokens.push({ t: c }); i++; continue; }
+        /* El código de cuenta (801-000) va antes que el número:
+         * si no, 801-000 se leería como 801 menos 000. */
+        const mCod = s.slice(i).match(/^\d{3}-\d{3}/);
+        if (mCod) { tokens.push({ t: 'nombre', v: mCod[0] }); i += mCod[0].length; continue; }
+        if (/[0-9]/.test(c)) {
+            let j = i;
+            while (j < s.length && /[0-9.]/.test(s[j])) j++;
+            const num = Number(s.slice(i, j));
+            if (isNaN(num)) return { ok: false, motivo: 'el número «' + s.slice(i, j) + '» no vale' };
+            tokens.push({ t: 'num', v: num }); i = j; continue;
+        }
+        if (/[a-záéíóúñ_]/i.test(c)) {
+            let j = i;
+            while (j < s.length && /[a-záéíóúñ_]/i.test(s[j])) j++;
+            tokens.push({ t: 'nombre', v: s.slice(i, j).toLowerCase() }); i = j; continue;
+        }
+        return { ok: false, motivo: 'el carácter «' + c + '» no se puede usar' };
+    }
+    if (!tokens.length) return { ok: false, motivo: 'la fórmula está vacía' };
+    let pos = 0;
+    const mirar = () => tokens[pos];
+    function expr() {
+        let v = termino();
+        if (v === null) return null;
+        while (mirar() && (mirar().t === '+' || mirar().t === '-')) {
+            const op = mirar().t; pos++;
+            const d = termino();
+            if (d === null) return null;
+            v = op === '+' ? v + d : v - d;
+        }
+        return v;
+    }
+    function termino() {
+        let v = factor();
+        if (v === null) return null;
+        while (mirar() && (mirar().t === '*' || mirar().t === '/')) {
+            const op = mirar().t; pos++;
+            const d = factor();
+            if (d === null) return null;
+            if (op === '/' && d === 0) { errorDiv0 = true; return null; }
+            v = op === '*' ? v * d : v / d;
+        }
+        return v;
+    }
+    let errorDiv0 = false, errorMotivo = '';
+    function factor() {
+        const tk = mirar();
+        if (!tk) { errorMotivo = 'la fórmula termina a medias'; return null; }
+        if (tk.t === '(') {
+            pos++;
+            const v = expr();
+            if (v === null) return null;
+            if (!mirar() || mirar().t !== ')') { errorMotivo = 'falta cerrar un paréntesis'; return null; }
+            pos++;
+            return v;
+        }
+        if (tk.t === '-') { pos++; const v = factor(); return v === null ? null : -v; }
+        if (tk.t === 'num') { pos++; return tk.v; }
+        if (tk.t === 'nombre') {
+            pos++;
+            const r = resolver(tk.v);
+            if (!r.ok) { errorMotivo = r.motivo; return null; }
+            return r.valor;
+        }
+        errorMotivo = 'ahí no va «' + tk.t + '»';
+        return null;
+    }
+    const valor = expr();
+    if (errorDiv0) return { ok: false, motivo: 'división entre cero' };
+    if (valor === null) return { ok: false, motivo: errorMotivo || 'la fórmula no se entiende' };
+    if (pos < tokens.length) return { ok: false, motivo: 'sobra «' + (tokens[pos].v || tokens[pos].t) + '» al final' };
+    return { ok: true, valor: r2(valor) };
+}
+/* Fase 23, bloque 3: indicadores definidos por el usuario. El
+ * saldo natural de una cuenta es haber−debe para ingresos, pasivos
+ * y patrimonio, y debe−haber para el resto. Las cuentas de
+ * resultado (ingreso, gasto, costo) se toman del mes; las de
+ * balance (activo, pasivo, patrimonio), acumuladas hasta el mes. */
+function resolverIndicador(token, plan, mayorMes, mayorAcum, nTrabajadores) {
+    if (token === 'trabajadores') return { ok: true, valor: nTrabajadores };
+    const grupos = ['ingreso', 'gasto', 'costo', 'activo', 'pasivo', 'patrimonio'];
+    if (grupos.indexOf(token) >= 0) {
+        const deMes = token === 'ingreso' || token === 'gasto' || token === 'costo';
+        const mayor = deMes ? mayorMes : mayorAcum;
+        let total = 0;
+        for (const c of plan) {
+            if (c.grupo !== token) continue;
+            const e = mayor[c.codigo];
+            if (!e) continue;
+            total += (token === 'ingreso' || token === 'pasivo' || token === 'patrimonio') ? (Number(e.haber) || 0) - (Number(e.debe) || 0) : (Number(e.debe) || 0) - (Number(e.haber) || 0);
+        }
+        return { ok: true, valor: r2(total) };
+    }
+    if (/^\d{3}-\d{3}$/.test(token)) {
+        const c = plan.find((x) => x.codigo === token);
+        if (!c) return { ok: false, motivo: 'la cuenta ' + token + ' no existe en el plan' };
+        const deMes = c.grupo === 'ingreso' || c.grupo === 'gasto' || c.grupo === 'costo';
+        const e = (deMes ? mayorMes : mayorAcum)[token] || { debe: 0, haber: 0 };
+        const v = (c.grupo === 'ingreso' || c.grupo === 'pasivo' || c.grupo === 'patrimonio') ? (Number(e.haber) || 0) - (Number(e.debe) || 0) : (Number(e.debe) || 0) - (Number(e.haber) || 0);
+        return { ok: true, valor: r2(v) };
+    }
+    return { ok: false, motivo: 'no conozco «' + token + '»: usa un código de cuenta, un grupo o «trabajadores»' };
+}
+/* Una fila del informe a medida: su etiqueta, su fórmula y su
+ * valor en el mes y en lo acumulado del año. */
+function informeAMedida(reporte, mes, plan, asientos, nTrabajadores) {
+    const mayorMes = saldosMayor(asientos, mes);
+    const mayorAcum = saldosMayor(asientos, null);
+    const mayorAnio = saldosMayorHasta(asientos, mes);
+    return (reporte.filas || []).map((f) => {
+        const rMes = evaluarIndicador(f.formula, (tk) => resolverIndicador(tk, plan, mayorMes, mayorAcum, nTrabajadores));
+        const rAnio = evaluarIndicador(f.formula, (tk) => resolverIndicador(tk, plan, mayorAnio, mayorAcum, nTrabajadores));
+        return { etiqueta: f.etiqueta, formula: f.formula, mes: rMes.ok ? rMes.valor : null, mesMotivo: rMes.ok ? '' : rMes.motivo, anio: rAnio.ok ? rAnio.valor : null, anioMotivo: rAnio.ok ? '' : rAnio.motivo };
+    });
+}
+function pintarInformesAMedida() {
+    const lista = (informesDoc.reportes || []);
+    $('inReporte').innerHTML = lista.map((r) => '<option value="' + r.id + '">' + esc(r.nombre) + '</option>').join('') || '<option value="">— sin informes —</option>';
+    const rep = lista.find((r) => r.id === $('inReporte').value) || lista[0];
+    if (!rep) { $('inTabla').innerHTML = '<p class="tenue">Crea un informe o elige uno.</p>'; return; }
+    $('inReporte').value = rep.id;
+    const mes = $('inMes').value;
+    const filas = informeAMedida(rep, mes, conta.plan || [], conta.asientos || [], ((rrhh && rrhh.trabajadores) || []).length);
+    $('inTabla').innerHTML = '<h2 style="margin-top:10px">' + esc(rep.nombre) + ' — ' + esc(mes) + '</h2>' +
+        '<table><thead><tr><th>Fila</th><th class="num">Mes</th><th class="num">Acumulado del año</th></tr></thead><tbody>' +
+        (filas.map((f) => '<tr><td>' + esc(f.etiqueta) + ' <span class="tenue">(' + esc(f.formula) + ')</span></td><td class="num">' + (f.mes === null ? '<span class="tenue">' + esc(f.mesMotivo) + '</span>' : fmt(f.mes)) + '</td><td class="num">' + (f.anio === null ? '<span class="tenue">' + esc(f.anioMotivo) + '</span>' : fmt(f.anio)) + '</td></tr>').join('') || '<tr><td colspan="3" class="tenue">Sin filas: añade la primera con su etiqueta y su fórmula.</td></tr>') +
+        '</tbody></table>' +
+        '<p class="tenue">Filas del informe:</p>' + (rep.filas || []).map((f, i) => '<div class="fila"><span>' + esc(f.etiqueta) + ' · <span class="tenue">' + esc(f.formula) + '</span></span><button type="button" class="chico secundario" data-in-quitar-fila="' + i + '">Quitar</button></div>').join('');
+    $('inTabla').querySelectorAll('[data-in-quitar-fila]').forEach((b) => b.addEventListener('click', async () => {
+        rep.filas.splice(Number(b.dataset.inQuitarFila), 1);
+        await bd().docGuardar(tokenSesion(), 'informes', informesDoc);
+        pintarInformesAMedida(); aviso('Fila quitada');
+    }));
+}
+function pintarAuditor() {
+    const mes = $('auMes').value;
+    const v = vistaAuditor({ movs, conta, pos, aft, rrhh }, mes);
+    const fila = (a, b) => '<tr><td>' + a + '</td><td class="num">' + b + '</td></tr>';
+    $('auditor').innerHTML = '<table><tbody>' +
+        '<tr class="totales"><td colspan="2">Banco — movimientos del mes ' + esc(mes) + '</td></tr>' +
+        v.banco.map((b) => fila(b.cuenta, b.movimientos + ' movs · +$' + fmt(b.ingresos) + ' · −$' + fmt(b.gastos) + ' · saldo $' + fmt(b.saldo))).join('') +
+        '<tr class="totales"><td colspan="2">Inventario</td></tr>' +
+        fila('Productos', v.inventario.productos) + fila('Valor a costo', '$' + fmt(v.inventario.valorCosto)) + fila('Valor a precio de venta', '$' + fmt(v.inventario.valorVenta)) + fila('Bajo mínimo / agotados', v.inventario.bajoMin + ' / ' + v.inventario.agotados) +
+        '<tr class="totales"><td colspan="2">Nómina del mes</td></tr>' +
+        (v.nomina ? fila('Trabajadores', v.nomina.trabajadores) + fila('Bruto', '$' + fmt(v.nomina.bruto)) + fila('Líquido', '$' + fmt(v.nomina.liquido)) + fila('Asiento', v.nomina.asiento ? 'Hecho' : 'Sin hacer') : '<tr><td colspan="2" class="tenue">Sin nómina en ' + esc(mes) + '.</td></tr>') +
+        '<tr class="totales"><td colspan="2">Activos fijos</td></tr>' +
+        fila('Activos en explotación', v.aft.activos) + fila('Costo', '$' + fmt(v.aft.costo)) + fila('Depreciación acumulada', '$' + fmt(v.aft.depreciacion)) + fila('Valor en libros', '$' + fmt(v.aft.enLibros)) +
+        '<tr class="totales"><td colspan="2">Facturas</td></tr>' +
+        fila('Por cobrar a clientes', '$' + fmt(v.facturas.cxc)) + fila('Facturas vencidas sin cobrar', v.facturas.vencidas) + fila('Por pagar a proveedores', '$' + fmt(v.facturas.cxp)) +
+        '<tr class="totales"><td colspan="2">Costos del mes</td></tr>' +
+        fila('Costo de ventas', '$' + fmt(v.costos.costoVentas)) + fila('Gastos', '$' + fmt(v.costos.gastosMes)) +
+        '</tbody></table>';
+}
 function pintar() {
     const mes = $('iMes').value;
     if (!mes) return;
@@ -306,6 +592,13 @@ function pintarConsultas() {
         presupuesto = (await bd().docLeer(tokenSesion(), 'presupuesto')) || {};
         fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || null;
         consultas = (await bd().docLeer(tokenSesion(), 'consultas')) || [];
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        pos = (await bd().docLeer(tokenSesion(), 'pos')) || { productos: [], ventas: [] };
+        aft = (await bd().docLeer(tokenSesion(), 'aft')) || { activos: [] };
+        rrhh = (await bd().docLeer(tokenSesion(), 'rrhh')) || { nominas: {} };
+        informesDoc = (await bd().docLeer(tokenSesion(), 'informes')) || { reportes: [] };
+        informesDoc.reportes = informesDoc.reportes || [];
+        if (!Array.isArray(movs)) movs = [];
         $('mcCuenta').innerHTML = '<option value="">Todas</option>' + (conta.plan || []).filter((c) => c.admite).map((c) => '<option value="' + c.codigo + '">' + c.codigo + ' · ' + c.nombre + '</option>').join('');
         $('mcEjecutar').addEventListener('click', () => ejecutarConsulta({ desde: $('mcDesde').value, hasta: $('mcHasta').value, texto: $('mcTexto').value.trim(), cuenta: $('mcCuenta').value }));
         $('mcGuardar').addEventListener('click', async () => {
@@ -318,6 +611,42 @@ function pintarConsultas() {
         });
         pintarConsultas();
         $('iMes').value = mesLocal();
+        $('auMes').value = mesLocal();
+        $('auVer').addEventListener('click', pintarAuditor);
+        $('inMes').value = mesLocal();
+        /* Fase 27, bloque 2: diseñador de reportes. */
+        $('inCrear').addEventListener('click', async () => {
+            const nombre = $('inNombre').value.trim();
+            if (!nombre) { aviso('El informe necesita un nombre', 'error'); return; }
+            informesDoc.reportes.push({ id: 'in' + Date.now().toString(36), nombre, filas: [] });
+            await bd().docGuardar(tokenSesion(), 'informes', informesDoc);
+            $('inNombre').value = '';
+            pintarInformesAMedida(); aviso('Informe «' + nombre + '» creado: añade sus filas');
+        });
+        $('inVer').addEventListener('click', pintarInformesAMedida);
+        $('inReporte').addEventListener('change', pintarInformesAMedida);
+        $('inQuitar').addEventListener('click', async () => {
+            const rep = (informesDoc.reportes || []).find((r) => r.id === $('inReporte').value);
+            if (!rep) return;
+            if (!confirm('¿Borrar el informe «' + rep.nombre + '»?')) return;
+            informesDoc.reportes = informesDoc.reportes.filter((r) => r.id !== rep.id);
+            await bd().docGuardar(tokenSesion(), 'informes', informesDoc);
+            pintarInformesAMedida(); aviso('Informe borrado');
+        });
+        $('inAddFila').addEventListener('click', async () => {
+            const rep = (informesDoc.reportes || []).find((r) => r.id === $('inReporte').value);
+            if (!rep) { aviso('Crea primero un informe', 'error'); return; }
+            const etiqueta = $('inEtiqueta').value.trim();
+            const formula = $('inFormula').value.trim();
+            if (!etiqueta || !formula) { aviso('La fila necesita etiqueta y fórmula', 'error'); return; }
+            const prueba = evaluarIndicador(formula, (tk) => resolverIndicador(tk, conta.plan || [], saldosMayor(conta.asientos || [], $('inMes').value), saldosMayor(conta.asientos || [], null), ((rrhh && rrhh.trabajadores) || []).length));
+            if (!prueba.ok) { aviso('La fórmula no vale: ' + prueba.motivo, 'error'); return; }
+            rep.filas.push({ etiqueta, formula });
+            await bd().docGuardar(tokenSesion(), 'informes', informesDoc);
+            $('inEtiqueta').value = ''; $('inFormula').value = '';
+            pintarInformesAMedida(); aviso('Fila añadida al informe');
+        });
+        pintarInformesAMedida();
         $('iVer').addEventListener('click', pintar);
         $('iImprimir').addEventListener('click', () => window.print());
         $('prAdd').addEventListener('click', () => {

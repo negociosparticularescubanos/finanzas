@@ -28,6 +28,22 @@
     .verde { color: #1E7A34; font-weight: 600; }
     saldova-indicador { font-size: 15px; font-weight: 600; }
     .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    /* Fase 9 del plan, bloque 2: ventanas modales de edición,
+     * encima de la tabla (no un módulo WinBox). */
+    .modal-fondo { position: fixed; inset: 0; background: rgba(20, 50, 79, .55); display: none; align-items: center; justify-content: center; z-index: 50; padding: 14px; }
+    .modal-fondo.abierto { display: flex; }
+    .modal-caja { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 14px; width: 100%; max-width: 560px; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+    .modal-caja h2 { font-size: 15px; margin: 0 0 8px; color: #1A3E5E; }
+    /* Fase 10 del plan, bloque 1: columnas del CRM. */
+    .crm-cols { display: flex; gap: 8px; flex-wrap: wrap; }
+    .crm-col { flex: 1 1 150px; background: #fff; border: 1px solid #B9CFE8; border-radius: 6px; padding: 8px; min-width: 150px; }
+    .crm-col h3 { margin: 0 0 6px; font-size: 13.5px; color: #1A3E5E; }
+    .crm-cli { border: 1px solid #B9CFE8; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 13px; background: #F4F9FE; }
+    .crm-cli .tenue { font-size: 12.5px; }
+    /* Fase 10 del plan, bloque 2: barras Hoy / Con el consejo. */
+    .idea { background: #fff; border: 1px solid #B9CFE8; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+    .barra { background: #DCE8F5; border-radius: 4px; height: 14px; overflow: hidden; margin: 2px 0 6px; }
+    .barra > div { height: 100%; }
 </style>
 </head>
 <body>
@@ -42,10 +58,53 @@
         <input id="fCliente" placeholder="Cliente" style="min-width:170px">
         <label>Fecha <input id="fFecha" type="date"></label>
         <label>Vence <input id="fVence" type="date"></label>
+        <label>Término <select id="fTermino"><option value="contado">Contado</option><option value="15">15 días</option><option value="30">30 días</option><option value="50/50">50 % ahora y 50 % al entregar</option></select></label>
         <input id="fTotal" class="monto" type="number" step="0.01" min="0" placeholder="Total">
+        <label>Moneda <select id="fMoneda"><option value="CUP">CUP</option><option value="USD">USD</option></select></label>
+        <label id="fTasaWrap" style="display:none">Tasa (CUP por 1 USD) <input id="fTasa" type="number" step="0.01" min="0" style="width:100px"></label>
+        <span id="fEquiv" class="tenue"></span>
+        <label>Contrato <select id="fContrato"><option value="">Sin contrato</option></select></label>
         <button type="button" id="fAdd" class="secundario chico">Añadir factura</button>
         <button type="button" id="fCsv" class="secundario chico">Descargar las facturas en Excel (CSV)</button>
     </div>
+    <div id="fPrecios" class="tenue"></div>
+    <div id="fRefacturables" class="tenue"></div>
+    <div id="fHoras" class="tenue"></div>
+</div>
+
+<!-- Fase 34: horas facturables por cliente. Para el que vende
+     servicios por horas (consultoría, reparaciones, diseño): se
+     anotan las horas por cliente (fecha, horas, qué se hizo,
+     tarifa) y pasan a la factura en un clic. -->
+<div class="tarjeta">
+    <h2>Horas facturables</h2>
+    <p class="tenue">Anota las horas que trabajas para cada cliente (fecha, horas, qué se hizo, tarifa) y pásalas a su factura en un clic, sin volver a picarlas.</p>
+    <div class="fila">
+        <label>Fecha <input id="hfFecha" type="date"></label>
+        <label>Cliente <select id="hfCliente"></select></label>
+        <input id="hfDesc" placeholder="Qué se hizo" style="flex:1;min-width:180px">
+        <label>Horas <input id="hfHoras" type="number" step="0.25" min="0" style="width:80px" placeholder="0"></label>
+        <label>Tarifa / hora <input id="hfTarifa" type="number" step="0.01" min="0" style="width:110px" placeholder="0"></label>
+        <button type="button" id="hfAdd" class="secundario chico">Anotar las horas</button>
+    </div>
+    <div id="horasFacturables"></div>
+</div>
+
+<!-- Fase 31, bloque 1: gastos refacturables al cliente. Un gasto
+     (transporte, material, gestión) se marca «para refacturar al
+     cliente X» y aparece en su próxima factura, con su monto: el
+     negocio no se queda con gastos que eran del cliente. -->
+<div class="tarjeta">
+    <h2>Gastos para refacturar</h2>
+    <p class="tenue">Un gasto que era del cliente (transporte, material, gestión) se anota aquí y sale en su próxima factura. Al crearle la factura, marca los gastos que van en ella: se suman al total y quedan como facturados.</p>
+    <div class="fila">
+        <label>Fecha <input id="rfFecha" type="date"></label>
+        <input id="rfConcepto" placeholder="Concepto del gasto" style="min-width:200px">
+        <input id="rfMonto" type="number" step="0.01" min="0" class="monto" placeholder="Monto">
+        <label>Cliente <select id="rfCliente"></select></label>
+        <button type="button" id="rfAdd" class="secundario chico">Anotar el gasto</button>
+    </div>
+    <div id="refacturables"></div>
 </div>
 
 <div class="tarjeta">
@@ -54,10 +113,48 @@
     <div id="telecobranzas"><p class="tenue">Cargando…</p></div>
 </div>
 
+<!-- Fase 11 del plan, bloque 4: recordatorios de cobro automáticos
+     (3 días antes, el día del vencimiento, cada semana de atraso). -->
+<div class="tarjeta">
+    <h2>Cobros por recordar hoy</h2>
+    <p class="tenue">La app revisa sola las facturas sin pagar: 3 días antes del vencimiento, el día del vencimiento y cada semana de atraso. Cada aviso trae el texto listo para copiar y «Ya avisé» para que no te lo vuelva a pedir.</p>
+    <div id="recordatorios"><p class="tenue">Cargando…</p></div>
+</div>
+
 <div class="tarjeta">
     <h2>Consecutivos de facturas — detector de saltos</h2>
     <p class="tenue">Un hueco en la numeración de las facturas es lo primero que busca una inspección: aquí se detecta solo, junto con los números repetidos.</p>
     <div id="consecutivos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 11 del plan, bloque 2: talonario de instrumentos de pago
+     (cheques, letras de cambio, pagarés), copiado de Finanzas. -->
+<div class="tarjeta">
+    <h2>Talonario de instrumentos de pago</h2>
+    <p class="tenue">Cada talonario lleva su rango, el siguiente número libre, los anulados y los huecos (números saltados sin usar ni anular: lo primero que busca una inspección).</p>
+    <div id="instrumentos"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <label>Tipo <select id="iTipo"><option>Cheque</option><option>Letra de cambio</option><option>Pagaré</option></select></label>
+        <label>Desde <input id="iDesde" type="number" min="1" step="1" style="width:90px"></label>
+        <label>Hasta <input id="iHasta" type="number" min="1" step="1" style="width:90px"></label>
+        <button type="button" id="iAdd" class="secundario chico">Crear talonario</button>
+    </div>
+</div>
+
+<!-- Fase 11 del plan, bloque 3: suscripciones por cobrar. -->
+<div class="tarjeta">
+    <h2>Suscripciones por cobrar</h2>
+    <p class="tenue">Los cobros que se repiten cada mes, cada trimestre o cada año (una mensualidad, un mantenimiento, una licencia): cuando llega su fecha, «Generar factura» crea la factura y adelanta el próximo cobro.</p>
+    <div id="suscripciones"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <input id="sCliente" placeholder="Cliente" style="min-width:170px">
+        <input id="sConcepto" placeholder="Concepto" style="min-width:200px">
+        <input id="sMonto" class="monto" type="number" step="0.01" min="0" placeholder="Monto">
+        <label>Cada <select id="sFrecuencia"><option value="mensual">mes</option><option value="trimestral">trimestre</option><option value="anual">año</option></select></label>
+        <label>Próximo cobro <input id="sProximo" type="date"></label>
+        <label>Contrato <select id="sContrato"><option value="">Sin contrato</option></select></label>
+        <button type="button" id="sAdd" class="secundario chico">Añadir suscripción</button>
+    </div>
 </div>
 
 <div class="tarjeta">
@@ -88,13 +185,265 @@
         <input id="cCliente" placeholder="Cliente" style="min-width:170px">
         <input id="cObjeto" placeholder="Objeto del contrato" style="min-width:200px">
         <input id="cMonto" class="monto" type="number" step="0.01" min="0" placeholder="Monto">
+        <input id="cVigencia" type="date" title="Vigencia hasta (para el aviso de «Qué toca hoy»)">
+    </div>
+    <div class="fila">
+        <label>Tipo <select id="cTipo"><option>Compraventa</option><option>Servicios</option><option>Arrendamiento</option><option>Otro</option></select></label>
+        <label>Rol del negocio <select id="cRol"><option value="prestador">Prestador (vendemos)</option><option value="cliente">Cliente (compramos)</option></select></label>
+        <label>Desde <input id="cDesde" type="date"></label>
+        <label>Moneda <select id="cMoneda"><option>CUP</option><option>USD</option></select></label>
         <button type="button" id="cAdd" class="secundario chico">Añadir contrato</button>
     </div>
 </div>
 
+<!-- Fase 11 del plan, bloque 1: buscador de los documentos
+     adjuntos a los contratos (copiado de Finanzas, ctorDocsRender). -->
+<div class="tarjeta">
+    <h2>Documentos adjuntos de los contratos</h2>
+    <p class="tenue">Todos los documentos guardados en los contratos, con buscador por número, cliente u objeto. Cada documento pesa como mucho 250 KB: las imágenes se reducen solas y los PDF de más de 200 KB no entran.</p>
+    <div class="fila"><input id="adjBuscar" placeholder="Buscar en los documentos: número, cliente, objeto…" style="flex:1;min-width:220px"></div>
+    <div id="adjuntos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 10 del plan, bloque 1: CRM sencillo. Los clientes son
+     las contrapartes de Contabilidad (tipo distinto de
+     'proveedor'); su etapa, nota y próximo contacto viven en
+     conta.gestion.crm, como en Finanzas (mjCrmRender). -->
+<div class="tarjeta">
+    <h2>Clientes por etapa (CRM sencillo)</h2>
+    <p class="tenue">Cada cliente es una contraparte de Contabilidad: se crea al facturar o en Contabilidad → Submayores. Muévelo por las etapas con ← → y anota su próximo contacto.</p>
+    <div id="crmBox"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 18 del plan, bloque 3: importar desde Excel (CSV).
+     Clientes y proveedores van a las contrapartes de Contabilidad;
+     productos, al POS. El archivo es el mismo CSV de la hoja cubana
+     (columnas con «;», coma decimal); la primera fila trae los
+     encabezados. Los repetidos (mismo nombre) no se duplican. -->
+<div class="tarjeta">
+    <h2>Importar desde Excel (CSV)</h2>
+    <p class="tenue">Para no picar 200 clientes o productos a mano: la hoja se guarda como CSV y se sube aquí. Primero descarga la plantilla con los encabezados y un ejemplo.</p>
+    <div class="fila">
+        <label>Qué importar <select id="impTipo"><option value="contrapartes">Clientes y proveedores</option><option value="productos">Productos</option></select></label>
+        <button type="button" id="impPlantilla" class="secundario chico">Descargar plantilla</button>
+        <label>Archivo CSV <input type="file" id="impFile" accept=".csv,text/csv"></label>
+    </div>
+    <div id="impPrevia"><p class="tenue">Elige el archivo y verás aquí lo que trae antes de importar nada.</p></div>
+    <div class="fila"><button type="button" id="impImportar" disabled>Importar</button><span id="impNota" class="tenue"></span></div>
+</div>
+
+<!-- Fase 18 del plan, bloque 4: precios por cliente. Cada cliente
+     puede tener su precio por producto (en conta.gestion.precios,
+     por nombre de cliente); al escribir el cliente en la factura,
+     sus precios salen debajo del formulario para no tener que
+     acordarse de ellos. -->
+<div class="tarjeta">
+    <h2>Precios por cliente</h2>
+    <p class="tenue">El precio especial de un cliente por producto. Cuando le hagas una factura, sus precios salen debajo del formulario.</p>
+    <div class="fila">
+        <label>Cliente <select id="pcCliente"></select></label>
+        <label>Producto <select id="pcProducto"></select></label>
+        <label>Precio $ <input id="pcPrecio" type="number" step="0.01" min="0" style="width:120px"></label>
+        <button type="button" id="pcGuardar">Guardar precio</button>
+    </div>
+    <div id="pcLista"><p class="tenue">Elige un cliente para ver sus precios.</p></div>
+</div>
+
+<!-- Fase 29, bloque 1: límite de crédito por cliente. Cada
+     cliente tiene un tope de lo que se le puede fiar; al hacerle
+     una factura que lo pasa, la app avisa cuánto debe y cuál es su
+     límite, y pide confirmar. El límite 0 es sin límite. -->
+<div class="tarjeta">
+    <h2>Límites de crédito</h2>
+    <p class="tenue">Lo que se le puede fiar a cada cliente. Si una factura nueva lo pasa, la app avisa cuánto debe y cuál es su límite, y pide confirmar antes de guardarla. La deuda se mide en CUP (las facturas en USD se valoran con su tasa).</p>
+    <div id="limites"></div>
+</div>
+
+<!-- Fase 10 del plan, bloque 2: Ideas. Consejos fiscales que la
+     norma permite, calculados con los asientos y los pagos a la
+     ONAT del año (copia de Finanzas: renderIdeas / mjIdeas). Nada
+     se aplica solo: cada idea dice a dónde ir. -->
+<div class="tarjeta">
+    <h2>Ideas para pagar menos (con tus números)</h2>
+    <p class="tenue">Consejos fiscales que la norma permite, calculados con tus asientos y tus pagos a la ONAT del año. Nada se aplica solo: cada idea te dice a dónde ir.</p>
+    <div class="fila"><label>Año <select id="ideasAnio"></select></label></div>
+    <div id="ideasBox"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 10 del plan, bloque 4: tablero de indicadores del mes
+     (Plantilla 18). Copia de Finanzas (lbTableroRender): las
+     ventas, el beneficio neto y el efectivo salen de los datos; las
+     cuentas por cobrar y por pagar, de los submayores; el
+     inventario, de los productos; el beneficio bruto se sugiere
+     desde la contabilidad (ingresos menos costo de ventas) y lo que
+     no se puede calcular solo se captura a mano y se guarda en
+     conta.gestion.tablero[periodo]. -->
+<div class="tarjeta">
+    <h2>Tablero de indicadores del mes</h2>
+    <p class="tenue">Plantilla 18 del libro «Finanzas Inteligentes en Cuba»: la salud del negocio de un vistazo, comparada con el mes anterior y con semáforo (Bien / Revisar / Mal). Las ventas, el beneficio neto antes de impuestos y obligaciones y el efectivo salen de los datos del negocio; las cuentas por cobrar y por pagar, de los submayores contables; el inventario, de los indicadores contables. Lo que no se puede calcular solo se captura en «Ajustes del tablero» y se guarda en este equipo.</p>
+    <div class="fila"><label>Período <select id="tabPeriodo"></select></label><button type="button" class="secundario chico" id="tabActualizar">Actualizar</button><span id="tabInfo" class="tenue"></span></div>
+    <div id="tablero"><p class="tenue">Cargando…</p></div>
+    <h2 style="margin-top:12px">Ajustes del tablero (valores manuales)</h2>
+    <div class="fila">
+        <label>Beneficio bruto (CUP) <input id="tabBeneficio" class="monto" type="number" step="0.01" placeholder="Vacío = sugerido"></label>
+        <label>Cuentas por cobrar (CUP) <input id="tabCxC" class="monto" type="number" step="0.01" placeholder="Vacío = submayor"></label>
+        <label>Cuentas por pagar (CUP) <input id="tabCxP" class="monto" type="number" step="0.01" placeholder="Vacío = submayor"></label>
+        <label>Valor del inventario (CUP) <input id="tabInventario" class="monto" type="number" step="0.01" placeholder="Vacío = indicadores"></label>
+        <label>Punto de equilibrio del mes (CUP) <input id="tabPE" class="monto" type="number" step="0.01" placeholder="Ej.: 25000"></label>
+    </div>
+    <div class="fila">
+        <label style="flex:1;min-width:220px">Señal general del mes (una frase) <input id="tabSenal" style="width:100%" placeholder="Ej.: Vendí por encima del equilibrio, pero cobré menos y el efectivo bajó"></label>
+        <button type="button" id="tabGuardar">Guardar valores manuales</button>
+    </div>
+    <div id="tabSugerido" class="tenue"></div>
+</div>
+
+<!-- Fase 10 del plan, bloque 5: punto de equilibrio. Copia de
+     Finanzas (lbEquilibrio / lbEquilibrioUI): costos fijos, precio
+     y costo variable por unidad dan el margen de contribución y el
+     punto de equilibrio en unidades y en CUP; con las ventas reales
+     del mes sale el margen de seguridad. «Guardar como punto de
+     equilibrio del mes» escribe el PE en CUP en los ajustes del
+     tablero del mes en curso, para que el tablero lo compare con
+     las ventas. -->
+<div class="tarjeta">
+    <h2>Punto de equilibrio</h2>
+    <p class="tenue">Cuánto hay que vender para no perder ni ganar: los costos fijos divididos entre lo que deja cada unidad (precio menos costo variable). Con las ventas reales del mes sale el margen de seguridad.</p>
+    <div class="fila">
+        <label>Costos fijos del mes <input id="eqFijos" class="monto" type="number" step="0.01" min="0" placeholder="0"></label>
+        <label>Precio de venta <input id="eqPrecio" class="monto" type="number" step="0.01" min="0" placeholder="0"></label>
+        <label>Costo variable por unidad <input id="eqCvu" class="monto" type="number" step="0.01" min="0" placeholder="0"></label>
+        <label>Ventas reales del mes (unidades, opcional) <input id="eqVentas" class="monto" type="number" step="1" min="0" placeholder="Opcional"></label>
+        <button type="button" id="eqCalcular">Calcular equilibrio</button>
+        <button type="button" class="secundario" id="eqGuardar">Guardar como punto de equilibrio del mes</button>
+    </div>
+    <div id="equiBox" class="tenue"></div>
+</div>
+
+<!-- Fase 19 del plan, bloque 2: por dónde ganas. El beneficio por
+     producto sale de las ventas del POS (unidades × precio menos
+     unidades × costo promedio de hoy: la venta no guarda el costo
+     del día, así que si el costo cambió, el beneficio es con el de
+     hoy). Por cliente: lo facturado, lo cobrado, lo pendiente y
+     cuánto hace que no compra. -->
+<div class="tarjeta">
+    <h2>Por dónde ganas</h2>
+    <p class="tenue">Qué producto deja plata y cuál no, y qué cliente deja plata y cuál lleva meses sin comprar. Todo del período que elijas.</p>
+    <div class="fila"><label>Desde <input id="pgDesde" type="date"></label><label>Hasta <input id="pgHasta" type="date"></label></div>
+    <h2 style="margin-top:10px">Por producto</h2>
+    <div id="pgProductos"><p class="tenue">Cargando…</p></div>
+    <h2 style="margin-top:10px">Por cliente</h2>
+    <div id="pgClientes"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 22 del plan, bloque 2: consignación. Lo que se le debe a
+     cada consignador por lo vendido de él, y el pago por período
+     con su asiento (la deuda solo se paga cuando la venta ya tiene
+     su asiento del día: antes de eso la deuda no existe en la
+     contabilidad). -->
+<div class="tarjeta">
+    <h2>Consignación</h2>
+    <p class="tenue">Lo que se le debe a cada consignador por lo vendido de él: la venta deja la comisión para el negocio y el resto queda como deuda hasta que se le paga. El pago crea su asiento (Debe CxP / Haber banco o caja).</p>
+    <div id="cgResumen"><p class="tenue">Cargando…</p></div>
+    <div class="fila">
+        <label>Consignador <select id="cgQuien"></select></label>
+        <label>Importe $ <input id="cgMonto" class="monto" type="number" step="0.01" min="0" style="width:110px"></label>
+        <label>Sale de <select id="cgMedio"><option value="banco_cup">Banco CUP (110-010)</option><option value="caja">Caja (101-010)</option></select></label>
+        <button type="button" id="cgPagar">Pagar y crear su asiento</button>
+    </div>
+    <div id="cgRegistro"></div>
+    <h2 style="margin-top:10px">Pagos hechos</h2>
+    <div id="cgPagos"><p class="tenue">Sin pagos todavía.</p></div>
+</div>
+
+<!-- Fase 9 del plan, bloque 2: ventanas modales para editar una
+     factura o una oferta sin salir de la página. El total de la
+     factura no se edita aquí: sale de sus renglones; si el total
+     está mal, la factura se borra y se vuelve a crear. -->
+<div class="modal-fondo" id="modalFac">
+    <div class="modal-caja">
+        <h2>Editar factura</h2>
+        <div class="fila">
+            <label>Nº <input id="mfNumero" size="9"></label>
+            <label style="flex:1;min-width:170px">Cliente <input id="mfCliente" style="width:100%"></label>
+            <label>Fecha <input id="mfFecha" type="date"></label>
+            <label>Vence <input id="mfVence" type="date"></label>
+            <label>Contrato <select id="mfContrato"><option value="">Sin contrato</option></select></label>
+        </div>
+        <p class="tenue">Si la factura ya tiene su documento CxC, el documento y su asiento se actualizan con el mismo número, cliente y fecha.</p>
+        <div class="fila">
+            <button type="button" id="btnGuardarModalFac">Guardar</button>
+            <button type="button" class="secundario" id="btnCancelarModalFac">Cancelar</button>
+        </div>
+    </div>
+</div>
+<div class="modal-fondo" id="modalOferta">
+    <div class="modal-caja">
+        <h2>Editar oferta</h2>
+        <div class="fila">
+            <label>Nº <input id="moNumero" size="9"></label>
+            <label style="flex:1;min-width:170px">Cliente <input id="moCliente" style="width:100%"></label>
+            <label>Fecha <input id="moFecha" type="date"></label>
+        </div>
+        <div class="fila">
+            <button type="button" id="btnGuardarModalOferta">Guardar</button>
+            <button type="button" class="secundario" id="btnCancelarModalOferta">Cancelar</button>
+        </div>
+    </div>
+</div>
+<!-- Fase 11 del plan, bloque 1: ventana modal para editar un
+     contrato con su documento (el alta sigue en el formulario de
+     la página, como las facturas y las ofertas de la fase 9). -->
+<div class="modal-fondo" id="modalContrato">
+    <div class="modal-caja" style="max-width:640px">
+        <h2>Editar contrato</h2>
+        <div class="fila">
+            <label>Nº <input id="mcNumero" size="9"></label>
+            <label style="flex:1;min-width:170px">Cliente <input id="mcCliente" style="width:100%"></label>
+            <label>Tipo <select id="mcTipo"><option>Compraventa</option><option>Servicios</option><option>Arrendamiento</option><option>Otro</option></select></label>
+            <label>Rol <select id="mcRol"><option value="prestador">Prestador (vendemos)</option><option value="cliente">Cliente (compramos)</option></select></label>
+        </div>
+        <div class="fila">
+            <label style="flex:1;min-width:200px">Objeto <input id="mcObjeto" style="width:100%"></label>
+            <label>Monto <input id="mcMonto" class="monto" type="number" step="0.01" min="0"></label>
+            <label>Moneda <select id="mcMoneda"><option>CUP</option><option>USD</option></select></label>
+        </div>
+        <div class="fila">
+            <label>Fecha de firma <input id="mcFirma" type="date"></label>
+            <label>Desde <input id="mcDesde" type="date"></label>
+            <label>Hasta <input id="mcHasta" type="date"></label>
+            <label>Estado <select id="mcEstado"><option value="vigente">Vigente</option><option value="terminado">Terminado</option><option value="cancelado">Cancelado</option></select></label>
+        </div>
+        <div class="fila"><label style="flex:1">Notas <input id="mcNotas" style="width:100%"></label></div>
+        <h2 style="margin-top:10px">Documentos adjuntos</h2>
+        <div id="mcAdjuntos"></div>
+        <div class="fila"><label>Adjuntar (imagen o PDF) <input id="mcAdjunto" type="file" accept="image/*,.pdf"></label></div>
+        <p class="tenue">Máximo 5 documentos por contrato; cada uno, como mucho 250 KB.</p>
+        <div class="fila">
+            <button type="button" id="btnGuardarModalContrato">Guardar</button>
+            <button type="button" class="secundario" id="btnGenerarContrato">Generar documento de compraventa</button>
+            <button type="button" class="secundario" id="btnCancelarModalContrato">Cancelar</button>
+        </div>
+    </div>
+</div>
+<!-- Fase 11 del plan, bloque 1: el contrato de compraventa
+     generado con los datos de la ficha del negocio. -->
+<div class="modal-fondo" id="modalGenContrato">
+    <div class="modal-caja" style="max-width:720px">
+        <h2 id="genTitulo">Contrato de compraventa</h2>
+        <div id="genTexto" style="background:#fff;border:1px solid #8FA8C8;border-radius:6px;padding:12px;font-size:13.5px;line-height:1.5;max-height:50vh;overflow:auto"></div>
+        <p class="tenue">Los huecos (____) son datos que la ficha del negocio o el contrato no tienen: complétalos al imprimir o en Fiscal → Datos del negocio.</p>
+        <div class="fila">
+            <button type="button" id="btnCopiarGen">Copiar el texto</button>
+            <button type="button" class="secundario" id="btnImprimirGen">Imprimir</button>
+            <button type="button" class="secundario" id="btnCerrarGen">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, hoyLocal, fechaLocalDe } from 'nucleo';
-import 'componentes';
+import { esc, bd, aviso, sesionActual, tokenSesion, descargarCSV, hoyLocal, fechaLocalDe, cuentaAuto, validarLineasAsiento, esOnat, guardarMultiple, tasaDelMes } from 'nucleo';
+import { adjuntoLeer } from 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(6);
 
@@ -103,6 +452,10 @@ const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const hoy = () => hoyLocal();
 let conta = null;
+let movs = [];
+let fiscal = null;
+let pos = {};
+let fx = {};
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -116,6 +469,184 @@ async function pintarIndicador() {
 }
 async function guardar() { await bd().docGuardar(tokenSesion(), 'conta', conta); }
 const saldoFac = (f) => r2((Number(f.total) || 0) - (f.cobros || []).reduce((s, c) => s + (Number(c.monto) || 0), 0));
+/* Fase 28, bloque 3: facturar en USD con su equivalente en CUP.
+ * La factura guarda su moneda y la tasa del día; el total en CUP
+ * y el pendiente en CUP se calculan con esa tasa, así el total por
+ * cobrar del negocio siempre está en CUP. */
+function equivalenteCup(montoUsd, tasa) { return r2((Number(montoUsd) || 0) * (Number(tasa) || 0)); }
+function totalCupFactura(f) { return (f.moneda === 'USD') ? equivalenteCup(f.total, f.tasa) : r2(Number(f.total) || 0); }
+function pendienteFactura(f) {
+    const pendiente = saldoFac(f);
+    return { pendiente, pendienteCup: (f.moneda === 'USD') ? equivalenteCup(pendiente, f.tasa) : pendiente };
+}
+/* Fase 29, bloque 3: términos de pago en la factura. Al facturar
+ * se elige la condición y la fecha de vencimiento sale sola; las
+ * vencidas aparecen en «Qué toca hoy» y en los recordatorios de
+ * cobro, que ya leen el vencimiento. */
+function vencimientoPorTermino(fecha, termino) {
+    const base = String(fecha || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) return '';
+    const dias = termino === '15' ? 15 : termino === '30' ? 30 : 0;
+    const d = new Date(base + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + dias);
+    return d.toISOString().slice(0, 10);
+}
+function terminoTexto(termino) {
+    return termino === '15' ? '15 días' : termino === '30' ? '30 días' : termino === '50/50' ? '50 % ahora y 50 % al entregar' : 'Contado';
+}
+/* Fase 29, bloque 2: código QR de pago en la factura. El QR es
+ * el del negocio (el de Transfermóvil o EnZona ligado a su Cuenta
+ * Bancaria Fiscal, guardado en la ficha del negocio): la factura
+ * impresa lo trae con el importe y el concepto para que el cliente
+ * lo escanee y pague. */
+function textoPagoQR(factura, perfil) {
+    const negocio = (perfil && (perfil.nombreComercial || perfil.razon)) || 'el negocio';
+    const total = (factura.moneda === 'USD') ? fmt(Number(factura.total) || 0) + ' USD (≈ ' + fmt(totalCupFactura(factura)) + ' CUP)' : fmt(Number(factura.total) || 0) + ' CUP';
+    return 'Paga ' + total + ' — Factura Nº ' + (factura.numero || '') + ' de ' + negocio + ' — ' + (factura.cliente || '');
+}
+function facturaImpresaHTML(factura, perfil) {
+    const p = perfil || {};
+    const negocio = p.nombreComercial || p.razon || 'Mi negocio';
+    const saldo = saldoFac(factura);
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Factura Nº ' + esc(factura.numero || '') + '</title><style>' +
+        'body{font-family:Arial,sans-serif;color:#14324F;margin:24px} h1{font-size:20px;margin:0} table{border-collapse:collapse;width:100%;margin:12px 0} th,td{border:1px solid #999;padding:6px 9px;text-align:left;font-size:14px} th{background:#eee} .num{text-align:right} .qr{text-align:center;margin:16px 0} .tenue{color:#5A738C;font-size:13px}</style></head><body>' +
+        (p.logo ? '<img src="' + esc(p.logo) + '" alt="Logo" style="max-width:120px;max-height:120px">' : '') +
+        '<h1>Factura Nº ' + esc(factura.numero || '') + '</h1>' +
+        '<p><b>' + esc(negocio) + '</b>' + (p.nit ? ' · NIT ' + esc(p.nit) : '') + (p.telefono ? ' · Tel. ' + esc(p.telefono) : '') + '<br>' +
+        (p.direccion ? esc(p.direccion) + (p.municipio ? ', ' + esc(p.municipio) : '') + '<br>' : '') +
+        'Cliente: <b>' + esc(factura.cliente || '') + '</b><br>Fecha: ' + esc(factura.fecha || '') + (factura.vencimiento ? ' · Vence: ' + esc(factura.vencimiento) : '') + '</p>' +
+        '<table><thead><tr><th>Concepto</th><th class="num">Importe</th></tr></thead><tbody>' +
+        '<tr><td>Factura Nº ' + esc(factura.numero || '') + '</td><td class="num">' + fmt(Number(factura.total) || 0) + ' ' + esc(factura.moneda || 'CUP') + '</td></tr>' +
+        ((factura.moneda === 'USD') ? '<tr><td>Equivalente en CUP (tasa ' + fmt(Number(factura.tasa) || 0) + ')</td><td class="num">' + fmt(totalCupFactura(factura)) + ' CUP</td></tr>' : '') +
+        '<tr><td><b>Saldo pendiente</b></td><td class="num"><b>' + fmt(saldo) + ' ' + esc(factura.moneda || 'CUP') + '</b></td></tr>' +
+        '</tbody></table>' +
+        (p.qrPago ? '<div class="qr"><img src="' + esc(p.qrPago) + '" alt="Código QR de pago" style="max-width:200px;max-height:200px"><p><b>' + esc(textoPagoQR(factura, p)) + '</b></p><p class="tenue">Escanea este código con Transfermóvil o EnZona y paga el importe de la factura.</p></div>'
+            : '<p class="tenue">Paga por Transfermóvil o EnZona a la cuenta ' + esc(p.cuentaCup || '') + ' — ' + esc(textoPagoQR(factura, p)) + '.</p>') +
+        '</body></html>';
+}
+function imprimirFactura(factura, perfil) {
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write(facturaImpresaHTML(factura, perfil));
+    w.document.close();
+    w.focus();
+    w.print();
+}
+/* Fase 31, bloque 1: gastos refacturables al cliente. */
+function refacturablesPendientes(refacturables, cliente) {
+    const c = String(cliente || '').trim().toLowerCase();
+    if (!c) return [];
+    return (refacturables || []).filter((r) => r.estado === 'pendiente' && String(r.cliente || '').trim().toLowerCase() === c);
+}
+function totalRefacturable(refacturables, ids) {
+    const set = new Set(ids || []);
+    return r2((refacturables || []).filter((r) => set.has(r.id)).reduce((s, r) => s + (Number(r.monto) || 0), 0));
+}
+function pintarRefacturables() {
+    const lista = (conta.gestion.refacturables || []).filter((r) => r.estado === 'pendiente');
+    $('refacturables').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th class="num">Monto</th><th></th></tr></thead><tbody>' +
+        lista.map((r) => '<tr><td>' + esc(r.fecha || '') + '</td><td>' + esc(r.cliente || '') + '</td><td>' + esc(r.concepto || '') + '</td><td class="num">' + fmt(Number(r.monto) || 0) + '</td><td><button type="button" class="chico secundario" data-rf-quitar="' + r.id + '">Quitar</button></td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin gastos pendientes de refacturar.</p>';
+    $('refacturables').querySelectorAll('[data-rf-quitar]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.refacturables = (conta.gestion.refacturables || []).filter((r) => r.id !== b.dataset.rfQuitar);
+        await guardar(); pintarRefacturables(); pintarRefacturablesForm(); aviso('Gasto quitado');
+    }));
+}
+let fTotalBase = 0;
+function aplicarTotalFactura() {
+    const rfIds = Array.from(document.querySelectorAll('[data-rf-factura]:checked')).map((c) => c.dataset.rfFactura);
+    const hIds = Array.from(document.querySelectorAll('[data-hora-factura]:checked')).map((c) => c.dataset.horaFactura);
+    $('fTotal').value = r2(fTotalBase + totalRefacturable(conta.gestion.refacturables || [], rfIds) + totalHoras((conta.gestion.horas || []), hIds));
+}
+function pintarRefacturablesForm() {
+    const cliente = $('fCliente').value.trim();
+    const pend = refacturablesPendientes(conta.gestion.refacturables || [], cliente);
+    $('fRefacturables').innerHTML = pend.length ? 'Gastos de ' + esc(cliente) + ' para refacturar: ' + pend.map((r) => '<label><input type="checkbox" data-rf-factura="' + r.id + '" checked> ' + esc(r.concepto || '') + ' $' + fmt(Number(r.monto) || 0) + '</label>').join(' ') : '';
+    $('fRefacturables').querySelectorAll('[data-rf-factura]').forEach((c) => c.addEventListener('change', aplicarTotalFactura));
+    aplicarTotalFactura();
+}
+/* Fase 34: horas facturables por cliente. */
+function horasPendientes(horas, cliente) {
+    const c = String(cliente || '').trim().toLowerCase();
+    if (!c) return [];
+    return (horas || []).filter((h) => h.estado === 'pendiente' && String(h.cliente || '').trim().toLowerCase() === c);
+}
+function totalHoras(horas, ids) {
+    const set = new Set(ids || []);
+    return r2((horas || []).filter((h) => set.has(h.id)).reduce((s, h) => s + (Number(h.horas) || 0) * (Number(h.tarifa) || 0), 0));
+}
+function pintarHoras() {
+    const lista = (conta.gestion.horas || []).filter((h) => h.estado === 'pendiente');
+    $('horasFacturables').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Qué se hizo</th><th class="num">Horas</th><th class="num">Tarifa</th><th class="num">Importe</th><th></th></tr></thead><tbody>' +
+        lista.map((h) => '<tr><td>' + esc(h.fecha || '') + '</td><td>' + esc(h.cliente || '') + '</td><td>' + esc(h.descripcion || '') + '</td><td class="num">' + fmt(Number(h.horas) || 0) + '</td><td class="num">' + fmt(Number(h.tarifa) || 0) + '</td><td class="num">' + fmt(r2((Number(h.horas) || 0) * (Number(h.tarifa) || 0))) + '</td><td><button type="button" class="chico secundario" data-hora-quitar="' + h.id + '">Quitar</button></td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin horas pendientes de facturar.</p>';
+    $('horasFacturables').querySelectorAll('[data-hora-quitar]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.horas = (conta.gestion.horas || []).filter((h) => h.id !== b.dataset.horaQuitar);
+        await guardar(); pintarHoras(); pintarHorasForm(); aviso('Horas quitadas');
+    }));
+}
+function pintarHorasForm() {
+    const cliente = $('fCliente').value.trim();
+    const pend = horasPendientes(conta.gestion.horas || [], cliente);
+    $('fHoras').innerHTML = pend.length ? 'Horas de ' + esc(cliente) + ' para facturar: ' + pend.map((h) => '<label><input type="checkbox" data-hora-factura="' + h.id + '" checked> ' + esc(h.descripcion || '') + ' · ' + fmt(Number(h.horas) || 0) + ' h × $' + fmt(Number(h.tarifa) || 0) + ' = $' + fmt(r2((Number(h.horas) || 0) * (Number(h.tarifa) || 0))) + '</label>').join(' ') : '';
+    $('fHoras').querySelectorAll('[data-hora-factura]').forEach((c) => c.addEventListener('change', aplicarTotalFactura));
+    aplicarTotalFactura();
+}
+/* Fase 29, bloque 1: límite de crédito por cliente. La deuda es
+ * lo que debe en CUP (las facturas en USD se valoran con su tasa).
+ * El límite 0 (o sin poner) es sin límite. */
+function deudaCliente(facturas, cliente) {
+    const c = String(cliente || '').trim().toLowerCase();
+    if (!c) return 0;
+    return r2((facturas || []).filter((f) => String(f.cliente || '').trim().toLowerCase() === c).reduce((s, f) => s + pendienteFactura(f).pendienteCup, 0));
+}
+function excedeLimite(deuda, nuevoTotalCup, limite) {
+    const lim = Number(limite) || 0;
+    if (!(lim > 0)) return { excede: false, debe: r2(deuda), limite: lim };
+    return { excede: r2(deuda) + r2(nuevoTotalCup) > lim, debe: r2(deuda), limite: lim };
+}
+/* Fase 7 del plan, bloque 5: enlace facturas ↔ documentos. Una
+ * factura de Gestión crea su documento CxC (con su asiento Debe
+ * clientes / Haber ventas) y cobrarla lo salda (el cobro se
+ * imputa como aplicación al documento). El cliente de la factura
+ * es una contraparte: se busca por nombre (sin distinguir
+ * mayúsculas) y si no existe se crea como cliente. No guarda:
+ * quien llama guarda después (todo vive en el slot 'conta').
+ * Si la factura ya trae cobros (enlace tardío), cada cobro se
+ * imputa al documento para que su pendiente iguale el saldo de
+ * la factura. */
+function enlazarFacturaDoc(fac) {
+    if (!fac) return { ok: false, motivo: 'Sin factura' };
+    if (fac.documentoId) return { ok: false, motivo: 'La factura ya tiene su documento' };
+    const fecha = fac.fecha || hoy();
+    if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) return { ok: false, motivo: 'Ese mes está cerrado: el documento no se puede crear en un período cerrado' };
+    const nombre = String(fac.cliente || '').trim();
+    if (!nombre) return { ok: false, motivo: 'La factura no tiene cliente' };
+    conta.contrapartes = conta.contrapartes || [];
+    let cp = conta.contrapartes.find((c) => c.tipo === 'cliente' && String(c.nombre || '').trim().toLowerCase() === nombre.toLowerCase());
+    if (!cp) {
+        conta.seqCp = (conta.seqCp || 0) + 1;
+        cp = { id: 'CP' + conta.seqCp, nombre, tipo: 'cliente' };
+        conta.contrapartes.push(cp);
+    }
+    conta.seqDoc = (conta.seqDoc || 0) + 1;
+    const doc = { id: 'D' + conta.seqDoc, tipo: 'cxc', contraparteId: cp.id,
+        numero: fac.numero, concepto: fac.numero, fecha, vencimiento: fac.vencimiento || fecha,
+        importe: totalCupFactura(fac), facturaId: fac.id };
+    const lineas = [
+        { cuenta: cuentaAuto(conta.plan, 'clientes', '131-000'), debe: doc.importe, haber: 0 },
+        { cuenta: cuentaAuto(conta.plan, 'ventas', '801-000'), debe: 0, haber: doc.importe },
+    ];
+    const errLin = validarLineasAsiento(conta.plan, lineas);
+    if (errLin) return { ok: false, motivo: errLin };
+    conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+    conta.asientos = conta.asientos || [];
+    conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: 'Factura ' + fac.numero + ' · ' + nombre, origen: 'submayor', estado: 'confirmado', documentoId: doc.id, fuenteKey: 'doc:' + doc.id, lineas });
+    conta.documentos = conta.documentos || [];
+    conta.documentos.push(doc);
+    fac.documentoId = doc.id;
+    conta.aplicaciones = conta.aplicaciones || [];
+    for (const cob of (fac.cobros || [])) conta.aplicaciones.push({ documentoId: doc.id, monto: Number(cob.monto) || 0, fecha: cob.fecha || fecha, facturaId: fac.id });
+    return { ok: true, doc, contraparte: cp };
+}
 const diasDesde = (fecha) => Math.floor((new Date(hoy()) - new Date(fecha)) / 86400000);
 function estrategia(dias) {
     if (dias <= 0) return 'Al día: recordatorio amable antes del vencimiento.';
@@ -128,30 +659,52 @@ function pintarFacturas() {
     const filas = lista.map((f) => {
         const saldo = saldoFac(f);
         const vencida = saldo > 0 && f.vencimiento && f.vencimiento < hoy();
-        return '<tr><td>' + esc(f.numero) + '</td><td>' + esc(f.cliente) + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + '</td>' +
-            '<td class="num">' + fmt(f.total) + '</td><td class="num">' + fmt(saldo) + '</td>' +
+        const ct = f.contratoId ? (conta.gestion.contratos || []).find((x) => x.id === f.contratoId) : null;
+        return '<tr><td>' + esc(f.numero) + '</td><td>' + esc(f.cliente) + (ct ? '<br><span class="tenue">Contrato ' + esc(ct.numero) + '</span>' : '') + '</td><td>' + f.fecha + '</td><td>' + (f.vencimiento || '') + (f.termino ? '<br><span class="tenue">' + esc(terminoTexto(f.termino)) + '</span>' : '') + '</td>' +
+            '<td class="num">' + fmt(f.total) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(totalCupFactura(f)) + ' CUP</span>' : '') + '</td><td class="num">' + fmt(saldo) + (f.moneda === 'USD' ? ' USD<br><span class="tenue">≈ ' + fmt(pendienteFactura(f).pendienteCup) + ' CUP</span>' : '') + '</td>' +
             '<td>' + (saldo <= 0 ? 'Pagada' : vencida ? '<span class="rojo">Vencida</span>' : 'Pendiente') + '</td>' +
             '<td>' + (saldo > 0 ? '<input class="monto" type="number" step="0.01" min="0" placeholder="Cobro" data-cobro="' + f.id + '"> <button type="button" class="chico secundario" data-cobrar="' + f.id + '">Cobrar</button>' : '') +
+            (saldo > 0 && !f.documentoId ? ' <button type="button" class="chico secundario" data-enlazar="' + f.id + '">Crear documento CxC</button>' : '') +
+            (sesionRol !== 'consultor' ? ' <button type="button" class="chico secundario" data-edfac="' + f.id + '">Editar</button>' : '') +
+            ' <button type="button" class="chico secundario" data-imprimir="' + f.id + '">Ver / imprimir</button>' +
             ' <button type="button" class="chico secundario" data-del="' + f.id + '">Borrar</button></td></tr>';
     }).join('');
-    const tSaldo = r2(lista.reduce((s, f) => s + Math.max(0, saldoFac(f)), 0));
+    const tSaldo = r2(lista.reduce((s, f) => s + Math.max(0, pendienteFactura(f).pendienteCup), 0));
     $('facturas').innerHTML = '<table><thead><tr><th>Nº</th><th>Cliente</th><th>Fecha</th><th>Vence</th><th class="num">Total</th><th class="num">Saldo</th><th>Estado</th><th></th></tr></thead><tbody>' +
         (filas || '<tr><td colspan="8" class="tenue">Sin facturas todavía.</td></tr>') +
-        '<tr class="totales"><td colspan="5">TOTAL POR COBRAR</td><td class="num">' + fmt(tSaldo) + '</td><td colspan="2"></td></tr></tbody></table>';
+        '<tr class="totales"><td colspan="5">TOTAL POR COBRAR (en CUP)</td><td class="num">' + fmt(tSaldo) + '</td><td colspan="2"></td></tr></tbody></table>';
     $('facturas').querySelectorAll('[data-cobrar]').forEach((b) => b.addEventListener('click', async () => {
         const f = conta.gestion.facturas.find((x) => x.id === b.dataset.cobrar);
         const inp = $('facturas').querySelector('[data-cobro="' + f.id + '"]');
         const monto = Number(inp.value) || 0;
         if (monto <= 0) { aviso('Escribe el monto del cobro', 'error'); return; }
         f.cobros = f.cobros || [];
-        f.cobros.push({ fecha: hoy(), monto, medio: 'transferencia' });
+        f.cobros.push({ fecha: hoy(), monto, medio: 'transferencia', montoCup: (f.moneda === 'USD') ? equivalenteCup(monto, f.tasa) : monto });
+        /* Fase 7, bloque 5: cobrar la factura salda su documento CxC. */
+        if (f.documentoId) {
+            conta.aplicaciones = conta.aplicaciones || [];
+            conta.aplicaciones.push({ documentoId: f.documentoId, monto: (f.moneda === 'USD') ? equivalenteCup(monto, f.tasa) : monto, fecha: hoy(), facturaId: f.id });
+        }
         await guardar(); pintarTodo(); aviso('Cobro registrado: saldo ' + fmt(saldoFac(f)));
+    }));
+    $('facturas').querySelectorAll('[data-imprimir]').forEach((b) => b.addEventListener('click', () => {
+        const f = conta.gestion.facturas.find((x) => x.id === b.dataset.imprimir);
+        if (!f) return;
+        const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || (fiscal && fiscal.meta) || {};
+        imprimirFactura(f, perfil);
     }));
     $('facturas').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         if (!confirm('¿Borrar esta factura?')) return;
         conta.gestion.facturas = conta.gestion.facturas.filter((x) => x.id !== b.dataset.del);
         await guardar(); pintarTodo();
     }));
+    $('facturas').querySelectorAll('[data-enlazar]').forEach((b) => b.addEventListener('click', async () => {
+        const f = conta.gestion.facturas.find((x) => x.id === b.dataset.enlazar);
+        const r = enlazarFacturaDoc(f);
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        await guardar(); pintarTodo(); aviso('Documento CxC ' + r.doc.id + ' creado para la factura ' + f.numero + ' (asiento nº ' + conta.seqAsiento + ').');
+    }));
+    $('facturas').querySelectorAll('[data-edfac]').forEach((b) => b.addEventListener('click', () => editarFac(b.dataset.edfac)));
     pintarTelecobranzas();
 }
 function pintarTelecobranzas() {
@@ -171,16 +724,160 @@ function pintarTelecobranzas() {
         catch (e) { aviso('No se pudo copiar automáticamente', 'error'); }
     }));
 }
+/* Fase 11 del plan, bloque 1: contratos con documento. Copiado de
+ * Finanzas (ctorEstadoEfectivo, mjContratosPorVencer): el estado
+ * efectivo es terminado/cancelado si se cerró, vencido si pasó su
+ * vigencia, vigente en lo demás. */
+function contratoEstado(c, hoyF) {
+    c = c || {};
+    const est = c.estado || 'vigente';
+    if (est === 'terminado' || est === 'cancelado') return est;
+    if (c.vigenciaHasta && hoyF && c.vigenciaHasta < hoyF) return 'vencido';
+    return 'vigente';
+}
+function contratosPorVencer(contratos, fecha, dias) {
+    const f = new Date(String(fecha || '') + 'T12:00:00');
+    if (isNaN(f)) return [];
+    const lim = new Date(f);
+    lim.setDate(f.getDate() + (Number(dias) || 30));
+    return (contratos || []).filter((c) => c && c.vigenciaHasta && c.vigenciaHasta >= fecha && c.vigenciaHasta <= lim.toISOString().slice(0, 10));
+}
 function pintarContratos() {
-    const lista = conta.gestion.contratos || [];
-    $('contratos').innerHTML = lista.map((c) =>
-        '<div class="fila"><b>' + esc(c.numero) + '</b><span>' + esc(c.cliente) + '</span><span class="tenue">' + esc(c.objeto || '') + ' · ' + fmt(c.monto) + '</span>' +
-        '<button type="button" class="chico secundario" data-delc="' + c.id + '">Quitar</button></div>').join('') ||
-        '<p class="tenue">Sin contratos todavía.</p>';
+    const lista = [...(conta.gestion.contratos || [])].reverse();
+    const hoyF = hoy();
+    $('contratos').innerHTML = lista.map((c) => {
+        const ef = contratoEstado(c, hoyF);
+        const porVencer = ef === 'vigente' && contratosPorVencer([c], hoyF, 30).length > 0;
+        const badge = ef === 'vencido' ? '<span class="rojo">VENCIDO</span>' : ef === 'terminado' ? '<span class="tenue">TERMINADO</span>' : ef === 'cancelado' ? '<span class="tenue">CANCELADO</span>' : porVencer ? '<span class="rojo">POR VENCER</span>' : '<span class="verde">VIGENTE</span>';
+        const rol = c.rol === 'cliente' ? 'Cliente (compramos)' : c.rol === 'prestador' ? 'Prestador (vendemos)' : '';
+        const nAdj = (c.adjuntos || []).length;
+        const facs = (conta.gestion.facturas || []).filter((f) => f.contratoId === c.id);
+        return '<div class="fila"><b>' + esc(c.numero) + '</b><span>' + esc(c.cliente) + '</span><span class="tenue">' + esc(c.tipo || '') + (rol ? ' · ' + rol : '') + ' · ' + esc(c.objeto || '') + ' · ' + fmt(c.monto) + ' ' + esc(c.moneda || 'CUP') + ((c.vigenciaDesde || c.vigenciaHasta) ? ' · ' + (c.vigenciaDesde || '…') + ' → ' + (c.vigenciaHasta || '…') : '') + '</span>' + badge +
+            (nAdj ? ' <span>📎 ' + nAdj + '</span>' : '') +
+            (facs.length ? ' <span class="tenue">Facturas: ' + facs.map((f) => esc(f.numero)).join(', ') + '</span>' : '') +
+            (sesionRol !== 'consultor' ? ' <button type="button" class="chico secundario" data-edc="' + c.id + '">Editar</button>' : '') +
+            (ef !== 'terminado' && ef !== 'cancelado' && sesionRol !== 'consultor' ? ' <button type="button" class="chico secundario" data-termc="' + c.id + '">Terminar</button>' : '') +
+            ' <button type="button" class="chico secundario" data-delc="' + c.id + '">Quitar</button></div>';
+    }).join('') || '<p class="tenue">Sin contratos todavía.</p>';
     $('contratos').querySelectorAll('[data-delc]').forEach((b) => b.addEventListener('click', async () => {
         conta.gestion.contratos = conta.gestion.contratos.filter((x) => x.id !== b.dataset.delc);
         await guardar(); pintarContratos();
     }));
+    $('contratos').querySelectorAll('[data-edc]').forEach((b) => b.addEventListener('click', () => editarContrato(b.dataset.edc)));
+    $('contratos').querySelectorAll('[data-termc]').forEach((b) => b.addEventListener('click', async () => {
+        const c = (conta.gestion.contratos || []).find((x) => x.id === b.dataset.termc);
+        if (!c) return;
+        c.estado = 'terminado';
+        await guardar(); pintarContratos(); aviso('Contrato ' + c.numero + ' terminado: ya no avisa en «Qué toca hoy»');
+    }));
+    pintarAdjuntos();
+    pintarContratoSel();
+}
+/* El desplegable de contratos en la factura (alta y edición): solo
+ * los que siguen activos. */
+function pintarContratoSel() {
+    const activos = (conta.gestion.contratos || []).filter((c) => contratoEstado(c, hoy()) === 'vigente');
+    ['fContrato', 'mfContrato', 'sContrato'].forEach((id) => {
+        const sel = $(id);
+        if (!sel) return;
+        const act = sel.value;
+        sel.innerHTML = '<option value="">Sin contrato</option>' + activos.map((c) => '<option value="' + c.id + '">' + esc(c.numero) + ' · ' + esc(c.cliente) + '</option>').join('');
+        if (act && activos.some((c) => c.id === act)) sel.value = act;
+    });
+}
+/* Buscador de los documentos adjuntos (copiado de Finanzas,
+ * ctorDocsRender): filtra por número, cliente, objeto o tipo. */
+function pintarAdjuntos() {
+    const q = ($('adjBuscar') ? $('adjBuscar').value : '').toLowerCase();
+    const con = (conta.gestion.contratos || []).filter((x) => x && Array.isArray(x.adjuntos) && x.adjuntos.length);
+    const lista = con.filter((x) => { if (!q) return true; const txt = ((x.numero || '') + ' ' + (x.cliente || '') + ' ' + (x.objeto || '') + ' ' + (x.tipo || '')).toLowerCase(); return txt.includes(q); });
+    $('adjuntos').innerHTML = lista.length ? lista.map((x) => '<div class="fila"><b>' + esc(x.numero) + '</b><span>' + esc(x.cliente) + '</span><span class="tenue">' + x.adjuntos.map((a) => '<a href="' + esc(a.datos) + '" target="_blank" rel="noopener">' + esc(a.nombre) + '</a>').join(' · ') + '</span><button type="button" class="chico secundario" data-veradj="' + x.id + '">Ver adjuntos</button></div>').join('') :
+        '<p class="tenue">' + (con.length ? 'Ningún documento coincide con la búsqueda.' : 'Todavía no hay documentos adjuntos en ningún contrato.') + '</p>';
+    $('adjuntos').querySelectorAll('[data-veradj]').forEach((b) => b.addEventListener('click', () => editarContrato(b.dataset.veradj)));
+}
+let editConId = null, editConAdjuntos = [];
+function pintarModalAdjuntos() {
+    $('mcAdjuntos').innerHTML = editConAdjuntos.length ? editConAdjuntos.map((a, i) => '<div class="fila"><a href="' + esc(a.datos) + '" target="_blank" rel="noopener">' + esc(a.nombre) + '</a><span class="tenue">' + Math.round(a.datos.length / 1024) + ' KB</span><button type="button" class="chico secundario" data-deladj="' + i + '">Quitar</button></div>').join('') : '<p class="tenue">Sin documentos adjuntos.</p>';
+    $('mcAdjuntos').querySelectorAll('[data-deladj]').forEach((b) => b.addEventListener('click', () => { editConAdjuntos.splice(Number(b.dataset.deladj), 1); pintarModalAdjuntos(); }));
+}
+function editarContrato(id) {
+    const c = (conta.gestion.contratos || []).find((x) => x.id === id);
+    if (!c) return;
+    editConId = c.id;
+    editConAdjuntos = [...(c.adjuntos || [])];
+    $('mcNumero').value = c.numero || '';
+    $('mcCliente').value = c.cliente || '';
+    $('mcTipo').value = c.tipo || 'Compraventa';
+    $('mcRol').value = c.rol || 'prestador';
+    $('mcObjeto').value = c.objeto || '';
+    $('mcMonto').value = c.monto || '';
+    $('mcMoneda').value = c.moneda || 'CUP';
+    $('mcFirma').value = c.fechaFirma || '';
+    $('mcDesde').value = c.vigenciaDesde || '';
+    $('mcHasta').value = c.vigenciaHasta || '';
+    $('mcEstado').value = (c.estado || 'vigente');
+    $('mcNotas').value = c.notas || '';
+    $('mcAdjunto').value = '';
+    pintarModalAdjuntos();
+    $('modalContrato').classList.add('abierto');
+    $('mcCliente').focus();
+}
+function cerrarModalContrato() { editConId = null; editConAdjuntos = []; $('modalContrato').classList.remove('abierto'); }
+async function guardarModalContrato() {
+    const c = (conta.gestion.contratos || []).find((x) => x.id === editConId);
+    if (!c) { cerrarModalContrato(); return; }
+    const numero = $('mcNumero').value.trim(), cliente = $('mcCliente').value.trim();
+    if (!numero || !cliente) { aviso('El contrato necesita número y cliente', 'error'); return; }
+    if ((conta.gestion.contratos || []).some((x) => x.id !== c.id && String(x.numero || '').trim() === numero)) { aviso('Ya hay otro contrato con el número ' + numero, 'error'); return; }
+    Object.assign(c, { numero, cliente, tipo: $('mcTipo').value, rol: $('mcRol').value, objeto: $('mcObjeto').value.trim(), monto: Number($('mcMonto').value) || 0, moneda: $('mcMoneda').value, fechaFirma: $('mcFirma').value || '', vigenciaDesde: $('mcDesde').value || '', vigenciaHasta: $('mcHasta').value || '', estado: $('mcEstado').value, notas: $('mcNotas').value.trim(), adjuntos: editConAdjuntos });
+    try { await guardar(); aviso('Contrato actualizado'); cerrarModalContrato(); pintarContratos(); }
+    catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
+/* El contrato de compraventa generado con los datos de la ficha
+ * del negocio (fase 38): vendedor con razón social, NIT,
+ * dirección, representante y cuentas; comprador con el cliente
+ * del contrato. Lo que falta queda en blanco (____). Solo se
+ * genera cuando el negocio es el prestador (vendedor): cuando
+ * compras, el modelo lo pone la otra parte. */
+function generarContratoTexto(c) {
+    const p = (fiscal.meta && fiscal.meta.perfil) || {};
+    const r = p.representante || {};
+    const b = '________________';
+    const dir = [p.direccion, p.municipio, p.provincia].filter(Boolean).join(', ');
+    const cuentas = [];
+    if (p.cuentaCup) cuentas.push('cuenta en CUP ' + (p.bancoCup ? p.bancoCup + ' ' : '') + 'n.º ' + p.cuentaCup);
+    if (p.cuentaUsd) cuentas.push('cuenta en USD ' + (p.bancoUsd ? p.bancoUsd + ' ' : '') + 'n.º ' + p.cuentaUsd);
+    const lugar = p.municipio || b;
+    const fecha = c.fechaFirma || hoy();
+    const escP = (x) => esc(x || b);
+    return '<h3 style="text-align:center;margin:4px 0">CONTRATO DE COMPRAVENTA Nº ' + esc(c.numero || b) + '</h3>' +
+        '<p>En ' + escP(lugar) + ', a ' + esc(fecha) + ', comparecen:</p>' +
+        '<p><b>EL VENDEDOR:</b> ' + escP(p.razon) + (p.nombreComercial ? ' (' + esc(p.nombreComercial) + ')' : '') + ', con NIT ' + escP(p.nit) + (dir ? ', con domicilio legal en ' + esc(dir) + ', Cuba' : '') + (p.mipyme && p.mipyme.escrituraNumero ? ', constituida por Escritura Notarial n.º ' + esc(p.mipyme.escrituraNumero) : '') + (r.nombre ? ', representada en este acto por ' + esc(r.nombre) + (r.cargo ? ', en su carácter de ' + esc(r.cargo) : '') : '') + '.</p>' +
+        '<p><b>EL COMPRADOR:</b> ' + escP(c.cliente) + '.</p>' +
+        '<p><b>PRIMERA (Objeto):</b> El VENDEDOR se obliga a vender y el COMPRADOR a comprar: ' + escP(c.objeto) + '.</p>' +
+        '<p><b>SEGUNDA (Precio):</b> El precio total es de ' + fmt(c.monto) + ' ' + esc(c.moneda || 'CUP') + '.</p>' +
+        '<p><b>TERCERA (Forma de pago):</b> El pago se hará por transferencia a ' + (cuentas.length ? esc(cuentas.join(' y ')) : b) + '.</p>' +
+        '<p><b>CUARTA (Vigencia):</b> Este contrato rige desde el ' + escP(c.vigenciaDesde) + ' hasta el ' + escP(c.vigenciaHasta) + '.</p>' +
+        '<p><b>QUINTA (Obligaciones):</b> El VENDEDOR entregará lo vendido en el plazo y con la calidad acordados; el COMPRADOR pagará el precio en la forma y el plazo acordados. Cada parte responde por su incumplimiento según la ley.</p>' +
+        '<p><b>SEXTA (Resolución):</b> El incumplimiento grave de cualquiera de las partes da derecho a la otra a resolver el contrato y a reclamar los daños causados.</p>' +
+        '<p>Y para que conste, firman el presente contrato en dos ejemplares de igual valor, en ' + escP(lugar) + ', a ' + esc(fecha) + '.</p>' +
+        '<p style="margin-top:24px">EL VENDEDOR: ' + escP(r.nombre) + '<br><br>EL COMPRADOR: ' + escP(c.cliente) + '</p>';
+}
+function abrirGenContrato() {
+    const c = (conta.gestion.contratos || []).find((x) => x.id === editConId);
+    if (!c) return;
+    if ($('mcRol').value !== 'prestador') { aviso('El documento solo se genera en los contratos donde el negocio es el PRESTADOR (vendedor): cuando compras, el modelo lo pone la otra parte y aquí lo registras y adjuntas', 'error'); return; }
+    $('genTitulo').textContent = 'Contrato de Compraventa ' + (c.numero || '');
+    $('genTexto').innerHTML = generarContratoTexto(c);
+    $('modalGenContrato').classList.add('abierto');
+}
+function imprimirGenContrato() {
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador no dejó abrir la ventana de impresión', 'error'); return; }
+    w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' + esc($('genTitulo').textContent) + '</title><style>body{font-family:Georgia,serif;margin:40px;line-height:1.6}</style></head><body>' + $('genTexto').innerHTML + '</body></html>');
+    w.document.close();
+    w.focus();
+    w.print();
 }
 function pintarConsecutivos() {
     const nums = [];
@@ -200,7 +897,187 @@ function pintarConsecutivos() {
         (saltos.length ? '<p><span class="rojo">Saltos detectados: faltan los números ' + saltos.join(', ') + '.</span> Si una factura se anuló, déjalo anotado en su contrato o en una nota: el hueco sin explicación es el problema, no el hueco.</p>' : '<p><span class="verde">Sin saltos: la numeración es continua.</span></p>') +
         (duplicados.length ? '<p><span class="rojo">Números repetidos: ' + duplicados.map(esc).join(', ') + '.</span> Dos facturas no pueden compartir número.</p>' : '');
 }
+/* Fase 11 del plan, bloque 2: talonario de instrumentos de pago,
+ * copiado de Finanzas (mjInstrumentoHuecos, mjInstrumentoSiguiente).
+ * Hueco: un número entre el primero y el último usado que no está
+ * ni usado ni anulado. */
+function instrumentoHuecos(t) {
+    if (!t) return [];
+    const usados = new Set((t.usados || []).map((x) => Number(x.numero)));
+    const anulados = new Set((t.anulados || []).map(Number));
+    if (!usados.size) return [];
+    const maxU = Math.max(...usados);
+    const out = [];
+    for (let n = Number(t.desde); n < maxU; n++) { if (!usados.has(n) && !anulados.has(n)) out.push(n); }
+    return out;
+}
+function instrumentoSiguiente(t) {
+    if (!t) return null;
+    const usados = new Set((t.usados || []).map((x) => Number(x.numero)));
+    const anulados = new Set((t.anulados || []).map(Number));
+    for (let n = Number(t.desde); n <= Number(t.hasta); n++) { if (!usados.has(n) && !anulados.has(n)) return n; }
+    return null;
+}
+function pintarInstrumentos() {
+    const lista = conta.gestion.instrumentos || [];
+    $('instrumentos').innerHTML = lista.map((t, i) => {
+        const sig = instrumentoSiguiente(t);
+        const huecos = instrumentoHuecos(t);
+        return '<div class="fila"><b>' + esc(t.tipo) + '</b><span class="tenue">' + t.desde + '–' + t.hasta + ' · siguiente: <b>' + (sig == null ? 'agotado' : sig) + '</b> · usados: ' + (t.usados || []).length + ' · anulados: ' + ((t.anulados || []).join(', ') || '—') + '</span>' +
+            (huecos.length ? ' <span class="rojo">⚠ huecos sin usar ni anular: ' + huecos.join(', ') + '</span>' : '') +
+            ' <button type="button" class="chico secundario" data-usar="' + i + '">Usar siguiente</button>' +
+            ' <button type="button" class="chico secundario" data-anular="' + i + '">Anular nº</button>' +
+            ' <button type="button" class="chico secundario" data-delinst="' + i + '">Quitar</button></div>';
+    }).join('') || '<p class="tenue">Sin talonarios todavía.</p>';
+    $('instrumentos').querySelectorAll('[data-usar]').forEach((b) => b.addEventListener('click', async () => {
+        const t = (conta.gestion.instrumentos || [])[Number(b.dataset.usar)];
+        const n = instrumentoSiguiente(t);
+        if (n == null) { aviso('Talonario agotado', 'error'); return; }
+        t.usados = t.usados || [];
+        t.usados.push({ numero: n, fecha: hoy() });
+        await guardar(); pintarInstrumentos(); aviso('Instrumento ' + t.tipo + ' nº ' + n + ' marcado como usado');
+    }));
+    $('instrumentos').querySelectorAll('[data-anular]').forEach((b) => b.addEventListener('click', async () => {
+        const t = (conta.gestion.instrumentos || [])[Number(b.dataset.anular)];
+        const n = Number(prompt('Número a anular (queda conservado como anulado):', '0')) || 0;
+        if (!n) return;
+        if (n < Number(t.desde) || n > Number(t.hasta)) { aviso('Ese número no está en el rango del talonario', 'error'); return; }
+        t.anulados = t.anulados || [];
+        if (!t.anulados.includes(n)) t.anulados.push(n);
+        await guardar(); pintarInstrumentos();
+    }));
+    $('instrumentos').querySelectorAll('[data-delinst]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Quitar este talonario?')) return;
+        conta.gestion.instrumentos.splice(Number(b.dataset.delinst), 1);
+        await guardar(); pintarInstrumentos();
+    }));
+}
+/* Fase 11, bloque 3: suscripciones por cobrar. Una suscripción es
+ * un cobro que se repite: cuando llega su fecha, «Generar factura»
+ * crea la factura (con su documento CxC, como la oferta convertida)
+ * y adelanta el próximo cobro según la frecuencia. */
+function suscripcionPorCobrar(s, hoyF) {
+    return !!s && s.activa !== false && !!s.proximoCobro && s.proximoCobro <= hoyF;
+}
+function suscripcionAvanzar(s) {
+    const f = new Date(String(s.proximoCobro || '') + 'T12:00:00');
+    if (isNaN(f)) return '';
+    const meses = s.frecuencia === 'trimestral' ? 3 : s.frecuencia === 'anual' ? 12 : 1;
+    const dia = f.getDate();
+    f.setDate(1);
+    f.setMonth(f.getMonth() + meses);
+    const ultimo = new Date(f.getFullYear(), f.getMonth() + 1, 0).getDate();
+    f.setDate(Math.min(dia, ultimo));
+    return f.toISOString().slice(0, 10);
+}
+function siguienteNumeroFactura() {
+    let maxNum = 0;
+    for (const f of (conta.gestion.facturas || [])) { const n = parseInt(String(f.numero).replace(/\D/g, ''), 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
+    return String(maxNum + 1);
+}
+function pintarSuscripciones() {
+    const lista = [...(conta.gestion.suscripciones || [])].reverse();
+    const hoyF = hoy();
+    $('suscripciones').innerHTML = lista.map((s) => {
+        const debe = suscripcionPorCobrar(s, hoyF);
+        const ct = s.contratoId ? (conta.gestion.contratos || []).find((x) => x.id === s.contratoId) : null;
+        return '<div class="fila"><b>' + esc(s.cliente) + '</b><span>' + esc(s.concepto) + '</span><span class="tenue">' + fmt(s.monto) + ' · cada ' + (s.frecuencia === 'trimestral' ? 'trimestre' : s.frecuencia === 'anual' ? 'año' : 'mes') + ' · próximo cobro ' + (s.proximoCobro || '—') + (ct ? ' · contrato ' + esc(ct.numero) : '') + '</span>' +
+            (s.activa === false ? '<span class="tenue">PAUSADA</span>' : debe ? '<span class="rojo">POR COBRAR</span>' : '<span class="verde">AL DÍA</span>') +
+            (debe ? ' <button type="button" class="chico" data-genfac="' + s.id + '">Generar factura</button>' : '') +
+            (sesionRol !== 'consultor' ? ' <button type="button" class="chico secundario" data-pausar="' + s.id + '">' + (s.activa === false ? 'Reanudar' : 'Pausar') + '</button>' : '') +
+            ' <button type="button" class="chico secundario" data-delsub="' + s.id + '">Quitar</button></div>';
+    }).join('') || '<p class="tenue">Sin suscripciones todavía.</p>';
+    $('suscripciones').querySelectorAll('[data-genfac]').forEach((b) => b.addEventListener('click', async () => {
+        const s = (conta.gestion.suscripciones || []).find((x) => x.id === b.dataset.genfac);
+        if (!s || !suscripcionPorCobrar(s, hoy())) return;
+        const numero = siguienteNumeroFactura();
+        const vence = fechaLocalDe(new Date(Date.now() + 30 * 86400000));
+        const fac = { id: 'f' + Date.now().toString(36), numero, cliente: s.cliente, fecha: hoy(), vencimiento: vence, total: s.monto, cobros: [], contratoId: s.contratoId || '', origen: 'suscripcion', suscripcionId: s.id };
+        conta.gestion.facturas.push(fac);
+        const rDoc = enlazarFacturaDoc(fac);
+        s.proximoCobro = suscripcionAvanzar(s);
+        await guardar(); pintarTodo(); aviso('Factura ' + numero + ' generada por ' + fmt(s.monto) + ' (próximo cobro ' + s.proximoCobro + ')' + (rDoc.ok ? ': documento CxC ' + rDoc.doc.id + ' creado' : ' (sin documento CxC: ' + rDoc.motivo + ')'));
+    }));
+    $('suscripciones').querySelectorAll('[data-pausar]').forEach((b) => b.addEventListener('click', async () => {
+        const s = (conta.gestion.suscripciones || []).find((x) => x.id === b.dataset.pausar);
+        if (!s) return;
+        s.activa = s.activa === false ? true : false;
+        await guardar(); pintarSuscripciones();
+    }));
+    $('suscripciones').querySelectorAll('[data-delsub]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Quitar esta suscripción?')) return;
+        conta.gestion.suscripciones = conta.gestion.suscripciones.filter((x) => x.id !== b.dataset.delsub);
+        await guardar(); pintarSuscripciones();
+    }));
+}
+/* Fase 11, bloque 4: recordatorios de cobro automáticos, copiados
+ * de Finanzas (mjCobroMomento, mjCobrosPorRecordar,
+ * mjCobroMarcarAvisado, mjCobroTexto). Momentos: 3 días antes del
+ * vencimiento, el día del vencimiento y cada semana de atraso
+ * (1, 7, 14, 21… días). Cada momento se avisa una sola vez por
+ * factura (f.avisos). Sin internet, el envío es copiar el texto:
+ * ni WhatsApp automático ni correo. Adaptación: en Saldova la
+ * factura no tiene estado (las ofertas viven aparte y «pagada»
+ * es saldo 0), así que el único filtro es el saldo. */
+function cobroDias(fecha, hoyStr) {
+    const a = new Date(String(fecha || '') + 'T12:00:00');
+    const b = new Date(String(hoyStr || '') + 'T12:00:00');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / 86400000);
+}
+function cobroMomento(f, hoyStr) {
+    if (!f) return null;
+    if (!(saldoFac(f) > 0)) return null;
+    const d = cobroDias(f.vencimiento || f.fecha, hoyStr);
+    if (d === null) return null;
+    if (d === -3) return { clave: 'antes', dias: d, texto: 'vence en 3 días' };
+    if (d === 0) return { clave: 'vence', dias: d, texto: 'vence hoy' };
+    if (d > 0 && (d === 1 || d % 7 === 0)) return { clave: 'atraso' + Math.ceil(d / 7), dias: d, texto: 'lleva ' + d + ' día(s) de atraso' };
+    return null;
+}
+function cobrosPorRecordar(hoyStr) {
+    const out = [];
+    for (const f of (conta.gestion.facturas || [])) {
+        const m = cobroMomento(f, hoyStr);
+        if (!m) continue;
+        if ((f.avisos || []).some((a) => a.momento === m.clave)) continue;
+        out.push({ factura: f, momento: m, saldo: saldoFac(f) });
+    }
+    return out.sort((a, b) => b.momento.dias - a.momento.dias);
+}
+function cobroMarcarAvisado(facturaId, momentoClave, fecha) {
+    const f = (conta.gestion.facturas || []).find((x) => x.id === facturaId);
+    if (!f) return false;
+    if (!Array.isArray(f.avisos)) f.avisos = [];
+    if (!f.avisos.some((a) => a.momento === momentoClave)) f.avisos.push({ fecha: fecha || '', momento: momentoClave });
+    return true;
+}
+function cobroTexto(f, momento, saldo) {
+    const cuando = momento.dias < 0 ? ('vence el ' + f.vencimiento) : momento.dias === 0 ? ('vence hoy, ' + f.vencimiento) : ('venció el ' + f.vencimiento + ' (hace ' + momento.dias + ' día(s))');
+    return 'Hola ' + (f.cliente || '') + ': le recordamos que la factura ' + (f.numero || '') + ' por ' + fmt(f.total) + ' ' + cuando + ' y tiene un saldo pendiente de ' + fmt(saldo) + '. Le agradecemos su pago. Si ya pagó, ignore este mensaje.';
+}
+function pintarRecordatorios() {
+    const pend = cobrosPorRecordar(hoy());
+    $('recordatorios').innerHTML = pend.map((p) => {
+        const f = p.factura;
+        return '<div class="fila"><span><b>' + esc(f.cliente) + '</b> · factura ' + esc(f.numero) + ' · saldo <b>' + fmt(p.saldo) + '</b> · ' + esc(p.momento.texto) + '</span>' +
+            '<button type="button" class="chico" data-copiaraviso="' + f.id + '">Copiar aviso</button>' +
+            ' <button type="button" class="chico secundario" data-yaavise="' + f.id + '" data-momento="' + p.momento.clave + '">Ya avisé</button></div>';
+    }).join('') || '<p class="tenue">Nada que recordar hoy. Buena señal.</p>';
+    $('recordatorios').querySelectorAll('[data-copiaraviso]').forEach((b) => b.addEventListener('click', async () => {
+        const p = cobrosPorRecordar(hoy()).find((x) => x.factura.id === b.dataset.copiaraviso);
+        if (!p) return;
+        try { await navigator.clipboard.writeText(cobroTexto(p.factura, p.momento, p.saldo)); aviso('Aviso copiado: pégalo en WhatsApp'); }
+        catch (e) { aviso('No se pudo copiar automáticamente', 'error'); }
+    }));
+    $('recordatorios').querySelectorAll('[data-yaavise]').forEach((b) => b.addEventListener('click', async () => {
+        if (!cobroMarcarAvisado(b.dataset.yaavise, b.dataset.momento, hoy())) { aviso('Esa factura ya no existe', 'error'); return; }
+        await guardar(); pintarRecordatorios(); aviso('Avisado: este momento no se repetirá');
+    }));
+}
 let ofertaLineas = [];
+let sesionRol = '';
+let editFacId = null, editOfId = null;
 function pintarOfertaEditor() {
     const total = r2(ofertaLineas.reduce((sx, l) => sx + l.cant * l.precio, 0));
     $('oLineas').innerHTML = ofertaLineas.map((l, i) =>
@@ -214,6 +1091,7 @@ function pintarOfertas() {
     $('ofertas').innerHTML = lista.map((o) =>
         '<div class="fila"><b>Oferta ' + o.numero + '</b><span>' + esc(o.cliente) + '</span><span class="tenue">' + o.fecha + (o.vigencia ? ' · válida hasta ' + o.vigencia : '') + ' · ' + (o.lineas || []).map((l) => esc(l.descripcion) + ' ×' + l.cant).join(', ') + '</span><b>' + fmt(o.total) + '</b>' +
         (o.estado === 'convertida' ? '<span class="verde">Convertida en la factura ' + (o.facturaNumero || '') + '</span>' : '<button type="button" class="chico" data-convertir="' + o.id + '">Convertir en factura</button>') +
+        (o.estado !== 'convertida' && sesionRol !== 'consultor' ? ' <button type="button" class="chico secundario" data-edof="' + o.id + '">Editar</button>' : '') +
         ' <button type="button" class="chico secundario" data-delo="' + o.id + '">Borrar</button></div>').join('') ||
         '<p class="tenue">Sin ofertas todavía.</p>';
     $('ofertas').querySelectorAll('[data-convertir]').forEach((b) => b.addEventListener('click', async () => {
@@ -226,26 +1104,800 @@ function pintarOfertas() {
         const fac = { id: 'f' + Date.now().toString(36), numero, cliente: o.cliente, fecha: hoy(), vencimiento: vence, total: o.total, cobros: [], origen: 'oferta', ofertaId: o.id, lineas: o.lineas };
         conta.gestion.facturas.push(fac);
         o.estado = 'convertida'; o.facturaId = fac.id; o.facturaNumero = numero;
+        const rDoc = enlazarFacturaDoc(fac);
         await guardar(); pintarTodo(); pintarOfertas();
-        aviso('Oferta ' + o.numero + ' convertida en la factura nº ' + numero + ' por ' + fmt(o.total) + ': ya está en Facturas y TeleCobranzas');
+        aviso('Oferta ' + o.numero + ' convertida en la factura nº ' + numero + ' por ' + fmt(o.total) + ': ya está en Facturas y TeleCobranzas' + (rDoc.ok ? ' y su documento CxC ' + rDoc.doc.id + ' creado (asiento nº ' + conta.seqAsiento + ')' : ' (sin documento CxC: ' + rDoc.motivo + ')'));
     }));
     $('ofertas').querySelectorAll('[data-delo]').forEach((b) => b.addEventListener('click', async () => {
         conta.gestion.ofertas = conta.gestion.ofertas.filter((x) => x.id !== b.dataset.delo);
         await guardar(); pintarOfertas();
     }));
+    $('ofertas').querySelectorAll('[data-edof]').forEach((b) => b.addEventListener('click', () => editarOferta(b.dataset.edof)));
 }
-function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(); }
+/* Fase 18, bloque 3: importar desde Excel (CSV). La hoja cubana
+ * separa con «;» y usa coma decimal; si el archivo viene con «,»,
+ * también se acepta. Las celdas entre comillas pueden llevar «;» y
+ * «""» es una comilla dentro del texto. */
+function parsearCSV(texto) {
+    const t = String(texto || '').replace(/^\uFEFF/, '');
+    const lineas = t.split(/\r\n|\r|\n/).filter((l) => l.trim() !== '');
+    if (!lineas.length) return [];
+    const sep = (lineas[0].includes(';')) ? ';' : ',';
+    const filas = [];
+    for (const linea of lineas) {
+        const celdas = [];
+        let cur = '', entreComillas = false;
+        for (let i = 0; i < linea.length; i++) {
+            const ch = linea[i];
+            if (entreComillas) {
+                if (ch === '"') {
+                    if (linea[i + 1] === '"') { cur += '"'; i++; }
+                    else entreComillas = false;
+                } else cur += ch;
+            } else if (ch === '"') entreComillas = true;
+            else if (ch === sep) { celdas.push(cur.trim()); cur = ''; }
+            else cur += ch;
+        }
+        celdas.push(cur.trim());
+        filas.push(celdas);
+    }
+    return filas;
+}
+function numeroCSV(s) {
+    const t = String(s == null ? '' : s).trim().replace(/ /g, '');
+    if (!t) return null;
+    if (t.includes(',') && t.includes('.')) return Number(t.replace(/\./g, '').replace(',', '.'));
+    if (t.includes(',')) return Number(t.replace(',', '.'));
+    return Number(t);
+}
+function cabeceraCSV(filas, nombres) {
+    const norm = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cab = (filas[0] || []).map(norm);
+    const idx = {};
+    for (const n of nombres) idx[n] = cab.indexOf(n.toLowerCase());
+    return idx;
+}
+function importarContrapartes(filas, existentes, seqCp) {
+    const idx = cabeceraCSV(filas, ['nombre', 'tipo', 'telefono', 'correo']);
+    if (idx.nombre < 0) return { ok: false, motivo: 'La primera fila tiene que traer el encabezado «Nombre» (y «Tipo», «Teléfono», «Correo» si los tienes).' };
+    const nuevos = [], errores = [];
+    let repetidos = 0, seq = seqCp || 0;
+    const vistos = new Set((existentes || []).map((c) => String(c.tipo || '') + '|' + String(c.nombre || '').trim().toLowerCase()));
+    for (let i = 1; i < filas.length; i++) {
+        const f = filas[i] || [];
+        const nombre = String(f[idx.nombre] || '').trim();
+        const tipo = String(idx.tipo >= 0 ? (f[idx.tipo] || '') : 'cliente').trim().toLowerCase();
+        if (!nombre) { errores.push('Fila ' + (i + 1) + ': sin nombre'); continue; }
+        if (tipo !== 'cliente' && tipo !== 'proveedor') { errores.push('Fila ' + (i + 1) + ': el tipo tiene que ser «cliente» o «proveedor»'); continue; }
+        const clave = tipo + '|' + nombre.toLowerCase();
+        if (vistos.has(clave)) { repetidos++; continue; }
+        vistos.add(clave);
+        seq++;
+        nuevos.push({ id: 'CP' + seq, nombre, tipo,
+            telefono: idx.telefono >= 0 ? String(f[idx.telefono] || '').trim() : '',
+            correo: idx.correo >= 0 ? String(f[idx.correo] || '').trim() : '' });
+    }
+    return { ok: true, nuevos, repetidos, errores, seqCp: seq };
+}
+function importarProductos(filas, existentes) {
+    const idx = cabeceraCSV(filas, ['codigo', 'nombre', 'precio', 'costo', 'stock']);
+    if (idx.nombre < 0) return { ok: false, motivo: 'La primera fila tiene que traer el encabezado «Nombre» (y «Código», «Precio», «Costo», «Stock» si los tienes).' };
+    const nuevos = [], errores = [];
+    let repetidos = 0;
+    const vistos = new Set((existentes || []).map((p) => String(p.codigo || p.nombre || '').trim().toLowerCase()));
+    for (let i = 1; i < filas.length; i++) {
+        const f = filas[i] || [];
+        const nombre = String(f[idx.nombre] || '').trim();
+        const codigo = String(idx.codigo >= 0 ? (f[idx.codigo] || '') : '').trim();
+        if (!nombre) { errores.push('Fila ' + (i + 1) + ': sin nombre'); continue; }
+        const precio = numeroCSV(idx.precio >= 0 ? f[idx.precio] : '');
+        if (precio == null || !(precio >= 0)) { errores.push('Fila ' + (i + 1) + ': el precio no es un número'); continue; }
+        const clave = (codigo || nombre).toLowerCase();
+        if (vistos.has(clave)) { repetidos++; continue; }
+        vistos.add(clave);
+        nuevos.push({ id: 'p' + Date.now().toString(36) + i, codigo, nombre, precio, costo: numeroCSV(idx.costo >= 0 ? f[idx.costo] : '') || 0,
+            stock: numeroCSV(idx.stock >= 0 ? f[idx.stock] : '') || 0, stockMin: 0, fechaAlta: hoy() });
+    }
+    return { ok: true, nuevos, repetidos, errores };
+}
+/* Fase 18, bloque 4: precios por cliente. Cada cliente puede tener
+ * su precio por producto (conta.gestion.precios, por nombre de
+ * cliente); el nombre del producto no distingue mayúsculas. */
+function precioCliente(precios, cliente, producto) {
+    const clave = Object.keys(precios || {}).find((k) => k.toLowerCase() === String(cliente || '').trim().toLowerCase());
+    if (!clave) return null;
+    const p = (precios[clave] || []).find((x) => String(x.producto || '').trim().toLowerCase() === String(producto || '').trim().toLowerCase());
+    return p ? Number(p.precio) || 0 : null;
+}
+function guardarPrecioCliente(precios, cliente, producto, precio) {
+    const c = String(cliente || '').trim(), pr = String(producto || '').trim();
+    if (!c || !pr) return { ok: false, motivo: 'Falta el cliente o el producto' };
+    if (!(precio > 0)) return { ok: false, motivo: 'El precio tiene que ser mayor que cero' };
+    const copia = JSON.parse(JSON.stringify(precios || {}));
+    const clave = Object.keys(copia).find((k) => k.toLowerCase() === c.toLowerCase()) || c;
+    copia[clave] = copia[clave] || [];
+    const ex = copia[clave].find((x) => String(x.producto || '').trim().toLowerCase() === pr.toLowerCase());
+    if (ex) ex.precio = r2(precio);
+    else copia[clave].push({ producto: pr, precio: r2(precio) });
+    return { ok: true, precios: copia };
+}
+function quitarPrecioCliente(precios, cliente, producto) {
+    const copia = JSON.parse(JSON.stringify(precios || {}));
+    const clave = Object.keys(copia).find((k) => k.toLowerCase() === String(cliente || '').trim().toLowerCase());
+    if (clave) {
+        copia[clave] = copia[clave].filter((x) => String(x.producto || '').trim().toLowerCase() !== String(producto || '').trim().toLowerCase());
+        if (!copia[clave].length) delete copia[clave];
+    }
+    return copia;
+}
+/* Fase 29, bloque 1: límite de crédito por cliente. */
+function pintarLimites() {
+    const clientes = (conta.contrapartes || []).filter((x) => x.tipo !== 'proveedor');
+    const facturas = (conta.gestion.facturas || []);
+    $('limites').innerHTML = clientes.length ? '<table><thead><tr><th>Cliente</th><th class="num">Debe (CUP)</th><th class="num">Límite (CUP)</th><th></th></tr></thead><tbody>' +
+        clientes.map((c) => {
+            const deuda = deudaCliente(facturas, c.nombre);
+            return '<tr><td>' + esc(c.nombre) + '</td><td class="num">' + fmt(deuda) + '</td><td class="num"><input class="monto" type="number" step="0.01" min="0" style="width:110px" data-limite="' + c.id + '" value="' + ((Number(c.limiteCredito) || 0) ? (Number(c.limiteCredito) || 0) : '') + '" placeholder="Sin límite"></td><td>' + (deuda > (Number(c.limiteCredito) || 0) && (Number(c.limiteCredito) || 0) > 0 ? '<span class="rojo">Pasado del límite</span>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table><p class="tenue">El límite vacío es sin límite.</p>' : '<p class="tenue">Sin clientes todavía: los clientes se crean al hacerles su primera factura.</p>';
+    $('limites').querySelectorAll('[data-limite]').forEach((inp) => inp.addEventListener('change', async () => {
+        const c = (conta.contrapartes || []).find((x) => x.id === inp.dataset.limite);
+        if (!c) return;
+        c.limiteCredito = Number(inp.value) || 0;
+        try { await guardar(); pintarLimites(); aviso('Límite de ' + c.nombre + ' guardado'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarPrecios() {
+    const clientes = (conta.contrapartes || []).filter((x) => x.tipo !== 'proveedor');
+    const selC = $('pcCliente'), selP = $('pcProducto');
+    const valC = selC ? selC.value : '', valP = selP ? selP.value : '';
+    if (selC) { selC.innerHTML = clientes.map((c) => '<option value="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') || '<option value="">— sin clientes —</option>'; if (valC && clientes.some((c) => c.nombre === valC)) selC.value = valC; }
+    if (selP) { selP.innerHTML = (pos.productos || []).map((p) => '<option value="' + esc(p.nombre) + '">' + esc(p.codigo ? p.codigo + ' · ' : '') + esc(p.nombre) + ' ($' + fmt(p.precio) + ')</option>').join('') || '<option value="">— sin productos —</option>'; if (valP && (pos.productos || []).some((p) => p.nombre === valP)) selP.value = valP; }
+    const cliente = selC ? selC.value : '';
+    const lista = (conta.gestion.precios || {})[cliente] || [];
+    $('pcLista').innerHTML = lista.length
+        ? '<table><thead><tr><th>Producto</th><th class="num">Precio de ' + esc(cliente) + '</th><th></th></tr></thead><tbody>' +
+            lista.map((p) => '<tr><td>' + esc(p.producto) + '</td><td class="num">$' + fmt(p.precio) + '</td><td><button type="button" class="chico secundario" data-quitar-precio="' + esc(p.producto) + '">Quitar</button></td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">' + (cliente ? esc(cliente) + ' todavía no tiene precios especiales: paga el precio general.' : 'Elige un cliente para ver sus precios.') + '</p>';
+    $('pcLista').querySelectorAll('[data-quitar-precio]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.precios = quitarPrecioCliente(conta.gestion.precios, cliente, b.dataset.quitarPrecio);
+        try { await guardar(); pintarPrecios(); aviso('Precio quitado'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+/* Fase 19, bloque 2: por dónde ganas. El beneficio por producto
+ * sale de las ventas del POS: unidades × precio menos unidades ×
+ * costo promedio de hoy (la venta no guarda el costo del día). Por
+ * cliente: lo facturado en las facturas, lo cobrado, lo pendiente y
+ * cuánto hace que no compra. */
+function rentabilidadProductos(pos, desde, hasta) {
+    const enRango = (f) => (!desde || f >= desde) && (!hasta || f <= hasta);
+    const porCod = {};
+    for (const v of pos.ventas || []) {
+        if (!enRango((v.fecha || '').slice(0, 10))) continue;
+        if ((v.estado || 'confirmada') !== 'confirmada') continue;
+        for (const l of v.lineas || []) {
+            const p = (pos.productos || []).find((x) => x.codigo === l.codigo);
+            porCod[l.codigo] = porCod[l.codigo] || { codigo: l.codigo, nombre: l.nombre || (p ? p.nombre : l.codigo), unidades: 0, ventas: 0, costoUnit: p ? (Number(p.costo) || 0) : 0 };
+            porCod[l.codigo].unidades += Number(l.cant) || 0;
+            porCod[l.codigo].ventas = r2(porCod[l.codigo].ventas + (Number(l.cant) || 0) * (Number(l.precio) || 0));
+        }
+    }
+    const filas = Object.values(porCod).map((f) => {
+        const costo = r2(f.unidades * f.costoUnit);
+        return { codigo: f.codigo, nombre: f.nombre, unidades: f.unidades, ventas: f.ventas, costo, beneficio: r2(f.ventas - costo), margenPct: f.ventas > 0 ? r2((f.ventas - costo) / f.ventas * 100) : null };
+    });
+    filas.sort((a, b) => b.beneficio - a.beneficio);
+    return filas;
+}
+function rentabilidadClientes(facturas, hoy) {
+    const porCliente = {};
+    for (const f of facturas || []) {
+        const c = String(f.cliente || '').trim();
+        if (!c) continue;
+        const clave = c.toLowerCase();
+        porCliente[clave] = porCliente[clave] || { cliente: c, facturado: 0, cobrado: 0, facturas: 0, ultima: '' };
+        porCliente[clave].facturado = r2(porCliente[clave].facturado + totalCupFactura(f));
+        porCliente[clave].cobrado = r2(porCliente[clave].cobrado + (f.cobros || []).reduce((s, x) => s + (Number(x.montoCup != null ? x.montoCup : x.monto) || 0), 0));
+        porCliente[clave].facturas++;
+        if (!porCliente[clave].ultima || (f.fecha || '') > porCliente[clave].ultima) porCliente[clave].ultima = f.fecha || '';
+    }
+    const filas = Object.values(porCliente).map((f) => {
+        const dias = f.ultima ? Math.floor((new Date(hoy + 'T12:00:00Z') - new Date(f.ultima + 'T12:00:00Z')) / 86400000) : null;
+        return { cliente: f.cliente, facturado: f.facturado, cobrado: f.cobrado, pendiente: r2(f.facturado - f.cobrado), facturas: f.facturas, ultima: f.ultima, diasSinComprar: dias, mesesSinComprar: dias == null ? null : Math.floor(dias / 30) };
+    });
+    filas.sort((a, b) => b.facturado - a.facturado);
+    return filas;
+}
+function pintarGanas() {
+    const desde = ($('pgDesde') && $('pgDesde').value) || '', hasta = ($('pgHasta') && $('pgHasta').value) || '';
+    const prods = rentabilidadProductos(pos, desde, hasta);
+    $('pgProductos').innerHTML = prods.length
+        ? '<table><thead><tr><th>Producto</th><th class="num">Unidades</th><th class="num">Ventas</th><th class="num">Costo</th><th class="num">Beneficio</th><th class="num">Margen</th></tr></thead><tbody>' +
+            prods.map((p) => '<tr><td>' + esc(p.nombre) + '</td><td class="num">' + p.unidades + '</td><td class="num">$' + fmt(p.ventas) + '</td><td class="num">$' + fmt(p.costo) + '</td><td class="num">' + (p.beneficio < 0 ? '<span class="rojo">$' + fmt(p.beneficio) + '</span>' : '$' + fmt(p.beneficio)) + '</td><td class="num">' + (p.margenPct == null ? '—' : p.margenPct.toFixed(1) + ' %') + '</td></tr>').join('') + '</tbody></table>' +
+            '<p class="tenue">El costo es el promedio de hoy: si un producto cambió de precio, su beneficio es con el costo de hoy, no con el del día de la venta.</p>'
+        : '<p class="tenue">Sin ventas del POS en el período.</p>';
+    const clis = rentabilidadClientes(conta.gestion.facturas || [], hoy());
+    $('pgClientes').innerHTML = clis.length
+        ? '<table><thead><tr><th>Cliente</th><th class="num">Facturado</th><th class="num">Cobrado</th><th class="num">Pendiente</th><th>Última compra</th><th>Sin comprar</th></tr></thead><tbody>' +
+            clis.map((c) => '<tr><td>' + esc(c.cliente) + '</td><td class="num">$' + fmt(c.facturado) + '</td><td class="num">$' + fmt(c.cobrado) + '</td><td class="num">$' + fmt(c.pendiente) + '</td><td>' + (c.ultima || '—') + '</td><td>' + (c.mesesSinComprar == null ? '—' : (c.mesesSinComprar >= 3 ? '<span class="rojo">' + c.mesesSinComprar + ' meses</span>' : c.mesesSinComprar + ' meses')) + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Sin facturas todavía.</p>';
+}
+/* Fase 22, bloque 2: consignación. El pago se hace por período y
+ * solo sobre las ventas que ya tienen su asiento del día (antes de
+ * eso la deuda no existe en la contabilidad). Un pago parcial parte
+ * la entrada en dos: lo pagado y lo que queda pendiente. */
+function resumenConsignadores(consignacion) {
+    const por = {};
+    for (const e of consignacion || []) {
+        const c = e.consignador || 'Sin consignador';
+        por[c] = por[c] || { consignador: c, vendido: 0, comision: 0, aPagar: 0, pendiente: 0, pagado: 0 };
+        const venta = r2((Number(e.precioVenta) || 0) * (Number(e.cant) || 0));
+        por[c].vendido = r2(por[c].vendido + venta);
+        por[c].comision = r2(por[c].comision + r2(venta * (Number(e.comisionPct) || 0) / 100));
+        por[c].aPagar = r2(por[c].aPagar + (Number(e.aPagar) || 0));
+        if (e.estado === 'pendiente') por[c].pendiente = r2(por[c].pendiente + (Number(e.aPagar) || 0));
+        else if (e.estado === 'pagado') por[c].pagado = r2(por[c].pagado + (Number(e.aPagar) || 0));
+    }
+    return Object.values(por).sort((a, b) => b.pendiente - a.pendiente);
+}
+function pagarConsignador(consignacion, pagos, consignador, monto, fecha, medio, elegibles) {
+    const m = r2(Number(monto) || 0);
+    if (m <= 0) return { ok: false, motivo: 'El pago tiene que ser mayor que 0' };
+    const clave = String(consignador || '').trim().toLowerCase();
+    const eleg = elegibles instanceof Set ? elegibles : null;
+    const pendientes = (consignacion || []).filter((e) => String(e.consignador || '').toLowerCase() === clave && e.estado === 'pendiente' && (!eleg || eleg.has(e.id)));
+    const netoAntes = r2(pendientes.reduce((s, e) => s + (Number(e.aPagar) || 0), 0));
+    if (netoAntes <= 0) return { ok: false, motivo: 'A ' + consignador + ' no se le debe nada que se pueda pagar ahora' };
+    if (m > netoAntes) return { ok: false, motivo: 'A ' + consignador + ' se le deben $' + netoAntes.toFixed(2) + ' (lo que ya tiene asiento): no se le puede pagar $' + m.toFixed(2) };
+    const copia = JSON.parse(JSON.stringify(consignacion || []));
+    const copiaPagos = JSON.parse(JSON.stringify(pagos || []));
+    const pago = { id: 'PG-' + Date.now().toString(36).toUpperCase(), fecha, consignador, monto: m, medio, entradas: [] };
+    const porId = {};
+    for (const e of copia) porId[e.id] = e;
+    /* Primero se compensan las devoluciones: cada entrada negativa
+     * cancela las positivas más viejas (su deuda ya bajó en la
+     * contabilidad con el asiento de ajuste de la devolución). */
+    for (const neg of pendientes.filter((e) => (Number(e.aPagar) || 0) < 0)) {
+        let resto = -(Number(neg.aPagar) || 0);
+        const nOrig = porId[neg.id];
+        for (const pos of pendientes.filter((e) => (Number(e.aPagar) || 0) > 0)) {
+            if (resto <= 0) break;
+            const pOrig = porId[pos.id];
+            if (!pOrig || pOrig.estado !== 'pendiente') continue;
+            const aPagar = Number(pOrig.aPagar) || 0;
+            if (aPagar <= resto) { resto = r2(resto - aPagar); pOrig.estado = 'pagado'; pOrig.pagoId = pago.id; pago.entradas.push(pOrig.id); }
+            else { pOrig.aPagar = r2(aPagar - resto); resto = 0; }
+        }
+        if (resto <= 0) { nOrig.estado = 'pagado'; nOrig.pagoId = pago.id; pago.entradas.push(nOrig.id); }
+        else nOrig.aPagar = -resto;
+    }
+    /* Después se paga el dinero, de las entradas más viejas. */
+    let falta = m;
+    for (const e of pendientes) {
+        if (falta <= 0) break;
+        const orig = porId[e.id];
+        if (!orig || orig.estado !== 'pendiente') continue;
+        const aPagar = Number(orig.aPagar) || 0;
+        if (aPagar <= 0) continue;
+        if (falta >= aPagar) {
+            orig.estado = 'pagado'; orig.pagoId = pago.id;
+            pago.entradas.push(orig.id);
+            falta = r2(falta - aPagar);
+        } else {
+            const resto = { ...JSON.parse(JSON.stringify(orig)), id: orig.id + 'R', aPagar: r2(aPagar - falta) };
+            orig.aPagar = falta; orig.estado = 'pagado'; orig.pagoId = pago.id;
+            pago.entradas.push(orig.id);
+            copia.push(resto);
+            falta = 0;
+        }
+    }
+    copiaPagos.push(pago);
+    return { ok: true, consignacion: copia, pagos: copiaPagos, pago };
+}
+function pintarConsignacion() {
+    const cg = pos.consignacion || [];
+    const resumen = resumenConsignadores(cg);
+    $('cgResumen').innerHTML = resumen.length
+        ? '<table><thead><tr><th>Consignador</th><th class="num">Vendido</th><th class="num">Comisión del negocio</th><th class="num">A pagar</th><th class="num">Pendiente</th><th class="num">Pagado</th></tr></thead><tbody>' +
+            resumen.map((r) => '<tr><td>' + esc(r.consignador) + '</td><td class="num">' + fmt(r.vendido) + '</td><td class="num">' + fmt(r.comision) + '</td><td class="num">' + fmt(r.aPagar) + '</td><td class="num">' + fmt(r.pendiente) + '</td><td class="num">' + fmt(r.pagado) + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Nada en consignación todavía.</p>';
+    const valQ = $('cgQuien').value;
+    $('cgQuien').innerHTML = resumen.map((r) => '<option value="' + esc(r.consignador) + '">' + esc(r.consignador) + ' · pendiente $' + fmt(r.pendiente) + '</option>').join('') || '<option value="">— sin consignadores —</option>';
+    if (valQ) $('cgQuien').value = valQ;
+    const ventasConAsiento = new Set((pos.ventas || []).filter((v) => v.asientoId && v.asientoId !== 'sin-asiento').map((v) => v.id));
+    const filas = [...cg].reverse();
+    $('cgRegistro').innerHTML = filas.length
+        ? '<table><thead><tr><th>Fecha</th><th>Consignador</th><th>Producto</th><th>Venta</th><th class="num">A pagar</th><th>Estado</th><th>Asiento</th></tr></thead><tbody>' +
+            filas.map((e) => '<tr><td>' + (e.fecha || '') + '</td><td>' + esc(e.consignador) + '</td><td>' + esc(e.producto) + ' ×' + e.cant + '</td><td>' + esc(e.ventaId || '') + (e.motivo ? '<br><span class="tenue">' + esc(e.motivo) + '</span>' : '') + '</td><td class="num">' + fmt(e.aPagar) + '</td><td>' + e.estado + '</td><td>' + (ventasConAsiento.has(e.ventaId) ? '<span class="ok">sí</span>' : '<span class="tenue">aún no</span>') + '</td></tr>').join('') + '</tbody></table>'
+        : '';
+    const pagos = [...(pos.pagosConsignacion || [])].reverse();
+    $('cgPagos').innerHTML = pagos.length
+        ? pagos.map((p) => '<div class="fila"><span>' + (p.fecha || '') + ' · ' + esc(p.consignador) + ' · ' + esc(p.medio || '') + '</span><b>$' + fmt(p.monto) + '</b><span class="tenue">' + p.id + '</span></div>').join('')
+        : '<p class="tenue">Sin pagos todavía.</p>';
+}
+function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(); pintarInstrumentos(); pintarSuscripciones(); pintarRecordatorios(); pintarCrm(); pintarIdeas(); pintarTablero(); pintarPrecios(); pintarLimites(); pintarRefacturables(); pintarHoras(); pintarGanas(); pintarConsignacion(); }
+
+/* Fase 10 del plan, bloque 1: CRM sencillo, copiado de Finanzas
+ * (mjCrmRender / MJ_CRM_ETAPAS). Las etapas son las mismas cinco;
+ * la ficha de cada cliente (etapa, nota, próximo contacto) vive
+ * en conta.gestion.crm. Los botones ← → mueven al cliente una
+ * etapa; «Nota» pregunta la nota y el próximo contacto con el
+ * mismo diálogo que usa Finanzas. El consultor solo mira: sin
+ * botones, como en la edición de facturas y ofertas (fase 9). */
+const CRM_ETAPAS = [['contacto', 'Contacto'], ['cotizacion', 'Cotización'], ['negociacion', 'Negociación'], ['cliente', 'Cliente'], ['perdido', 'Perdido']];
+function crmEtapaDe(id) { conta.gestion.crm = conta.gestion.crm || {}; return (conta.gestion.crm[id] || {}).etapa || 'contacto'; }
+function pintarCrm() {
+    const box = $('crmBox'); if (!box) return;
+    conta.gestion.crm = conta.gestion.crm || {};
+    const clientes = (conta.contrapartes || []).filter((x) => x.tipo !== 'proveedor');
+    if (!clientes.length) { box.innerHTML = '<p class="tenue">Sin clientes todavía: crea una contraparte cliente en Contabilidad → Submayores, o factura a un cliente y aparece aquí.</p>'; return; }
+    box.innerHTML = '<div class="crm-cols">' + CRM_ETAPAS.map(([clave, titulo]) => {
+        const lista = clientes.filter((x) => crmEtapaDe(x.id) === clave);
+        const idx = CRM_ETAPAS.findIndex((t) => t[0] === clave);
+        return '<div class="crm-col"><h3>' + titulo + ' (' + lista.length + ')</h3>' + (lista.map((x) => {
+            const e = conta.gestion.crm[x.id] || {};
+            return '<div class="crm-cli"><b>' + esc(x.nombre) + '</b>' +
+                (e.nota ? '<div class="tenue">' + esc(e.nota) + '</div>' : '') +
+                (e.proximo ? '<div>📞 Próximo: ' + esc(e.proximo) + '</div>' : '') +
+                (sesionRol !== 'consultor' ? '<div class="fila" style="margin:4px 0 0">' +
+                    (idx > 0 ? '<button type="button" class="chico secundario" data-crmmover="' + x.id + '" data-dir="-1">←</button>' : '') +
+                    (idx < CRM_ETAPAS.length - 1 ? '<button type="button" class="chico secundario" data-crmmover="' + x.id + '" data-dir="1">→</button>' : '') +
+                    '<button type="button" class="chico secundario" data-crmnota="' + x.id + '">Nota</button></div>' : '') + '</div>';
+        }).join('') || '<p class="tenue">—</p>') + '</div>';
+    }).join('') + '</div>';
+    box.querySelectorAll('[data-crmmover]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.crm = conta.gestion.crm || {};
+        const e = conta.gestion.crm[b.dataset.crmmover] || (conta.gestion.crm[b.dataset.crmmover] = { etapa: 'contacto' });
+        const idx = CRM_ETAPAS.findIndex((t) => t[0] === (e.etapa || 'contacto'));
+        const ni = Math.max(0, Math.min(CRM_ETAPAS.length - 1, idx + Number(b.dataset.dir)));
+        e.etapa = CRM_ETAPAS[ni][0];
+        await guardar(); pintarCrm();
+    }));
+    box.querySelectorAll('[data-crmnota]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion.crm = conta.gestion.crm || {};
+        const e = conta.gestion.crm[b.dataset.crmnota] || (conta.gestion.crm[b.dataset.crmnota] = { etapa: 'contacto' });
+        const n = prompt('Nota de seguimiento:', e.nota || ''); if (n === null) return; e.nota = n;
+        const p = prompt('Próximo contacto (fecha o texto, vacío = sin fecha):', e.proximo || ''); if (p !== null) e.proximo = p;
+        await guardar(); pintarCrm();
+    }));
+}
+
+/* Fase 10 del plan, bloque 2: Ideas, copia de Finanzas
+ * (renderIdeas / mjIdeas :13757). Solo se construyen las ideas que
+ * Saldova puede calcular con sus propios datos: el anticipo del 5 %
+ * del TCP (ingresos mensuales de los asientos + lo pagado con el
+ * código 0510122) y el 5 % de los alimentos de minindustrias del
+ * PDL (condicional: supone que TODAS las ventas fueran de ese
+ * tipo). La DJ-08/DJ-01 completa no existe en Saldova, así que no
+ * hay ideas de MIPYME con número: para ese actor solo sale la zona
+ * de consulta. resumenMesG es la misma cuenta del Resumen
+ * (ingresos, costo, gastos, ONAT, utilidad) y la reutiliza el
+ * tablero (bloque 4). */
+function grupoCuenta(cod) { return (conta.plan || []).find((c) => c.codigo === cod) || { nombre: '', grupo: '', naturaleza: 'deudora' }; }
+function resumenMesG(mes) {
+    const porMes = new Map();
+    for (const a of conta.asientos || []) {
+        if ((a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of a.lineas || []) {
+            const m = porMes.get(l.cuenta) || { debe: 0, haber: 0 };
+            m.debe += Number(l.debe) || 0; m.haber += Number(l.haber) || 0;
+            porMes.set(l.cuenta, m);
+        }
+    }
+    let ingresos = 0, costo = 0, gastos = 0;
+    const ctaCosto = cuentaAuto(conta.plan, 'costo_ventas', '695-000');
+    for (const [cod, g] of porMes.entries()) {
+        const c = grupoCuenta(cod);
+        if (ctaCosto && cod === ctaCosto) costo = r2(costo + (g.debe - g.haber));
+        else if (c.grupo === 'ingreso') ingresos = r2(ingresos + (g.haber - g.debe));
+        else if (c.grupo === 'gasto') gastos = r2(gastos + (g.debe - g.haber));
+    }
+    const onat = r2(movs.filter((m) => esOnat(m) && (m.fecha || '').slice(0, 7) === mes)
+        .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+    const utilidad = r2(ingresos - costo - gastos - onat);
+    return { ingresos, costo, gastos, onat, utilidad };
+}
+function codigoOnat(m) { const x = /cód\.?\s*(\d{6,7})/i.exec(String(m.clasificacion || '')); return x ? x[1] : ''; }
+function onatPagadoAnio(anio, codigo) {
+    return r2(movs.filter((m) => esOnat(m) && (m.fecha || '').slice(0, 4) === String(anio) && codigoOnat(m) === codigo)
+        .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+}
+function ideasAnio(anio) {
+    const ideas = [], consulta = [];
+    const R = (x) => +Number(x || 0).toFixed(2);
+    const tipo = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
+    const ingMes = [];
+    for (let i = 1; i <= 12; i++) ingMes.push(resumenMesG(String(anio) + '-' + String(i).padStart(2, '0')).ingresos);
+    const ingAnio = R(ingMes.reduce((a, b) => a + b, 0));
+    if (tipo === 'tcp') {
+        let correcto = 0;
+        ingMes.forEach((x) => { correcto += 0.05 * Math.max(0, (Number(x) || 0) - 3260); });
+        correcto = R(correcto);
+        const pagado = onatPagadoAnio(anio, '0510122');
+        if (pagado > correcto + 1) ideas.push({ id: 'anticipo_exceso', titulo: 'Anticipos del 5 %: solo sobre lo que pase de 3 260 al mes', texto: 'Este año constan anticipos por ' + fmt(pagado) + ' y lo correcto era ' + fmt(correcto) + '. La diferencia no es un impuesto perdido — minora tu DJ-08 — pero es dinero adelantado que pudiste estar usando en el negocio.', hoy: pagado, optimizado: correcto, ahorro: R(pagado - correcto), tipo: 'flujo', fundamento: 'Res. 271/2024, art. 20', destino: 'fiscal' });
+        const perfilTcp = (fiscal && fiscal.meta && fiscal.meta.perfil && fiscal.meta.perfil.tcp) || {};
+        if (perfilTcp.recienGraduado || perfilTcp.zonaRural) {
+            const cuales = [];
+            if (perfilTcp.recienGraduado) cuales.push('eres recién graduado: el primer año de actividad puede estar exonerado de la cuota fija');
+            if (perfilTcp.zonaRural) cuales.push('tu actividad está en zona rural o de montaña aprobada por el CAM: la cuota fija puede ser 0 el primer año');
+            consulta.push({ titulo: 'Beneficios según tu ficha (Res. 271/2024, arts. 14-15)', texto: 'Según la ficha de tu negocio, ' + cuales.join('; ') + '. Confírmalos en tu ONAT antes de aplicarlos.' });
+        } else consulta.push({ titulo: 'Beneficios según tu caso (Res. 271/2024, arts. 14-15)', texto: 'Si eres recién graduado, el primer año de actividad puede estar exonerado; y las actividades en zonas rurales o de montaña aprobadas por el CAM pueden tener una reducción de hasta el 35 %. Dependen de tu caso concreto: confírmalos en tu ONAT antes de aplicarlos. Si te aplica alguno, márcalo en tu ficha (Fiscal → Datos del negocio).' });
+    }
+    if (tipo === 'pdl') {
+        if (ingAnio > 0) {
+            const hoyV = R(ingAnio * 0.10), optV = R(ingAnio * 0.05);
+            ideas.push({ id: 'pdl_alimentos', titulo: 'Alimentos de minindustrias al detalle: 5 %, no 10 %', texto: 'El impuesto sobre ventas del proyecto es el 10 %, PERO las ventas al detalle de alimentos producidos por minindustrias tributan al 5 %. La comparativa supone que TODAS tus ventas del año (' + fmt(ingAnio) + ') fueran de ese tipo; tu ahorro real es la mitad del impuesto de la parte que sí lo sea: 500 por cada 10 000.', hoy: hoyV, optimizado: optV, ahorro: R(hoyV - optV), tipo: 'impuesto', condicional: true, fundamento: 'Res. 202/2026, párrafo 0114822', destino: 'fiscal' });
+        }
+        consulta.push({ titulo: 'Tus trabajadores no presentan DJ por el proyecto', texto: 'Los ingresos que tus contratados reciben del proyecto están exonerados de su Declaración Jurada anual (Res. 202/2026, art. 12): un trámite menos para tu equipo, y un argumento para contratar.' });
+        consulta.push({ titulo: 'Retención de la divisa del PDL: 80 % sin coeficiente aprobado', texto: 'La Resolución 103/2026 del MEP (art. 7) fija que quien no tenga coeficiente de retención aprobado retiene el 80 % de la divisa de esas fuentes y el 20 % se acredita en CUP; el financiamiento externo, los aportes de capital y los donativos se retienen al 100 % (art. 8). La app todavía no aplica esta retención a los movimientos en divisa: confirma tu caso con el banco antes de operar. (El impuesto sobre utilidades ya se calcula al 35 %: Ley 181/2025, art. 53.2.)' });
+    }
+    consulta.push({ titulo: 'Paga siempre en fecha', texto: 'Un pago fuera de fecha expone a recargo por mora y a multas (Ley 113 y DL 91/2024), y ningún recargo es deducible: el calendario de la pestaña Fiscal te avisa antes de cada vencimiento.' });
+    const totalImpuesto = R(ideas.filter((i) => i.tipo === 'impuesto').reduce((a, i) => a + i.ahorro, 0));
+    const totalFlujo = R(ideas.filter((i) => i.tipo === 'flujo').reduce((a, i) => a + i.ahorro, 0));
+    return { ideas, consulta, totalImpuesto, totalFlujo };
+}
+function pintarIdeas() {
+    const box = $('ideasBox'); if (!box) return;
+    const sel = $('ideasAnio');
+    if (sel && !sel.options.length) {
+        const y0 = new Date().getFullYear();
+        for (let y = y0; y >= y0 - 3; y--) { const o = document.createElement('option'); o.value = String(y); o.textContent = String(y); sel.appendChild(o); }
+        sel.value = String(y0);
+    }
+    const anio = Number(sel && sel.value) || new Date().getFullYear();
+    const r = ideasAnio(anio);
+    let h = '';
+    if (r.totalImpuesto > 0 || r.totalFlujo > 0) h += '<p class="verde">Con los datos de ' + anio + ', este negocio puede ahorrarse ' + (r.totalImpuesto > 0 ? 'hasta <b>' + fmt(r.totalImpuesto) + '</b> en impuestos' : '') + (r.totalImpuesto > 0 && r.totalFlujo > 0 ? ' y ' : '') + (r.totalFlujo > 0 ? 'liberar <b>' + fmt(r.totalFlujo) + '</b> de flujo' : '') + ' al año, usando solo lo que la norma permite.</p>';
+    if (!r.ideas.length) h += '<p class="tenue">Con los datos de ' + anio + ' no detecto ahorros calculables por ahora: importa tus estados de cuenta y registra tus movimientos para que las ideas trabajen con tus números reales.</p>';
+    h += r.ideas.map((i) => {
+        const max = Math.max(i.hoy, i.optimizado, 1);
+        return '<div class="idea"><b>💡 ' + esc(i.titulo) + '</b>' + (i.condicional ? ' <span class="tenue">según tu mezcla</span>' : '') +
+            '<p class="tenue" style="margin:4px 0">' + esc(i.texto) + '</p>' +
+            '<div class="tenue">Hoy: ' + fmt(i.hoy) + '</div><div class="barra"><div style="width:' + (i.hoy / max * 100) + '%;background:#D23B2E"></div></div>' +
+            '<div class="tenue">Con el consejo: ' + fmt(i.optimizado) + '</div><div class="barra"><div style="width:' + (i.optimizado / max * 100) + '%;background:#1E7A34"></div></div>' +
+            '<div>Te ahorras <b class="verde" style="font-size:16px">' + fmt(i.ahorro) + '</b> <span class="tenue">(' + (i.tipo === 'flujo' ? 'flujo liberado' : 'impuesto') + ')</span></div>' +
+            '<div class="fila"><span class="tenue">Fundamento: ' + esc(i.fundamento) + '</span>' + (i.destino ? '<button type="button" class="chico secundario" data-ideas-ir="' + i.destino + '">Ir a aplicarlo</button>' : '') + '</div></div>';
+    }).join('');
+    if (r.consulta.length) h += '<h2 style="margin-top:12px">🔎 Zona de consulta — verifícalo antes de aplicarlo</h2><p class="tenue">Estas vías existen, pero dependen de tu caso o de una confirmación oficial: no se recomiendan hasta verificarlas (en tu ONAT o en la norma).</p>' + r.consulta.map((c) => '<div class="idea"><b>' + esc(c.titulo) + '</b><p class="tenue" style="margin:4px 0 0">' + esc(c.texto) + '</p></div>').join('');
+    box.innerHTML = h;
+    box.querySelectorAll('[data-ideas-ir]').forEach((b) => b.addEventListener('click', () => { if (window.parent && window.parent !== window && window.parent.abrirModulo) window.parent.abrirModulo(b.dataset.ideasIr); }));
+}
+
+/* Fase 10 del plan, bloque 4: tablero de indicadores del mes,
+ * copia de Finanzas (lbTableroRender / lbSemaforo). Las reglas del
+ * semáforo son las de Finanzas, sin tocar: ventas cae más del 20 %
+ * → Mal; beneficio negativo → Mal; margen que cae más de 2 puntos
+ * → Revisar; efectivo cero → Revisar, negativo → Mal; CxC/CxP que
+ * suben más del 20 % → Mal; inventario que sube más del 20 % con
+ * ventas bajando → Mal; equilibrio: ventas por encima → Bien, a
+ * menos del 90 % → Mal. Los submayores se cortan a fin de mes (el
+ * documento y sus aplicaciones y notas solo cuentan si su fecha no
+ * pasa del fin del período), como ctaSubmayor en Finanzas. */
+function mesAnteriorG(mes) {
+    const p = mes.split('-'); const y = Number(p[0]), m = Number(p[1]);
+    const d = new Date(y, m - 2, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function finMesG(mes) {
+    const p = mes.split('-'); const y = Number(p[0]), m = Number(p[1]);
+    return mes + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');
+}
+function saldoCuentasHasta(mes) {
+    const fin = finMesG(mes);
+    let cup = 0, usd = 0;
+    for (const m of movs) {
+        if ((m.fecha || '') > fin) continue;
+        const s = (m.tipo === 'ingreso' ? 1 : -1) * (Number(m.monto) || 0);
+        if (m.cuenta === 'tarjeta_usd') usd = r2(usd + s); else cup = r2(cup + s);
+    }
+    const tasa = Number(fx && fx.tasa) || 0;
+    return { cup, usd, tasa, efectivo: tasa > 0 ? r2(cup + usd * tasa) : cup, usdSinTasa: usd !== 0 && !(tasa > 0) };
+}
+function pendienteDocAl(doc, fin) {
+    if ((doc.fecha || '') > fin) return 0;
+    const ap = r2((conta.aplicaciones || []).filter((a) => a.documentoId === doc.id && (a.fecha || '') <= fin).reduce((s, a) => s + (Number(a.monto) || 0), 0));
+    const aj = r2((conta.notas || []).filter((n) => n.documentoId === doc.id && (n.fecha || '') <= fin).reduce((s, n) => s + (n.tipo === 'debito' ? 1 : -1) * (Number(n.importe) || 0), 0));
+    return r2((Number(doc.importe) || 0) - ap + aj);
+}
+function submayorTotalAl(tipo, fin) {
+    return r2((conta.documentos || []).filter((d) => d.tipo === tipo).reduce((s, d) => {
+        const p = pendienteDocAl(d, fin);
+        return s + (p > 0.005 ? p : 0);
+    }, 0));
+}
+function inventarioValor() {
+    return r2((pos.productos || []).reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.costo) || 0), 0));
+}
+function semaforo(clave, actual, anterior, extra) {
+    extra = extra || {};
+    const a = (actual === null || actual === undefined || actual === '' || isNaN(Number(actual))) ? null : Number(actual);
+    const p = (anterior === null || anterior === undefined || anterior === '' || isNaN(Number(anterior))) ? null : Number(anterior);
+    if (a === null) return 'sindato';
+    if (clave === 'ventas') {
+        if (p === null || p === 0) return a > 0 ? 'bien' : 'sindato';
+        const baja = (p - a) / p * 100;
+        if (baja > 20) return 'mal';
+        if (baja > 0) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'beneficioBruto' || clave === 'beneficioNeto') {
+        if (a < 0) return 'mal';
+        if (p !== null && a < p) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'margenBruto') {
+        if (a < 0) return 'mal';
+        if (p !== null && (p - a) > 2) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'efectivo') {
+        if (a < 0) return 'mal';
+        if (a === 0) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'cxc' || clave === 'cxp') {
+        if (p === null) return 'sindato';
+        if (p === 0) return a > 0 ? 'revisar' : 'bien';
+        const sube = (a - p) / p * 100;
+        if (sube > 20) return 'mal';
+        if (sube > 0) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'inventario') {
+        if (p === null) return 'sindato';
+        if (p === 0) return a > 0 ? 'revisar' : 'bien';
+        const sube = a - p, subePct = (p > 0) ? sube / p * 100 : 0;
+        const vA = (extra.ventasActual === null || extra.ventasActual === undefined) ? null : Number(extra.ventasActual);
+        const vP = (extra.ventasAnterior === null || extra.ventasAnterior === undefined) ? null : Number(extra.ventasAnterior);
+        if (sube > 0 && subePct > 20 && vA !== null && vP !== null && vA < vP) return 'mal';
+        if (sube > 0 && (vA === null || vP === null || !(vA > vP))) return 'revisar';
+        return 'bien';
+    }
+    if (clave === 'equilibrio') {
+        if (!(a > 0)) return 'sindato';
+        const v = (extra.ventasActual === null || extra.ventasActual === undefined) ? null : Number(extra.ventasActual);
+        if (v === null) return 'sindato';
+        if (v >= a) return 'bien';
+        if (v >= 0.9 * a) return 'revisar';
+        return 'mal';
+    }
+    return 'sindato';
+}
+let tabPeriodoVisto = null;
+function tableroDatos(mes) {
+    const ant = mesAnteriorG(mes);
+    const r = resumenMesG(mes), rA = resumenMesG(ant);
+    const sug = r.costo > 0 ? r2(r.ingresos - r.costo) : null;
+    const sugA = rA.costo > 0 ? r2(rA.ingresos - rA.costo) : null;
+    const tab = conta.gestion.tablero || {};
+    const man = tab[mes] || {}, manA = tab[ant] || {};
+    const numMan = (o, k) => (o && o[k] !== null && o[k] !== undefined && o[k] !== '' && !isNaN(Number(o[k]))) ? Number(o[k]) : null;
+    const benef = numMan(man, 'beneficioBruto') !== null ? numMan(man, 'beneficioBruto') : sug;
+    const benefA = numMan(manA, 'beneficioBruto') !== null ? numMan(manA, 'beneficioBruto') : sugA;
+    const sal = saldoCuentasHasta(mes), salA = saldoCuentasHasta(ant);
+    const cxcAuto = submayorTotalAl('cxc', finMesG(mes)), cxpAuto = submayorTotalAl('cxp', finMesG(mes));
+    const cxcAutoA = submayorTotalAl('cxc', finMesG(ant)), cxpAutoA = submayorTotalAl('cxp', finMesG(ant));
+    const cxc = numMan(man, 'cxc') !== null ? numMan(man, 'cxc') : cxcAuto;
+    const cxp = numMan(man, 'cxp') !== null ? numMan(man, 'cxp') : cxpAuto;
+    const cxcA = numMan(manA, 'cxc') !== null ? numMan(manA, 'cxc') : cxcAutoA;
+    const cxpA = numMan(manA, 'cxp') !== null ? numMan(manA, 'cxp') : cxpAutoA;
+    const invAuto = inventarioValor();
+    const inv = numMan(man, 'inventario') !== null ? numMan(man, 'inventario') : invAuto;
+    const invA = numMan(manA, 'inventario') !== null ? numMan(manA, 'inventario') : invAuto;
+    const pe = numMan(man, 'pe'), peA = numMan(manA, 'pe');
+    const ventas = r.ingresos, ventasA = rA.ingresos;
+    const margen = (benef !== null && ventas) ? r2(benef / ventas * 100) : null;
+    const margenA = (benefA !== null && ventasA) ? r2(benefA / ventasA * 100) : null;
+    const neto = r2(r.utilidad + r.onat), netoA = r2(rA.utilidad + rA.onat);
+    const filas = [
+        { clave: 'ventas', etiqueta: 'Ventas del mes (ingresos del período)', actual: ventas, anterior: ventasA, fmt: 'cup' },
+        { clave: 'beneficioBruto', etiqueta: 'Beneficio bruto', actual: benef, anterior: benefA, fmt: 'cup' },
+        { clave: 'margenBruto', etiqueta: 'Margen bruto (%)', actual: margen, anterior: margenA, fmt: 'pct' },
+        { clave: 'beneficioNeto', etiqueta: 'Beneficio neto antes de impuestos y obligaciones', actual: neto, anterior: netoA, fmt: 'cup' },
+        { clave: 'efectivo', etiqueta: 'Efectivo disponible', actual: sal.efectivo, anterior: salA.efectivo, fmt: 'cup' },
+        { clave: 'cxc', etiqueta: 'Cuentas por cobrar', actual: cxc, anterior: cxcA, fmt: 'cup' },
+        { clave: 'cxp', etiqueta: 'Cuentas por pagar', actual: cxp, anterior: cxpA, fmt: 'cup' },
+        { clave: 'inventario', etiqueta: 'Valor del inventario', actual: inv, anterior: invA, fmt: 'cup' },
+        { clave: 'equilibrio', etiqueta: 'Punto de equilibrio del mes (CUP)', actual: pe, anterior: peA, fmt: 'cup' },
+    ];
+    const extra = { ventasActual: ventas, ventasAnterior: ventasA };
+    const estados = filas.map((f) => semaforo(f.clave, f.actual, f.anterior, extra));
+    let peor = 'bien';
+    if (estados.indexOf('mal') >= 0) peor = 'mal';
+    else if (estados.indexOf('revisar') >= 0) peor = 'revisar';
+    else if (estados.every((s) => s === 'sindato')) peor = 'sindato';
+    const frase = peor === 'mal' ? 'Mes en alerta: revisa los indicadores marcados.' : peor === 'revisar' ? 'Mes para revisar: hay indicadores que empeoraron respecto al mes anterior.' : peor === 'bien' ? 'Mes en orden: los indicadores se mantienen o mejoran respecto al mes anterior.' : 'Sin datos suficientes para valorar el mes: completa los valores manuales y vuelve a actualizar.';
+    return { mes, ant, filas, estados, peor, frase, sug, costoV: r.costo, usdSinTasa: sal.usdSinTasa, senalGuardada: man.senal || '' };
+}
+function pintarTablero() {
+    const box = $('tablero'); if (!box) return;
+    const sel = $('tabPeriodo');
+    const meses = new Set([hoy().slice(0, 7)]);
+    for (const a of conta.asientos || []) { const mm = (a.fecha || '').slice(0, 7); if (mm) meses.add(mm); }
+    for (const m of movs) { const mm = (m.fecha || '').slice(0, 7); if (mm) meses.add(mm); }
+    const lista = [...meses].sort().reverse();
+    if (sel) {
+        sel.innerHTML = lista.map((p) => '<option value="' + p + '"' + (p === sel.value ? ' selected' : '') + '>' + p + '</option>').join('');
+        if (lista.indexOf(sel.value) < 0) sel.value = lista[0] || '';
+    }
+    const periodo = (sel && sel.value) || lista[0] || '';
+    if (!periodo) { box.innerHTML = '<p class="tenue">Sin datos del negocio todavía.</p>'; return; }
+    const d = tableroDatos(periodo);
+    if (tabPeriodoVisto !== periodo) {
+        tabPeriodoVisto = periodo;
+        const man = (conta.gestion.tablero || {})[periodo] || {};
+        const pon = (id, v) => { const e = $(id); if (e) e.value = (v === null || v === undefined) ? '' : String(v); };
+        pon('tabBeneficio', man.beneficioBruto); pon('tabCxC', man.cxc); pon('tabCxP', man.cxp);
+        pon('tabInventario', man.inventario); pon('tabPE', man.pe);
+        const sEl = $('tabSenal'); if (sEl) sEl.value = man.senal || '';
+    }
+    const badge = (s) => s === 'bien' ? '<span style="background:#1E7A34;color:#fff;border-radius:4px;padding:2px 8px;font-size:12.5px">Bien</span>' : s === 'revisar' ? '<span style="background:#E8A100;color:#1A1A1A;border-radius:4px;padding:2px 8px;font-size:12.5px">Revisar</span>' : s === 'mal' ? '<span style="background:#B23218;color:#fff;border-radius:4px;padding:2px 8px;font-size:12.5px">Mal</span>' : '<span style="background:#8FA8C8;color:#fff;border-radius:4px;padding:2px 8px;font-size:12.5px">Sin dato</span>';
+    const fmtV = (v, f) => (v === null || v === undefined) ? '—' : (f === 'pct' ? r2(v) + ' %' : '$' + fmt(v));
+    const fmtD = (f) => {
+        if (f.actual === null || f.actual === undefined || f.anterior === null || f.anterior === undefined) return '—';
+        const dd = r2(f.actual - f.anterior);
+        return f.fmt === 'pct' ? ((dd > 0 ? '+' : '') + dd + ' puntos') : ((dd > 0 ? '+' : '') + '$' + fmt(dd));
+    };
+    box.innerHTML = '<table><thead><tr><th>Indicador</th><th class="num">Este mes</th><th class="num">Mes anterior</th><th class="num">Diferencia</th><th>¿Cómo va?</th></tr></thead><tbody>' +
+        d.filas.map((f, i) => '<tr><td>' + esc(f.etiqueta) + '</td><td class="num"><b>' + fmtV(f.actual, f.fmt) + '</b></td><td class="num">' + fmtV(f.anterior, f.fmt) + '</td><td class="num">' + fmtD(f) + '</td><td>' + badge(d.estados[i]) + '</td></tr>').join('') +
+        '</tbody></table>' +
+        (d.usdSinTasa ? '<p class="tenue">Hay USD sin tasa vigente en Tasas: no entran en el efectivo.</p>' : '');
+    const info = $('tabInfo'); if (info) info.textContent = 'Comparación contra ' + d.ant + '.';
+    const sugBox = $('tabSugerido');
+    if (sugBox) sugBox.innerHTML = 'Señal sugerida: <i>' + esc(d.frase) + '</i>' + (d.sug !== null ? '<br>Beneficio bruto sugerido desde la contabilidad (ingresos menos costo de ventas del período: $' + fmt(d.costoV) + '): <b>$' + fmt(d.sug) + '</b>. Si el campo de Ajustes queda vacío se usa este valor; escribe otro para fijarlo.' : '<br>Sin costo de ventas registrado en este período: el beneficio bruto se captura a mano en «Ajustes del tablero».') + (d.senalGuardada ? '<br>Tu señal guardada: <i>' + esc(d.senalGuardada) + '</i>' : '');
+    const btnG = $('tabGuardar');
+    if (btnG) btnG.style.display = sesionRol === 'consultor' ? 'none' : '';
+    ['tabBeneficio', 'tabCxC', 'tabCxP', 'tabInventario', 'tabPE', 'tabSenal'].forEach((id) => { const e = $(id); if (e) e.disabled = sesionRol === 'consultor'; });
+}
+async function guardarTablero() {
+    const sel = $('tabPeriodo');
+    const periodo = (sel && sel.value) || '';
+    if (!periodo) { aviso('Elige primero el período del tablero', 'error'); return; }
+    const lee = (id) => { const e = $(id); const v = e ? String(e.value == null ? '' : e.value).trim() : ''; if (v === '') return null; const n = Number(v); return isNaN(n) ? null : n; };
+    conta.gestion.tablero = conta.gestion.tablero || {};
+    conta.gestion.tablero[periodo] = {
+        beneficioBruto: lee('tabBeneficio'), cxc: lee('tabCxC'), cxp: lee('tabCxP'),
+        inventario: lee('tabInventario'), pe: lee('tabPE'),
+        senal: ($('tabSenal') ? $('tabSenal').value.trim() : ''),
+    };
+    await guardar();
+    aviso('Valores manuales del tablero guardados para ' + periodo);
+    pintarTablero();
+}
+
+/* Fase 10 del plan, bloque 5: punto de equilibrio, copia de
+ * Finanzas (lbEquilibrio). El margen de contribución es precio
+ * menos costo variable; si no es mayor que cero, cada venta pierde
+ * dinero y no hay equilibrio que calcular. */
+let ultimoPE = null;
+function equilibrio(d) {
+    d = d || {};
+    const costosFijos = Number(d.costosFijos) || 0, precio = Number(d.precio) || 0, cvu = Number(d.costoVariableUnit) || 0;
+    const mc = r2(precio - cvu);
+    if (!(mc > 0)) return { ok: false, motivo: 'El precio no supera el costo variable: cada venta pierde dinero.', margenContribucion: mc };
+    const peUnidades = Math.ceil(costosFijos / mc);
+    return { ok: true, costosFijos: r2(costosFijos), precio: r2(precio), costoVariableUnit: r2(cvu),
+        margenContribucion: mc, mcPct: precio > 0 ? r2(mc / precio * 100) : null,
+        peUnidades, peCUP: r2(peUnidades * precio) };
+}
+function calcularEquilibrio() {
+    const r = equilibrio({ costosFijos: Number($('eqFijos').value) || 0, precio: Number($('eqPrecio').value) || 0, costoVariableUnit: Number($('eqCvu').value) || 0 });
+    ultimoPE = r.ok ? r : null;
+    const box = $('equiBox'); if (!box) return;
+    if (!r.ok) { box.innerHTML = '<span class="rojo">' + esc(r.motivo) + '</span>'; return; }
+    const ventasTxt = String($('eqVentas').value == null ? '' : $('eqVentas').value).trim();
+    const ventas = ventasTxt === '' ? null : (Number(ventasTxt) || 0);
+    let seg = '';
+    if (ventas !== null) {
+        const msU = ventas - r.peUnidades;
+        const msPct = ventas > 0 ? r2((ventas - r.peUnidades) / ventas * 100) : null;
+        const pos = ventas > r.peUnidades ? 'por encima del equilibrio' : (ventas < r.peUnidades ? 'por debajo del equilibrio' : 'justo en el equilibrio');
+        seg = '<div class="tenue" style="margin-top:4px">Ventas reales: <b>' + ventas + '</b> unidades · margen de seguridad: <b>' + msU + '</b> unidades' + (msPct === null ? '' : ' (<b>' + msPct + ' %</b>)') + ' · estás <b>' + pos + '</b>.</div>';
+    }
+    box.innerHTML = '<div>Margen de contribución: <b>$' + fmt(r.margenContribucion) + '</b> por unidad (' + (r.mcPct === null ? '—' : r.mcPct + ' %') + ' del precio).</div>' +
+        '<div>Punto de equilibrio: <b>' + r.peUnidades + '</b> unidades · <b>$' + fmt(r.peCUP) + '</b> en ventas.</div>' + seg;
+}
+async function guardarPE() {
+    if (!ultimoPE) { aviso('Calcula primero el equilibrio', 'error'); return; }
+    const mes = hoy().slice(0, 7);
+    conta.gestion.tablero = conta.gestion.tablero || {};
+    conta.gestion.tablero[mes] = conta.gestion.tablero[mes] || {};
+    conta.gestion.tablero[mes].pe = ultimoPE.peCUP;
+    await guardar();
+    aviso('Punto de equilibrio del mes guardado: $' + fmt(ultimoPE.peCUP) + ' en ventas');
+    pintarTablero();
+}
+
+/* Fase 9 del plan, bloque 2: edición de facturas y ofertas en
+ * ventana modal. El alta sigue en el formulario de la página;
+ * solo la edición pasa al modal. Solo admin y editor editan: el
+ * lápiz no aparece para el consultor. El total de la factura no
+ * se edita (sale de sus renglones). Si la factura ya tiene su
+ * documento CxC, el documento y su asiento se actualizan con el
+ * mismo número, cliente y fecha, y la contraparte se busca o se
+ * crea por el nombre, igual que al enlazar. */
+function editarFac(id) {
+    const f = (conta.gestion.facturas || []).find((x) => x.id === id);
+    if (!f) return;
+    editFacId = f.id;
+    $('mfNumero').value = f.numero || '';
+    $('mfCliente').value = f.cliente || '';
+    $('mfFecha').value = f.fecha || '';
+    $('mfVence').value = f.vencimiento || '';
+    pintarContratoSel();
+    $('mfContrato').value = f.contratoId || '';
+    $('modalFac').classList.add('abierto');
+    $('mfCliente').focus();
+}
+function cerrarModalFac() { editFacId = null; $('modalFac').classList.remove('abierto'); }
+async function guardarModalFac() {
+    const f = (conta.gestion.facturas || []).find((x) => x.id === editFacId);
+    if (!f) { cerrarModalFac(); return; }
+    const numero = $('mfNumero').value.trim(), cliente = $('mfCliente').value.trim(),
+        fecha = $('mfFecha').value, vencimiento = $('mfVence').value || '';
+    if (!numero || !cliente || !fecha) { aviso('La factura necesita número, cliente y fecha', 'error'); return; }
+    if (conta.candados && (conta.candados[String(f.fecha || '').slice(0, 7)] || conta.candados[fecha.slice(0, 7)])) { aviso('El mes de ' + String(f.fecha || '').slice(0, 7) + ' o el de ' + fecha + ' está cerrado: no se editan facturas en un período cerrado', 'error'); return; }
+    if ((conta.gestion.facturas || []).some((x) => x.id !== f.id && String(x.numero || '').trim() === numero)) { aviso('Ya hay otra factura con el número ' + numero, 'error'); return; }
+    Object.assign(f, { numero, cliente, fecha, vencimiento, contratoId: $('mfContrato').value || '' });
+    if (f.documentoId) {
+        const doc = (conta.documentos || []).find((d) => d.id === f.documentoId);
+        if (doc) {
+            conta.contrapartes = conta.contrapartes || [];
+            let cp = conta.contrapartes.find((c) => c.tipo === 'cliente' && String(c.nombre || '').trim().toLowerCase() === cliente.toLowerCase());
+            if (!cp) { conta.seqCp = (conta.seqCp || 0) + 1; cp = { id: 'CP' + conta.seqCp, nombre: cliente, tipo: 'cliente' }; conta.contrapartes.push(cp); }
+            Object.assign(doc, { numero, concepto: numero, fecha, vencimiento: vencimiento || fecha, contraparteId: cp.id });
+            const as = (conta.asientos || []).find((a) => a.documentoId === doc.id);
+            if (as) as.concepto = 'Factura ' + numero + ' · ' + cliente;
+        }
+    }
+    try { await guardar(); aviso('Factura actualizada'); cerrarModalFac(); pintarTodo(); }
+    catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
+function editarOferta(id) {
+    const o = (conta.gestion.ofertas || []).find((x) => x.id === id);
+    if (!o) return;
+    if (o.estado === 'convertida') { aviso('Esta oferta ya se convirtió en factura: edita la factura', 'error'); return; }
+    editOfId = o.id;
+    $('moNumero').value = o.numero || '';
+    $('moCliente').value = o.cliente || '';
+    $('moFecha').value = o.fecha || '';
+    $('modalOferta').classList.add('abierto');
+    $('moCliente').focus();
+}
+function cerrarModalOferta() { editOfId = null; $('modalOferta').classList.remove('abierto'); }
+async function guardarModalOferta() {
+    const o = (conta.gestion.ofertas || []).find((x) => x.id === editOfId);
+    if (!o) { cerrarModalOferta(); return; }
+    if (o.estado === 'convertida') { aviso('Esta oferta ya se convirtió en factura: edita la factura', 'error'); return; }
+    const numero = $('moNumero').value.trim(), cliente = $('moCliente').value.trim(), fecha = $('moFecha').value;
+    if (!numero || !cliente || !fecha) { aviso('La oferta necesita número, cliente y fecha', 'error'); return; }
+    if ((conta.gestion.ofertas || []).some((x) => x.id !== o.id && String(x.numero || '').trim() === numero)) { aviso('Ya hay otra oferta con el número ' + numero, 'error'); return; }
+    Object.assign(o, { numero, cliente, fecha });
+    try { await guardar(); aviso('Oferta actualizada'); cerrarModalOferta(); pintarOfertas(); }
+    catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
+}
 (async () => {
     try {
         pintarIndicador();
         const sesion = await sesionActual();
         if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        sesionRol = sesion.role || '';
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+        pos = (await bd().docLeer(tokenSesion(), 'pos')) || {};
+        pos.consignacion = pos.consignacion || [];
+        pos.pagosConsignacion = pos.pagosConsignacion || [];
+        fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
         conta.gestion = conta.gestion || { contratos: [], facturas: [] };
         conta.gestion.facturas = conta.gestion.facturas || [];
         conta.gestion.contratos = conta.gestion.contratos || [];
+        conta.gestion.instrumentos = conta.gestion.instrumentos || [];
+        conta.gestion.suscripciones = conta.gestion.suscripciones || [];
         conta.gestion.ofertas = conta.gestion.ofertas || [];
+        conta.gestion.crm = conta.gestion.crm || {};
         $('oFecha').value = hoy();
         $('oVence').value = fechaLocalDe(new Date(Date.now() + 15 * 86400000));
         $('oAddLinea').addEventListener('click', () => {
@@ -270,41 +1922,253 @@ function pintarTodo() { pintarFacturas(); pintarContratos(); pintarConsecutivos(
         });
         $('fFecha').value = hoy();
         $('fVence').value = hoy();
+        /* Fase 31, bloque 1: gastos para refacturar. */
+        conta.gestion.refacturables = conta.gestion.refacturables || [];
+        $('rfFecha').value = hoy();
+        $('rfCliente').innerHTML = (conta.contrapartes || []).filter((x) => x.tipo !== 'proveedor').map((c) => '<option value="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') || '<option value="">— sin clientes —</option>';
+        $('rfAdd').addEventListener('click', async () => {
+            const concepto = $('rfConcepto').value.trim(), monto = Number($('rfMonto').value) || 0, cliente = $('rfCliente').value.trim();
+            if (!concepto || !(monto > 0) || !cliente) { aviso('El gasto necesita concepto, monto y cliente', 'error'); return; }
+            conta.gestion.refacturables.push({ id: 'rf' + Date.now().toString(36), fecha: $('rfFecha').value || hoy(), concepto, monto, cliente, estado: 'pendiente' });
+            await guardar();
+            $('rfConcepto').value = ''; $('rfMonto').value = '';
+            pintarRefacturables(); pintarRefacturablesForm(); aviso('Gasto anotado para refacturar a ' + cliente);
+        });
+        /* Fase 34: horas facturables. */
+        conta.gestion.horas = conta.gestion.horas || [];
+        $('hfFecha').value = hoy();
+        $('hfCliente').innerHTML = (conta.contrapartes || []).filter((x) => x.tipo !== 'proveedor').map((c) => '<option value="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') || '<option value="">— sin clientes —</option>';
+        $('hfAdd').addEventListener('click', async () => {
+            const desc = $('hfDesc').value.trim(), horas = Number($('hfHoras').value) || 0, tarifa = Number($('hfTarifa').value) || 0, cliente = $('hfCliente').value.trim();
+            if (!desc || !(horas > 0) || !(tarifa > 0) || !cliente) { aviso('Las horas necesitan qué se hizo, horas, tarifa y cliente', 'error'); return; }
+            conta.gestion.horas.push({ id: 'h' + Date.now().toString(36), fecha: $('hfFecha').value || hoy(), cliente, descripcion: desc, horas, tarifa, estado: 'pendiente' });
+            await guardar();
+            $('hfDesc').value = ''; $('hfHoras').value = ''; $('hfTarifa').value = '';
+            pintarHoras(); pintarHorasForm(); aviso('Horas anotadas para ' + cliente + ': $' + fmt(r2(horas * tarifa)));
+        });
+        $('fCliente').addEventListener('input', () => {
+            const rfIds = Array.from(document.querySelectorAll('[data-rf-factura]:checked')).map((c) => c.dataset.rfFactura);
+            const hIds = Array.from(document.querySelectorAll('[data-hora-factura]:checked')).map((c) => c.dataset.horaFactura);
+            fTotalBase = r2((Number($('fTotal').value) || 0) - totalRefacturable(conta.gestion.refacturables || [], rfIds) - totalHoras(conta.gestion.horas || [], hIds));
+            pintarRefacturablesForm();
+            pintarHorasForm();
+        });
+        $('fTotal').addEventListener('input', () => {
+            const rfIds = Array.from(document.querySelectorAll('[data-rf-factura]:checked')).map((c) => c.dataset.rfFactura);
+            const hIds = Array.from(document.querySelectorAll('[data-hora-factura]:checked')).map((c) => c.dataset.horaFactura);
+            fTotalBase = r2((Number($('fTotal').value) || 0) - totalRefacturable(conta.gestion.refacturables || [], rfIds) - totalHoras(conta.gestion.horas || [], hIds));
+        });
+        /* Fase 29, bloque 3: el término pone el vencimiento solo. */
+        const actualizarVence = () => { $('fVence').value = vencimientoPorTermino($('fFecha').value, $('fTermino').value); };
+        $('fTermino').addEventListener('change', actualizarVence);
+        $('fFecha').addEventListener('change', actualizarVence);
+        /* Fase 28, bloque 3: la factura en USD trae su tasa y su equivalente en CUP. */
+        const actualizarEquiv = () => {
+            const usd = $('fMoneda').value === 'USD';
+            $('fTasaWrap').style.display = usd ? '' : 'none';
+            if (usd && !Number($('fTasa').value)) $('fTasa').value = tasaDelMes(fx, ($('fFecha').value || hoy()).slice(0, 7)) || fx.tasa || '';
+            const total = Number($('fTotal').value) || 0, tasa = Number($('fTasa').value) || 0;
+            $('fEquiv').textContent = usd && total > 0 && tasa > 0 ? '≈ ' + fmt(equivalenteCup(total, tasa)) + ' CUP a la tasa ' + fmt(tasa) : '';
+        };
+        $('fMoneda').addEventListener('change', actualizarEquiv);
+        $('fTotal').addEventListener('input', actualizarEquiv);
+        $('fTasa').addEventListener('input', actualizarEquiv);
+        $('fFecha').addEventListener('change', actualizarEquiv);
         $('fAdd').addEventListener('click', async () => {
             const numero = $('fNumero').value.trim(), cliente = $('fCliente').value.trim(), total = Number($('fTotal').value) || 0;
             if (!numero || !cliente || total <= 0) { aviso('La factura necesita número, cliente y total', 'error'); return; }
-            conta.gestion.facturas.push({ id: 'f' + Date.now().toString(36), numero, cliente, fecha: $('fFecha').value, vencimiento: $('fVence').value, total, cobros: [] });
-            await guardar(); $('fNumero').value = $('fCliente').value = $('fTotal').value = '';
-            pintarTodo(); aviso('Factura añadida');
+            const moneda = $('fMoneda').value;
+            const tasa = moneda === 'USD' ? (Number($('fTasa').value) || 0) : 0;
+            if (moneda === 'USD' && !(tasa > 0)) { aviso('La factura en USD necesita su tasa (CUP por 1 USD)', 'error'); return; }
+            /* Fase 29, bloque 1: límite de crédito por cliente. */
+            const cp = (conta.contrapartes || []).find((x) => x.tipo === 'cliente' && String(x.nombre || '').trim().toLowerCase() === cliente.toLowerCase());
+            const lim = excedeLimite(deudaCliente(conta.gestion.facturas || [], cliente), moneda === 'USD' ? equivalenteCup(total, tasa) : total, cp ? cp.limiteCredito : 0);
+            if (lim.excede && !confirm('Este cliente ya debe ' + fmt(lim.debe) + ' CUP y su límite es ' + fmt(lim.limite) + ' CUP. Con esta factura quedaría debiendo ' + fmt(r2(lim.debe + (moneda === 'USD' ? equivalenteCup(total, tasa) : total))) + ' CUP. ¿La guardas igual?')) return;
+            const fac = { id: 'f' + Date.now().toString(36), numero, cliente, fecha: $('fFecha').value, vencimiento: $('fVence').value, total, cobros: [], contratoId: $('fContrato').value || '', moneda, tasa, termino: $('fTermino').value };
+            /* Fase 31, bloque 1: los gastos refacturables marcados quedan en la factura. */
+            const rfIds = Array.from(document.querySelectorAll('[data-rf-factura]:checked')).map((c) => c.dataset.rfFactura);
+            if (rfIds.length) {
+                conta.gestion.refacturables = conta.gestion.refacturables || [];
+                for (const r of conta.gestion.refacturables) if (rfIds.indexOf(r.id) >= 0) { r.estado = 'facturado'; r.facturaId = fac.id; }
+                fac.refacturables = rfIds;
+            }
+            /* Fase 34: las horas facturables marcadas quedan en la factura. */
+            const hIds = Array.from(document.querySelectorAll('[data-hora-factura]:checked')).map((c) => c.dataset.horaFactura);
+            if (hIds.length) {
+                conta.gestion.horas = conta.gestion.horas || [];
+                for (const h of conta.gestion.horas) if (hIds.indexOf(h.id) >= 0) { h.estado = 'facturado'; h.facturaId = fac.id; }
+                fac.horas = hIds;
+            }
+            conta.gestion.facturas.push(fac);
+            const rDoc = enlazarFacturaDoc(fac);
+            await guardar(); $('fNumero').value = $('fCliente').value = $('fTotal').value = ''; $('fMoneda').value = 'CUP'; actualizarEquiv();
+            fTotalBase = 0;
+            pintarTodo(); pintarRefacturablesForm(); pintarHorasForm(); aviso('Factura añadida' + (rDoc.ok ? ': documento CxC ' + rDoc.doc.id + ' creado (asiento nº ' + conta.seqAsiento + ')' : ' (sin documento CxC: ' + rDoc.motivo + ')'));
         });
         $('fCsv').addEventListener('click', () => {
-            const filas = [['Número', 'Cliente', 'Fecha', 'Vencimiento', 'Total', 'Cobrado', 'Saldo', 'Estado']];
+            const filas = [['Número', 'Cliente', 'Fecha', 'Vencimiento', 'Moneda', 'Total', 'Total CUP', 'Cobrado', 'Saldo', 'Saldo CUP', 'Estado']];
             for (const f of (conta.gestion.facturas || [])) {
                 const saldo = saldoFac(f);
                 const cobrado = r2((Number(f.total) || 0) - saldo);
-                filas.push([f.numero, f.cliente, f.fecha, f.vencimiento || '', (Number(f.total) || 0).toFixed(2), cobrado.toFixed(2), saldo.toFixed(2), saldo <= 0 ? 'Pagada' : (f.vencimiento && f.vencimiento < hoy() ? 'Vencida' : 'Pendiente')]);
+                const p = pendienteFactura(f);
+                filas.push([f.numero, f.cliente, f.fecha, f.vencimiento || '', f.moneda || 'CUP', (Number(f.total) || 0).toFixed(2), totalCupFactura(f).toFixed(2), cobrado.toFixed(2), saldo.toFixed(2), p.pendienteCup.toFixed(2), saldo <= 0 ? 'Pagada' : (f.vencimiento && f.vencimiento < hoy() ? 'Vencida' : 'Pendiente')]);
             }
             if (filas.length === 1) { aviso('No hay facturas para descargar', 'error'); return; }
             descargarCSV('facturas.csv', filas);
             aviso('Facturas descargadas en CSV: ábrelo con Excel');
         });
+        /* Fase 18, bloque 3: importar desde Excel (CSV). */
+        let impFilas = null;
+        $('impPlantilla').addEventListener('click', () => {
+            if ($('impTipo').value === 'productos') descargarCSV('plantilla-productos.csv', [['Código', 'Nombre', 'Precio', 'Costo', 'Stock'], ['P001', 'Café molido 500 g', '450,00', '300,00', '20']]);
+            else descargarCSV('plantilla-clientes.csv', [['Nombre', 'Tipo', 'Teléfono', 'Correo'], ['Bodega La Esquina', 'cliente', '55551234', 'bodega@ejemplo.cu']]);
+        });
+        $('impFile').addEventListener('change', async () => {
+            const f = $('impFile').files && $('impFile').files[0];
+            if (!f) return;
+            const texto = await f.text();
+            impFilas = parsearCSV(texto);
+            $('impImportar').disabled = !impFilas.length;
+            $('impPrevia').innerHTML = impFilas.length
+                ? '<p class="tenue">' + impFilas.length + ' filas (la primera es el encabezado):</p><table><thead><tr>' + impFilas[0].map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
+                    impFilas.slice(1, 6).map((r) => '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>' + (impFilas.length > 6 ? '<p class="tenue">…y ' + (impFilas.length - 6) + ' filas más.</p>' : '')
+                : '<p class="tenue">El archivo no trae filas.</p>';
+        });
+        $('impImportar').addEventListener('click', async () => {
+            if (!impFilas || !impFilas.length) { aviso('Elige primero el archivo CSV', 'error'); return; }
+            if ($('impTipo').value === 'productos') {
+                const r = importarProductos(impFilas, pos.productos || []);
+                if (!r.ok) { aviso(r.motivo, 'error'); return; }
+                pos.productos = pos.productos || [];
+                pos.productos.push(...r.nuevos);
+                try { await bd().docGuardar(tokenSesion(), 'pos', pos); $('impNota').textContent = r.nuevos.length + ' producto(s) importado(s)' + (r.repetidos ? ', ' + r.repetidos + ' repetido(s) que no se duplicaron' : '') + (r.errores.length ? '. Errores: ' + r.errores.join(' · ') : '.'); aviso('Importación lista'); pintarTodo(); }
+                catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+            } else {
+                const r = importarContrapartes(impFilas, conta.contrapartes || [], conta.seqCp || 0);
+                if (!r.ok) { aviso(r.motivo, 'error'); return; }
+                conta.contrapartes = conta.contrapartes || [];
+                conta.contrapartes.push(...r.nuevos);
+                conta.seqCp = r.seqCp;
+                try { await guardar(); $('impNota').textContent = r.nuevos.length + ' contraparte(s) importada(s)' + (r.repetidos ? ', ' + r.repetidos + ' repetida(s) que no se duplicaron' : '') + (r.errores.length ? '. Errores: ' + r.errores.join(' · ') : '.'); aviso('Importación lista'); pintarTodo(); }
+                catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+            }
+        });
+        /* Fase 18, bloque 4: precios por cliente. */
+        $('pcGuardar').addEventListener('click', async () => {
+            const r = guardarPrecioCliente(conta.gestion.precios, $('pcCliente').value, $('pcProducto').value, Number($('pcPrecio').value) || 0);
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            conta.gestion.precios = r.precios;
+            try { await guardar(); $('pcPrecio').value = ''; pintarPrecios(); aviso('Precio guardado para ' + $('pcCliente').value); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        $('pcCliente').addEventListener('change', pintarPrecios);
+        $('fCliente').addEventListener('input', () => {
+            const cliente = $('fCliente').value.trim();
+            const clave = Object.keys(conta.gestion.precios || {}).find((k) => k.toLowerCase() === cliente.toLowerCase());
+            const lista = clave ? conta.gestion.precios[clave] : [];
+            $('fPrecios').textContent = lista.length ? 'Precios de ' + clave + ': ' + lista.map((p) => p.producto + ' $' + fmt(p.precio)).join(' · ') + '.' : '';
+        });
+        /* Fase 19, bloque 2: por dónde ganas. */
+        $('pgDesde').value = hoy().slice(0, 7) + '-01';
+        $('pgHasta').value = hoy();
+        $('pgDesde').addEventListener('change', pintarGanas);
+        $('pgHasta').addEventListener('change', pintarGanas);
+        /* Fase 22, bloque 2: pagar a un consignador. Solo se paga lo
+         * que ya tiene su asiento del día: antes de eso la deuda no
+         * existe en la contabilidad. El pago crea su asiento. */
+        $('cgPagar').addEventListener('click', async () => {
+            const consignador = $('cgQuien').value;
+            const monto = Number($('cgMonto').value) || 0;
+            const medio = $('cgMedio').value;
+            if (!consignador) { aviso('No hay consignadores con deuda', 'error'); return; }
+            if (monto <= 0) { aviso('Escribe el importe que le pagas', 'error'); return; }
+            if (conta.candados && conta.candados[hoy().slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede pagar en un período cerrado', 'error'); return; }
+            const ventasConAsiento = new Set((pos.ventas || []).filter((v) => v.asientoId && v.asientoId !== 'sin-asiento').map((v) => v.id));
+            const elegibles = new Set((pos.consignacion || []).filter((e) => ventasConAsiento.has(e.ventaId)).map((e) => e.id));
+            const r = pagarConsignador(pos.consignacion, pos.pagosConsignacion, consignador, monto, hoy(), medio, elegibles);
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            pos.consignacion = r.consignacion;
+            pos.pagosConsignacion = r.pagos;
+            const cuentaH = medio === 'caja' ? cuentaAuto(conta.plan, 'caja', '101-010') : cuentaAuto(conta.plan, 'banco_cup', '110-010');
+            const lineasPago = [
+                { cuenta: cuentaAuto(conta.plan, 'por_pagar', '311-000'), debe: r.pago.monto, haber: 0 },
+                { cuenta: cuentaH, debe: 0, haber: r.pago.monto },
+            ];
+            const errLin = validarLineasAsiento(conta.plan, lineasPago);
+            if (errLin) { aviso(errLin, 'error'); return; }
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoy(), concepto: 'Pago a consignador ' + consignador + ' (' + r.pago.id + ')', origen: 'manual', estado: 'confirmado', lineas: lineasPago });
+            try { await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]); $('cgMonto').value = ''; pintarConsignacion(); aviso('Pago de $' + fmt(r.pago.monto) + ' a ' + consignador + ' registrado con su asiento nº ' + conta.seqAsiento); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
         $('cAdd').addEventListener('click', async () => {
             const numero = $('cNumero').value.trim(), cliente = $('cCliente').value.trim();
             if (!numero || !cliente) { aviso('El contrato necesita número y cliente', 'error'); return; }
-            conta.gestion.contratos.push({ id: 'c' + Date.now().toString(36), numero, cliente, objeto: $('cObjeto').value.trim(), monto: Number($('cMonto').value) || 0 });
-            await guardar(); $('cNumero').value = $('cCliente').value = $('cObjeto').value = $('cMonto').value = '';
+            conta.gestion.contratos.push({ id: 'c' + Date.now().toString(36), numero, cliente, objeto: $('cObjeto').value.trim(), monto: Number($('cMonto').value) || 0, vigenciaHasta: $('cVigencia').value || '', tipo: $('cTipo').value, rol: $('cRol').value, vigenciaDesde: $('cDesde').value || '', moneda: $('cMoneda').value, estado: 'vigente', notas: '', adjuntos: [] });
+            await guardar(); $('cNumero').value = $('cCliente').value = $('cObjeto').value = $('cMonto').value = $('cVigencia').value = $('cDesde').value = '';
             pintarContratos(); aviso('Contrato añadido');
+        });
+        /* Fase 11, bloque 2: crear talonario. */
+        $('iAdd').addEventListener('click', async () => {
+            const desde = parseInt($('iDesde').value, 10), hasta = parseInt($('iHasta').value, 10);
+            if (!desde || !hasta || hasta < desde) { aviso('El talonario necesita un rango válido (desde ≤ hasta)', 'error'); return; }
+            conta.gestion.instrumentos = conta.gestion.instrumentos || [];
+            conta.gestion.instrumentos.push({ id: 't' + Date.now().toString(36), tipo: $('iTipo').value, desde, hasta, usados: [], anulados: [] });
+            await guardar(); $('iDesde').value = $('iHasta').value = ''; pintarInstrumentos(); aviso('Talonario creado');
+        });
+        /* Fase 11, bloque 3: añadir suscripción. */
+        $('sAdd').addEventListener('click', async () => {
+            const cliente = $('sCliente').value.trim(), concepto = $('sConcepto').value.trim(), monto = Number($('sMonto').value) || 0, proximo = $('sProximo').value;
+            if (!cliente || !concepto || monto <= 0 || !proximo) { aviso('La suscripción necesita cliente, concepto, monto y próximo cobro', 'error'); return; }
+            conta.gestion.suscripciones = conta.gestion.suscripciones || [];
+            conta.gestion.suscripciones.push({ id: 's' + Date.now().toString(36), cliente, concepto, monto, frecuencia: $('sFrecuencia').value, proximoCobro: proximo, activa: true, contratoId: $('sContrato').value || '' });
+            await guardar(); $('sCliente').value = $('sConcepto').value = $('sMonto').value = $('sProximo').value = ''; pintarSuscripciones(); aviso('Suscripción añadida');
         });
         pintarTodo();
         pintarOfertaEditor();
         pintarOfertas();
+        /* Fase 10, bloque 2: el año de las ideas. */
+        $('ideasAnio').addEventListener('change', pintarIdeas);
+        /* Fase 10, bloque 4: el tablero. */
+        $('tabPeriodo').addEventListener('change', pintarTablero);
+        $('tabActualizar').addEventListener('click', pintarTablero);
+        $('tabGuardar').addEventListener('click', guardarTablero);
+        /* Fase 10, bloque 5: el punto de equilibrio. */
+        $('eqCalcular').addEventListener('click', calcularEquilibrio);
+        $('eqGuardar').addEventListener('click', guardarPE);
+        if (sesionRol === 'consultor') $('eqGuardar').style.display = 'none';
+        /* Fase 9, bloque 2: modales de edición. */
+        $('btnGuardarModalFac').addEventListener('click', guardarModalFac);
+        $('btnCancelarModalFac').addEventListener('click', cerrarModalFac);
+        $('modalFac').addEventListener('click', (e) => { if (e.target === $('modalFac')) cerrarModalFac(); });
+        $('btnGuardarModalOferta').addEventListener('click', guardarModalOferta);
+        $('btnCancelarModalOferta').addEventListener('click', cerrarModalOferta);
+        $('modalOferta').addEventListener('click', (e) => { if (e.target === $('modalOferta')) cerrarModalOferta(); });
+        /* Fase 11, bloque 1: modal de contratos y buscador de adjuntos. */
+        $('btnGuardarModalContrato').addEventListener('click', guardarModalContrato);
+        $('btnCancelarModalContrato').addEventListener('click', cerrarModalContrato);
+        $('modalContrato').addEventListener('click', (e) => { if (e.target === $('modalContrato')) cerrarModalContrato(); });
+        $('btnGenerarContrato').addEventListener('click', abrirGenContrato);
+        $('btnCopiarGen').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('genTexto').innerText); aviso('Contrato copiado'); } catch (e) { aviso('No se pudo copiar automáticamente', 'error'); } });
+        $('btnImprimirGen').addEventListener('click', imprimirGenContrato);
+        $('btnCerrarGen').addEventListener('click', () => $('modalGenContrato').classList.remove('abierto'));
+        $('modalGenContrato').addEventListener('click', (e) => { if (e.target === $('modalGenContrato')) $('modalGenContrato').classList.remove('abierto'); });
+        $('adjBuscar').addEventListener('input', pintarAdjuntos);
+        $('mcAdjunto').addEventListener('change', async () => {
+            const f = $('mcAdjunto').files && $('mcAdjunto').files[0];
+            if (!f) return;
+            if (editConAdjuntos.length >= 5) { aviso('Máximo 5 documentos por contrato', 'error'); $('mcAdjunto').value = ''; return; }
+            try { const a = await adjuntoLeer(f); a.id = 'a' + Date.now().toString(36); a.fecha = hoy(); editConAdjuntos.push(a); pintarModalAdjuntos(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+            $('mcAdjunto').value = '';
+        });
         /* Pestañas internas del módulo (modelo .exe) */
         (() => {
             const estilo = document.createElement('style');
             estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
             document.head.appendChild(estilo);
-            const grupos = [['facturas', 'Facturas y cobros'], ['ofertas', 'Ofertas'], ['contratos', 'Contratos']];
-            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Ofertas') === 0) return 'ofertas'; if (x.indexOf('Contratos') === 0) return 'contratos'; return 'facturas'; };
+            const grupos = [['facturas', 'Facturas y cobros'], ['ofertas', 'Ofertas'], ['contratos', 'Contratos'], ['clientes', 'Clientes e ideas'], ['tablero', 'Tablero y equilibrio']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Ofertas') === 0) return 'ofertas'; if (x.indexOf('Contratos') === 0) return 'contratos'; if (x.indexOf('Documentos adjuntos') === 0) return 'contratos'; if (x.indexOf('Clientes por etapa') === 0) return 'clientes'; if (x.indexOf('Importar desde Excel') === 0) return 'clientes'; if (x.indexOf('Precios por cliente') === 0) return 'clientes'; if (x.indexOf('Límites de crédito') === 0) return 'clientes'; if (x.indexOf('Ideas para pagar') === 0) return 'clientes'; if (x.indexOf('Tablero de indicadores') === 0) return 'tablero'; if (x.indexOf('Punto de equilibrio') === 0) return 'tablero'; if (x.indexOf('Por dónde ganas') === 0) return 'tablero'; if (x.indexOf('Consignación') === 0) return 'tablero'; return 'facturas'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
             const primera = document.querySelector('.tarjeta');

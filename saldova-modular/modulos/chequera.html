@@ -27,6 +27,7 @@
     tr.totales td { background: #DCE8F5; font-weight: 700; border-top: 2px solid #2B78C5; }
     tr.inicial td { background: #EBF3FC; font-style: italic; }
     .rojo { color: #B23218; font-weight: 700; }
+    .ok { color: #1E7A34; font-weight: 700; }
     .tenue { color: #5A7186; font-size: 13px; }
     .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .campo { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
@@ -34,6 +35,12 @@
     .cuentas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
     .cuentas button.activa { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 700; }
     saldova-indicador { font-size: 15px; font-weight: 600; }
+    /* Fase 9 del plan, bloque 1: ventana modal de edición, encima
+     * de la tabla (no un módulo WinBox). */
+    .modal-fondo { position: fixed; inset: 0; background: rgba(20, 50, 79, .55); display: none; align-items: center; justify-content: center; z-index: 50; padding: 14px; }
+    .modal-fondo.abierto { display: flex; }
+    .modal-caja { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 7px; padding: 15px; width: 100%; max-width: 560px; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+    .modal-caja h2 { font-size: 15px; margin: 0 0 8px; color: #1A3E5E; }
 </style>
 </head>
 <body>
@@ -87,6 +94,28 @@
     </div>
 </div>
 
+<!-- Fase 25, bloque 1: caja chica. Un fondo fijo en efectivo para
+     los gastos chicos del día a día: se crea sacando el dinero del
+     banco, los gastos salen del fondo con su asiento, el arqueo
+     cuenta lo que hay y el reembolso repone lo gastado desde el
+     banco. En el fondo siempre tiene que haber: efectivo +
+     comprobantes = fondo fijo. -->
+<div class="tarjeta">
+    <h2>Caja chica</h2>
+    <p class="tenue">Un fondo fijo en efectivo para los gastos chicos. Se crea sacando el dinero del banco; cada gasto sale del fondo con su asiento; el arqueo cuenta lo que hay y el reembolso repone lo gastado desde el banco.</p>
+    <div id="cajaChica"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 25, bloque 2: anticipos de caja con liquidación. Se le da
+     un dinero a alguien para un gasto y después se liquida contra
+     el gasto de verdad: lo que queda pendiente de liquidar se ve
+     siempre. -->
+<div class="tarjeta">
+    <h2>Anticipos de caja</h2>
+    <p class="tenue">Dar un anticipo desde la caja y después liquidarlo contra el gasto: el anticipo sale de la caja (Debe Anticipos / Haber Caja) y la liquidación lo salda contra la cuenta del gasto (Debe Gasto / Haber Anticipos). Lo pendiente de liquidar se ve siempre.</p>
+    <div id="anticipos"><p class="tenue">Cargando…</p></div>
+</div>
+
 <div class="tarjeta">
     <h2>Importar el estado de cuenta (PDF de BANDEC)</h2>
     <p>El estado que descargas de Virtual BANDEC entra tal cual: la app lo lee, clasifica lo que
@@ -104,6 +133,58 @@
     <div id="previa"></div>
 </div>
 
+<!-- Fase 28, bloque 2: importar el estado en CSV. Si el banco te
+     entrega el estado en CSV, entra igual que el PDF: la app lee
+     las columnas, clasifica con las mismas reglas y te muestra la
+     vista previa antes de guardar nada. -->
+<div class="tarjeta">
+    <h2>Importar el estado de cuenta en CSV</h2>
+    <p class="tenue">Si el banco te entrega el estado en CSV, entra igual que el PDF: elige el archivo, revisa qué columna es cada cosa y lee. La clasificación es la misma del PDF y nada se guarda sin que veas antes la vista previa.</p>
+    <div class="fila">
+        <label class="campo">Archivo CSV del estado
+            <input type="file" id="fCsv" accept=".csv,text/csv">
+        </label>
+        <button class="principal" id="btnLeerCsv">Leer el CSV</button>
+        <span class="tenue" id="csvEstado"></span>
+    </div>
+    <div id="csvMapa"></div>
+</div>
+
+<!-- Fase 9 del plan, bloque 1: ventana modal para editar un
+     movimiento sin salir de la página. El alta sigue en el
+     formulario de la página; solo la edición pasa al modal. -->
+<div class="modal-fondo" id="modalMov">
+    <div class="modal-caja">
+        <h2>Editar movimiento</h2>
+        <div class="fila">
+            <label class="campo">Fecha <input type="date" id="mFecha"></label>
+            <label class="campo" style="flex:1;min-width:220px">Concepto <input type="text" id="mConcepto" placeholder="Concepto del movimiento"></label>
+            <label class="campo">Tipo <select id="mTipo"><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option></select></label>
+            <label class="campo">Clasificación <input type="text" id="mClasificacion" list="clases" placeholder="Por clasificar"></label>
+            <label class="campo">Monto <input type="number" id="mMonto" min="0" step="0.01" style="width:130px"></label>
+        </div>
+        <div class="fila" style="margin-top:10px">
+            <label class="tenue"><input type="checkbox" id="mGuardarRegla"> Recordar esta clasificación como regla para conceptos iguales (la próxima vez se clasificará sola)</label>
+        </div>
+        <div class="fila" style="margin-top:10px">
+            <button class="principal" id="btnGuardarModalMov">Guardar</button>
+            <button id="btnCancelarModalMov">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="tarjeta">
+    <h2>Cuarentena de importaciones</h2>
+    <p class="tenue">Aquí quedan los estados que el control de totales retuvo: totales que no cuadran con lo que el banco declara (T1/T2), un estado dirigido a otra cuenta (T5), un formato no reconocido o fechas imposibles. Nada de esto es un movimiento todavía: no mueve saldos, no entra en los estados ni en la conciliación. Solo sale de aquí con tu palabra: <b>Liberar</b> lo importa como una importación normal y <b>Descartar</b> lo archiva para siempre — la app te avisará si el mismo estado vuelve.</p>
+    <div id="cuarentena"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Reglas aprendidas</h2>
+    <p class="tenue">Cuando clasificas un movimiento en la ventana de edición y marcas «Recordar esta clasificación como regla», la app lo aprende: la próxima vez que venga el mismo concepto, lo clasifica sola y ese concepto no vuelve a molestarte. Las reglas mandan sobre las 10 fijas.</p>
+    <div id="reglas"><p class="tenue">Cargando…</p></div>
+</div>
+
 <div class="tarjeta">
     <h2>Conciliación bancaria</h2>
     <p id="conciliacion" class="tenue">Cuando importes un estado, aquí verás el saldo según tus libros
@@ -111,8 +192,16 @@
        (método del saldo ajustado).</p>
 </div>
 
+<div class="tarjeta">
+    <h2>Conciliación automática por referencia</h2>
+    <p class="tenue">Cruza tus libros contra los estados guardados por la referencia del banco (Ref_C + Ref_O). Un movimiento concilia solo si está en el estado con la misma referencia y el mismo importe; lo demás sale listado como partida conciliatoria. La cuenta queda «Conciliada» solo si los saldos ajustados coinciden.</p>
+    <div class="fila"><label>Mes <input type="month" id="concMes"></label>
+    <button type="button" id="btnConciliar" class="secundario chico">Conciliar</button></div>
+    <div id="concAuto"><p class="tenue">Pulsa «Conciliar» para cruzar el mes elegido.</p></div>
+</div>
+
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal, normConcepto, guardarRegla, reglaPara, cuentaAuto, validarLineasAsiento, guardarMultiple } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(1);
@@ -132,6 +221,8 @@ let cuentaActiva = 'chequera';
 let editandoId = null;
 let previaOps = null;
 let contaCandados = {};
+let contaDoc = {};
+let fiscalDoc = {};
 
 function mesActual() {
     const d = new Date();
@@ -147,10 +238,163 @@ function pintarCuentas() {
         '<button data-cuenta="' + c.id + '"' + (c.id === cuentaActiva ? ' class="activa"' : '') + '>' + c.nombre + '</button>'
     ).join('');
     document.querySelectorAll('#cuentas button').forEach((b) => {
-        b.onclick = () => { cuentaActiva = b.dataset.cuenta; editandoId = null; pintarCuentas(); pintarTabla(); pintarConciliacion(); };
+        b.onclick = () => { cuentaActiva = b.dataset.cuenta; editandoId = null; pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarConcAuto(); };
     });
 }
 
+/* Fase 25, bloque 1: caja chica. El fondo es fijo: lo que hay en
+ * efectivo más lo gastado y no reembolsado tiene que ser el fondo.
+ * El arqueo cuenta el efectivo y lo compara con lo que debe haber
+ * (fondo menos lo gastado y no reembolsado). */
+function arqueoCajaChica(fondo, movimientos) {
+    const gastado = r2((movimientos || []).filter((m) => m.tipo === 'gasto' && !m.reembolsado).reduce((s, m) => s + (Number(m.monto) || 0), 0));
+    return { fondo: r2(Number(fondo) || 0), gastado, esperado: r2((Number(fondo) || 0) - gastado) };
+}
+function reembolsoPendiente(movimientos) {
+    return r2((movimientos || []).filter((m) => m.tipo === 'gasto' && !m.reembolsado).reduce((s, m) => s + (Number(m.monto) || 0), 0));
+}
+function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function pintarCajaChica() {
+    const cc = contaDoc.cajaChica || { fondo: 0, movimientos: [], arqueos: [] };
+    const box = $('cajaChica');
+    if (!cc.fondo) {
+        box.innerHTML = '<div class="fila"><label>Fondo fijo $ <input id="ccFondo" type="number" step="0.01" min="0" style="width:130px"></label><button type="button" id="ccCrear" class="principal">Crear el fondo</button></div>' +
+            '<p class="tenue">El fondo se crea sacando el dinero del banco: el asiento es Debe Caja / Haber Banco por el fondo. Una vez creado, el fondo es fijo.</p>';
+        $('ccCrear').addEventListener('click', async () => {
+            const fondo = Number($('ccFondo').value) || 0;
+            if (!(fondo > 0)) { aviso('El fondo tiene que ser mayor que 0', 'error'); return; }
+            if (contaCandados && contaCandados[hoyLocal().slice(0, 7)]) { aviso('Este mes está cerrado: no se puede crear el fondo', 'error'); return; }
+            const lineas = [{ cuenta: cuentaAuto(contaDoc.plan, 'caja', '101-010'), debe: fondo, haber: 0 }, { cuenta: cuentaAuto(contaDoc.plan, 'banco_cup', '110-010'), debe: 0, haber: fondo }];
+            const errLin = validarLineasAsiento(contaDoc.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
+            contaDoc.seqAsiento = (contaDoc.seqAsiento || 0) + 1;
+            contaDoc.asientos = contaDoc.asientos || [];
+            contaDoc.asientos.push({ id: 'a' + Date.now().toString(36), numero: contaDoc.seqAsiento, fecha: hoyLocal(), concepto: 'Creación del fondo de caja chica', origen: 'manual', estado: 'confirmado', lineas });
+            contaDoc.cajaChica = { fondo, movimientos: [{ id: 'cc' + Date.now().toString(36), fecha: hoyLocal(), concepto: 'Creación del fondo', monto: fondo, tipo: 'apertura', reembolsado: true }], arqueos: [] };
+            try { await bd().docGuardar(token, 'conta', contaDoc); pintarCajaChica(); aviso('Fondo de caja chica creado: $' + dinero(fondo) + ' (asiento nº ' + contaDoc.seqAsiento + ')'); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        return;
+    }
+    const arq = arqueoCajaChica(cc.fondo, cc.movimientos);
+    const gastos = (contaDoc.plan || []).filter((c) => c.grupo === 'gasto' && c.admite);
+    box.innerHTML = '<p>Fondo fijo: <b>$' + dinero(cc.fondo) + '</b> · Gastado sin reembolsar: <b>$' + dinero(arq.gastado) + '</b> · En el fondo debe haber: <b>$' + dinero(arq.esperado) + '</b>.</p>' +
+        '<div class="fila"><label>Fecha <input id="ccFecha" type="date"></label><label>Concepto <input id="ccConcepto" placeholder="Ej. Taxi al banco" style="min-width:180px"></label><label>Cuenta <select id="ccCuenta">' + gastos.map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.codigo) + ' · ' + esc(c.nombre) + '</option>').join('') + '</select></label><label>Monto $ <input id="ccMonto" type="number" step="0.01" min="0" style="width:110px"></label><button type="button" id="ccGasto" class="principal">Gastar del fondo</button></div>' +
+        '<div class="fila"><label>Efectivo contado $ <input id="ccContado" type="number" step="0.01" min="0" style="width:130px"></label><button type="button" id="ccArquear" class="secundario chico">Hacer el arqueo</button><span id="ccArqueoTxt" class="tenue"></span></div>' +
+        '<div class="fila"><button type="button" id="ccReembolsar" class="secundario chico"' + (arq.gastado > 0 ? '' : ' disabled') + '>Reembolsar lo gastado ($' + dinero(arq.gastado) + ')</button><span class="tenue">El reembolso saca el dinero del banco y lo pone en el fondo.</span></div>' +
+        '<div id="ccMovs"></div><div id="ccArqs"></div>';
+    $('ccFecha').value = hoyLocal();
+    $('ccGasto').addEventListener('click', async () => {
+        const concepto = $('ccConcepto').value.trim();
+        const monto = Number($('ccMonto').value) || 0;
+        const cuenta = $('ccCuenta').value;
+        if (!concepto || !(monto > 0) || !cuenta) { aviso('El gasto necesita concepto, cuenta y monto', 'error'); return; }
+        if (monto > arq.esperado) { aviso('El fondo no alcanza: debe haber $' + dinero(arq.esperado) + ' y el gasto es $' + dinero(monto), 'error'); return; }
+        if (contaCandados && contaCandados[$('ccFecha').value.slice(0, 7)]) { aviso('Ese mes está cerrado: no se puede gastar del fondo', 'error'); return; }
+        const lineas = [{ cuenta, debe: monto, haber: 0 }, { cuenta: cuentaAuto(contaDoc.plan, 'caja', '101-010'), debe: 0, haber: monto }];
+        const errLin = validarLineasAsiento(contaDoc.plan, lineas);
+        if (errLin) { aviso(errLin, 'error'); return; }
+        contaDoc.seqAsiento = (contaDoc.seqAsiento || 0) + 1;
+        contaDoc.asientos = contaDoc.asientos || [];
+        contaDoc.asientos.push({ id: 'a' + Date.now().toString(36), numero: contaDoc.seqAsiento, fecha: $('ccFecha').value, concepto: 'Gasto de caja chica: ' + concepto, origen: 'manual', estado: 'confirmado', lineas });
+        cc.movimientos.push({ id: 'cc' + Date.now().toString(36), fecha: $('ccFecha').value, concepto, monto, tipo: 'gasto', cuenta, reembolsado: false, asientoNumero: contaDoc.seqAsiento });
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarCajaChica(); aviso('Gasto de $' + dinero(monto) + ' registrado (asiento nº ' + contaDoc.seqAsiento + ')'); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+    $('ccArquear').addEventListener('click', async () => {
+        if ($('ccContado').value === '') { aviso('Escribe el efectivo contado', 'error'); return; }
+        const contado = Number($('ccContado').value) || 0;
+        const diferencia = r2(contado - arq.esperado);
+        cc.arqueos = cc.arqueos || [];
+        cc.arqueos.push({ fecha: hoyLocal(), esperado: arq.esperado, contado, diferencia });
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarCajaChica(); $('ccArqueoTxt').textContent = 'Diferencia: ' + (diferencia > 0 ? '+' : '') + dinero(diferencia) + (diferencia === 0 ? ' — la caja chica cuadra.' : ' — queda registrada en el arqueo.'); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+    $('ccReembolsar').addEventListener('click', async () => {
+        const monto = reembolsoPendiente(cc.movimientos);
+        if (!(monto > 0)) { aviso('No hay nada que reembolsar', 'error'); return; }
+        if (contaCandados && contaCandados[hoyLocal().slice(0, 7)]) { aviso('Este mes está cerrado: no se puede reembolsar', 'error'); return; }
+        const lineas = [{ cuenta: cuentaAuto(contaDoc.plan, 'caja', '101-010'), debe: monto, haber: 0 }, { cuenta: cuentaAuto(contaDoc.plan, 'banco_cup', '110-010'), debe: 0, haber: monto }];
+        const errLin = validarLineasAsiento(contaDoc.plan, lineas);
+        if (errLin) { aviso(errLin, 'error'); return; }
+        contaDoc.seqAsiento = (contaDoc.seqAsiento || 0) + 1;
+        contaDoc.asientos = contaDoc.asientos || [];
+        contaDoc.asientos.push({ id: 'a' + Date.now().toString(36), numero: contaDoc.seqAsiento, fecha: hoyLocal(), concepto: 'Reembolso de caja chica', origen: 'manual', estado: 'confirmado', lineas });
+        for (const m of cc.movimientos) if (m.tipo === 'gasto' && !m.reembolsado) m.reembolsado = true;
+        cc.movimientos.push({ id: 'cc' + Date.now().toString(36), fecha: hoyLocal(), concepto: 'Reembolso del fondo', monto, tipo: 'reembolso', reembolsado: true });
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarCajaChica(); aviso('Reembolso de $' + dinero(monto) + ' registrado (asiento nº ' + contaDoc.seqAsiento + '): el fondo vuelve a $' + dinero(cc.fondo)); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+    const movsHtml = [...(cc.movimientos || [])].reverse().slice(0, 10).map((m) => '<div class="fila"><span>' + esc(m.fecha || '') + '</span><span>' + esc(m.concepto) + '</span><b>$' + dinero(m.monto) + '</b><span class="tenue">' + (m.tipo === 'gasto' ? (m.reembolsado ? 'reembolsado' : 'pendiente de reembolso') : m.tipo) + '</span></div>').join('');
+    $('ccMovs').innerHTML = movsHtml ? '<p style="margin-top:10px"><b>Movimientos del fondo:</b></p>' + movsHtml : '';
+    const arqsHtml = [...(cc.arqueos || [])].reverse().slice(0, 5).map((a) => '<div class="fila"><span>' + esc(a.fecha || '') + '</span><span class="tenue">debía haber ' + dinero(a.esperado) + ' · contado ' + dinero(a.contado) + '</span><b>diferencia ' + (a.diferencia > 0 ? '+' : '') + dinero(a.diferencia) + '</b></div>').join('');
+    $('ccArqs').innerHTML = arqsHtml ? '<p style="margin-top:10px"><b>Arqueos:</b></p>' + arqsHtml : '';
+}
+/* Fase 25, bloque 2: anticipos de caja con liquidación. */
+function liquidarAnticipo(anticipo, monto, fecha, cuenta, concepto) {
+    const m = r2(Number(monto) || 0);
+    if (!(m > 0)) return { ok: false, motivo: 'La liquidación tiene que ser mayor que 0' };
+    const pendiente = r2((Number(anticipo.monto) || 0) - (Number(anticipo.liquidado) || 0));
+    if (m > pendiente) return { ok: false, motivo: 'A ' + (anticipo.quien || '') + ' solo le quedan $' + pendiente.toFixed(2) + ' por liquidar' };
+    if (!cuenta) return { ok: false, motivo: 'Elige la cuenta del gasto' };
+    const copia = JSON.parse(JSON.stringify(anticipo));
+    copia.liquidado = r2((Number(copia.liquidado) || 0) + m);
+    copia.liquidaciones = copia.liquidaciones || [];
+    copia.liquidaciones.push({ fecha, monto: m, cuenta, concepto: concepto || '' });
+    if (copia.liquidado >= (Number(copia.monto) || 0)) copia.estado = 'liquidado';
+    return { ok: true, anticipo: copia, liquidacion: copia.liquidaciones[copia.liquidaciones.length - 1] };
+}
+function pintarAnticipos() {
+    const lista = [...(contaDoc.anticipos || [])].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    const gastos = (contaDoc.plan || []).filter((c) => c.grupo === 'gasto' && c.admite);
+    const pendienteTotal = r2(lista.filter((a) => a.estado !== 'liquidado').reduce((s, a) => s + ((Number(a.monto) || 0) - (Number(a.liquidado) || 0)), 0));
+    $('anticipos').innerHTML = '<p>Pendiente de liquidar en total: <b>$' + dinero(pendienteTotal) + '</b>.</p>' +
+        '<div class="fila"><label>Fecha <input id="anFecha" type="date"></label><label>¿A quién? <input id="anQuien" placeholder="Ej. María" style="min-width:140px"></label><label>¿Para qué? <input id="anConcepto" placeholder="Ej. Comprar materiales" style="min-width:180px"></label><label>Monto $ <input id="anMonto" type="number" step="0.01" min="0" style="width:110px"></label><button type="button" id="anDar" class="principal">Dar el anticipo</button></div>' +
+        (lista.length ? lista.map((a) => {
+            const pend = r2((Number(a.monto) || 0) - (Number(a.liquidado) || 0));
+            return '<div class="fila"><span>' + esc(a.fecha || '') + ' · <b>' + esc(a.quien || '') + '</b> · ' + esc(a.concepto || '') + '</span><span class="tenue">anticipo $' + dinero(a.monto) + ' · liquidado $' + dinero(a.liquidado) + ' · <b>pendiente $' + dinero(pend) + '</b></span>' + (a.estado === 'liquidado' ? '<span class="ok">Liquidado</span>' : '') + '</div>' +
+            (a.estado === 'liquidado' ? '' : '<div class="fila"><label>Monto a liquidar $ <input data-an-liq="' + a.id + '" type="number" step="0.01" min="0" style="width:110px"></label><label>Cuenta del gasto <select data-an-cuenta="' + a.id + '">' + gastos.map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.codigo) + ' · ' + esc(c.nombre) + '</option>').join('') + '</select></label><label>Concepto <input data-an-concepto="' + a.id + '" placeholder="Ej. Factura de materiales" style="min-width:180px"></label><button type="button" class="secundario chico" data-an-boton="' + a.id + '">Liquidar</button></div>');
+        }).join('') : '<p class="tenue">Sin anticipos todavía.</p>');
+    $('anFecha').value = hoyLocal();
+    $('anDar').addEventListener('click', async () => {
+        const quien = $('anQuien').value.trim();
+        const concepto = $('anConcepto').value.trim();
+        const monto = Number($('anMonto').value) || 0;
+        if (!quien || !concepto || !(monto > 0)) { aviso('El anticipo necesita a quién, para qué y cuánto', 'error'); return; }
+        if (contaCandados && contaCandados[$('anFecha').value.slice(0, 7)]) { aviso('Ese mes está cerrado: no se puede dar el anticipo', 'error'); return; }
+        const lineas = [{ cuenta: cuentaAuto(contaDoc.plan, 'adelantos_trab', '139-000'), debe: monto, haber: 0 }, { cuenta: cuentaAuto(contaDoc.plan, 'caja', '101-010'), debe: 0, haber: monto }];
+        const errLin = validarLineasAsiento(contaDoc.plan, lineas);
+        if (errLin) { aviso(errLin, 'error'); return; }
+        contaDoc.seqAsiento = (contaDoc.seqAsiento || 0) + 1;
+        contaDoc.asientos = contaDoc.asientos || [];
+        contaDoc.asientos.push({ id: 'a' + Date.now().toString(36), numero: contaDoc.seqAsiento, fecha: $('anFecha').value, concepto: 'Anticipo a ' + quien + ' (' + concepto + ')', origen: 'manual', estado: 'confirmado', lineas });
+        contaDoc.anticipos = contaDoc.anticipos || [];
+        contaDoc.anticipos.push({ id: 'an' + Date.now().toString(36), fecha: $('anFecha').value, quien, concepto, monto, liquidado: 0, estado: 'pendiente', liquidaciones: [], asientoNumero: contaDoc.seqAsiento });
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarAnticipos(); aviso('Anticipo de $' + dinero(monto) + ' a ' + quien + ' registrado (asiento nº ' + contaDoc.seqAsiento + ')'); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    });
+    $('anticipos').querySelectorAll('[data-an-boton]').forEach((b) => b.addEventListener('click', async () => {
+        const a = (contaDoc.anticipos || []).find((x) => x.id === b.dataset.anBoton);
+        if (!a) return;
+        const monto = Number(($('anticipos').querySelector('[data-an-liq="' + a.id + '"]') || {}).value) || 0;
+        const cuenta = ($('anticipos').querySelector('[data-an-cuenta="' + a.id + '"]') || {}).value;
+        const concepto = (($('anticipos').querySelector('[data-an-concepto="' + a.id + '"]') || {}).value || '').trim();
+        const r = liquidarAnticipo(a, monto, hoyLocal(), cuenta, concepto);
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        if (contaCandados && contaCandados[hoyLocal().slice(0, 7)]) { aviso('Este mes está cerrado: no se puede liquidar', 'error'); return; }
+        const lineas = [{ cuenta, debe: r.liquidacion.monto, haber: 0 }, { cuenta: cuentaAuto(contaDoc.plan, 'adelantos_trab', '139-000'), debe: 0, haber: r.liquidacion.monto }];
+        const errLin = validarLineasAsiento(contaDoc.plan, lineas);
+        if (errLin) { aviso(errLin, 'error'); return; }
+        contaDoc.seqAsiento = (contaDoc.seqAsiento || 0) + 1;
+        contaDoc.asientos = contaDoc.asientos || [];
+        contaDoc.asientos.push({ id: 'a' + Date.now().toString(36), numero: contaDoc.seqAsiento, fecha: hoyLocal(), concepto: 'Liquidación de anticipo de ' + a.quien + (concepto ? ' (' + concepto + ')' : ''), origen: 'manual', estado: 'confirmado', lineas });
+        r.liquidacion.asientoNumero = contaDoc.seqAsiento;
+        const idx = contaDoc.anticipos.findIndex((x) => x.id === a.id);
+        contaDoc.anticipos[idx] = r.anticipo;
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarAnticipos(); aviso('Liquidación de $' + dinero(r.liquidacion.monto) + ' registrada (asiento nº ' + contaDoc.seqAsiento + ')' + (r.anticipo.estado === 'liquidado' ? ': el anticipo quedó liquidado' : '')); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
 function pintarTabla() {
     const mes = $('mes').value || mesActual();
     const deLaCuenta = movs.filter((m) => (m.cuenta || 'chequera') === cuentaActiva)
@@ -158,6 +402,9 @@ function pintarTabla() {
     let saldo = 0;
     for (const m of deLaCuenta) { if (m.fecha.slice(0, 7) < mes) saldo += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto || 0); }
     const delMes = deLaCuenta.filter((m) => m.fecha.slice(0, 7) === mes);
+    /* Fase 9, bloque 1: el lápiz (Editar) no aparece para el
+     * consultor: solo admin y editor editan. */
+    const puedeEditar = sesion && sesion.role !== 'consultor';
     let html = '<tr class="inicial"><td colspan="5">Saldo inicial del mes</td><td class="num">' + dinero(saldo) + '</td><td></td></tr>';
     let totI = 0, totG = 0;
     for (const m of delMes) {
@@ -172,7 +419,7 @@ function pintarTabla() {
             '<td class="num">' + (m.tipo === 'gasto' ? dinero(monto) : '') + '</td>' +
             '<td class="num">' + dinero(saldo) + '</td>' +
             '<td style="white-space:nowrap"><label title="Marca si este movimiento ya apareció en el estado del banco"><input type="checkbox" data-conc="' + esc(m.id) + '"' + (m.conciliado ? ' checked' : '') + '> en el banco</label> ' +
-            '<button data-editar="' + esc(m.id) + '">Editar</button>' +
+            (puedeEditar ? '<button data-editar="' + esc(m.id) + '">Editar</button>' : '') +
             '<button data-borrar="' + esc(m.id) + '">Borrar</button></td></tr>';
     }
     if (!delMes.length) html += '<tr><td colspan="7" class="tenue">Sin movimientos en este mes para esta cuenta. Importa el estado de cuenta o añade uno a mano.</td></tr>';
@@ -222,18 +469,288 @@ function pintarConciliacion() {
             : ' — ni con lo de tránsito cuadra: hay un error en libros o en el estado.');
 }
 
+/* ---------- Fase 14, bloque 2: conciliación automática por
+ * referencia (copia de Finanzas ctaConciliacion). Cruza los libros
+ * contra los estados guardados por refC|refO: un movimiento concilia
+ * solo si está en el estado con la misma referencia y el mismo
+ * importe. Sin estado con saldo legible no hay saldo del banco. */
+function firmadoMov(tipo, monto) { const m = Math.abs(Number(monto) || 0); return tipo === 'ingreso' ? m : -m; }
+function refKey(refC, refO) { return String(refC || '') + '|' + String(refO || ''); }
+function finMes(mes) {
+    const y = Number(String(mes || '').slice(0, 4)) || 0, m = Number(String(mes || '').slice(5, 7)) || 1;
+    return mes + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+}
+function saldoBanco(conta, cuenta, hasta) {
+    let best = null;
+    for (const e of ((conta && conta.estadosBanco) || [])) {
+        if (e.cuenta !== cuenta || e.saldoBancoFin == null) continue;
+        let ref = e.hasta || '';
+        if (!ref && (e.ops || []).length) ref = e.ops[e.ops.length - 1].fecha || '';
+        if (hasta && ref && ref > hasta) continue;
+        if (!best || String(ref) >= String(best.ref)) best = { ref, saldo: e.saldoBancoFin };
+    }
+    return best ? best.saldo : null;
+}
+function opsBanco(conta, cuenta, desde, hasta) {
+    const out = [];
+    for (const e of ((conta && conta.estadosBanco) || [])) {
+        if (e.cuenta !== cuenta) continue;
+        for (const op of (e.ops || [])) {
+            if (desde && op.fecha < desde) continue;
+            if (hasta && op.fecha > hasta) continue;
+            out.push({ refC: op.refC, refO: op.refO, fecha: op.fecha, concepto: op.concepto, monto: op.monto, tipo: op.tipo, estadoId: e.id });
+        }
+    }
+    return out;
+}
+function registrarEstadoBanco(conta, est) {
+    conta.estadosBanco = conta.estadosBanco || [];
+    if (!est || !est.cuenta) return { ok: false, motivo: 'Estado de cuenta sin cuenta financiera' };
+    const ops = (est.ops || []).map((op) => ({ refC: op.refC || '', refO: op.refO || '', fecha: op.fecha || '', concepto: op.concepto || '', monto: Math.round((Number(op.monto) || 0) * 100) / 100, tipo: op.tipo === 'ingreso' ? 'ingreso' : 'gasto' }));
+    if (!ops.length) return { ok: false, motivo: 'El estado no trae operaciones' };
+    const clave = est.cuenta + '|' + ops.map((o) => refKey(o.refC, o.refO)).sort().join(',') + '|' + (est.saldoBancoFin == null ? '' : est.saldoBancoFin);
+    if (conta.estadosBanco.some((e) => e.clave === clave)) return { ok: true, duplicado: true };
+    conta.seqEstado = (conta.seqEstado || 0) + 1;
+    const ne = { id: 'EB' + conta.seqEstado, clave, cuenta: est.cuenta, archivo: est.archivo || '', periodoTexto: est.periodoTexto || '', desde: est.desde || '', hasta: est.hasta || '', saldoBancoFin: est.saldoBancoFin == null ? null : Math.round(Number(est.saldoBancoFin) * 100) / 100, fechaImport: est.fechaImport || '', ops };
+    conta.estadosBanco.push(ne);
+    return { ok: true, estado: ne };
+}
+function conciliacionAuto(conta, movsDoc, cuenta, mes) {
+    const desde = mes + '-01', hasta = finMes(mes);
+    let saldoLibros = 0;
+    for (const m of (movsDoc || [])) {
+        if ((m.cuenta || 'chequera') !== cuenta) continue;
+        if (String(m.fecha || '') > hasta) continue;
+        saldoLibros = Math.round((saldoLibros + firmadoMov(m.tipo, m.monto)) * 100) / 100;
+    }
+    const saldoB = saldoBanco(conta, cuenta, hasta);
+    const banco = opsBanco(conta, cuenta, desde, hasta);
+    const libros = (movsDoc || []).filter((m) => (m.cuenta || 'chequera') === cuenta && String(m.fecha || '') >= desde && String(m.fecha || '') <= hasta)
+        .map((m) => ({ id: m.id || '', fecha: m.fecha || '', concepto: m.concepto || '', tipo: m.tipo, monto: Math.round((Number(m.monto) || 0) * 100) / 100, firmado: firmadoMov(m.tipo, m.monto), refC: m.ref || '', refO: m.refO || '' }));
+    const porRef = {};
+    banco.forEach((op, i) => { if (op.refC && op.refO) { const k = refKey(op.refC, op.refO); (porRef[k] = porRef[k] || []).push(i); } });
+    const usadosB = new Set(), conciliados = [], enLibros = [], difImp = [];
+    for (const m of libros) {
+        let idx = -1;
+        if (m.refC && m.refO) { const l = porRef[refKey(m.refC, m.refO)] || []; const f = l.find((i) => !usadosB.has(i)); idx = (f == null ? -1 : f); }
+        if (idx >= 0) {
+            usadosB.add(idx);
+            const op = banco[idx], sf = firmadoMov(op.tipo, op.monto), par = { libro: m, banco: op };
+            if (Math.abs(m.firmado - sf) > 0.005) { par.diferencia = Math.round((m.firmado - sf) * 100) / 100; difImp.push(par); }
+            else conciliados.push(par);
+        } else enLibros.push(m);
+    }
+    const enBanco = banco.filter((op, i) => !usadosB.has(i));
+    const sLib = enLibros.reduce((s, m) => Math.round((s + m.firmado) * 100) / 100, 0) + difImp.reduce((s, p) => Math.round((s + p.libro.firmado) * 100) / 100, 0);
+    const sBan = enBanco.reduce((s, op) => Math.round((s + firmadoMov(op.tipo, op.monto)) * 100) / 100, 0) + difImp.reduce((s, p) => Math.round((s + firmadoMov(p.banco.tipo, p.banco.monto)) * 100) / 100, 0);
+    const ajustadoLibros = Math.round((saldoLibros - sLib) * 100) / 100;
+    const ajustadoBanco = saldoB == null ? null : Math.round((saldoB - sBan) * 100) / 100;
+    const diferencia = saldoB == null ? null : Math.round((saldoLibros - saldoB) * 100) / 100;
+    const conciliada = saldoB != null && Math.abs(ajustadoLibros - ajustadoBanco) < 0.005 && difImp.length === 0;
+    return { cuenta, desde, hasta, saldoLibros, saldoBanco: saldoB, diferencia, conciliados, enLibrosSinBanco: enLibros, enBancoSinLibros: enBanco, diferenciasImporte: difImp, ajustadoLibros, ajustadoBanco, conciliada, estado: saldoB == null ? 'Sin saldo del banco' : (conciliada ? 'Conciliada' : 'Con diferencias'), nLibros: libros.length, nBanco: banco.length };
+}
+/* La vista: el mes elegido, la cuenta activa y el estado. */
+function pintarConcAuto() {
+    const mes = $('concMes').value || mesActual();
+    const r = conciliacionAuto(contaDoc, movs, cuentaActiva, mes);
+    const filaL = (m) => '<tr><td style="white-space:nowrap">' + esc(m.fecha) + '</td><td>' + esc(m.concepto || '') + '</td><td class="num">' + dinero(m.firmado) + '</td></tr>';
+    const filaB = (op) => '<tr><td style="white-space:nowrap">' + esc(op.fecha) + '</td><td>' + esc(op.concepto || '') + '</td><td class="num">' + dinero(firmadoMov(op.tipo, op.monto)) + '</td></tr>';
+    const lista = (titulo, arr, fn) => arr.length ? '<div style="margin-top:8px"><b>' + titulo + ' (' + arr.length + ')</b><table><tbody>' + arr.map(fn).join('') + '</tbody></table></div>' : '';
+    $('concAuto').innerHTML =
+        '<p>Saldo según tus libros (fin de ' + esc(mes) + '): <b>' + dinero(r.saldoLibros) + '</b> · ' +
+        'Saldo según el banco: <b>' + (r.saldoBanco == null ? '—' : dinero(r.saldoBanco)) + '</b> · ' +
+        'Diferencia: <b' + (r.diferencia == null || Math.abs(r.diferencia) < 0.005 ? '' : ' class="rojo"') + '>' + (r.diferencia == null ? '—' : dinero(r.diferencia)) + '</b> · ' +
+        'Estado: <b>' + (r.estado === 'Conciliada' ? '<span class="ok">Conciliada</span>' : r.estado === 'Sin saldo del banco' ? 'Sin saldo del banco' : '<span class="rojo">Con diferencias</span>') + '</b></p>' +
+        '<p class="tenue">' + r.nLibros + ' movimiento(s) en libros · ' + r.nBanco + ' operación(es) en los estados guardados · ' + r.conciliados.length + ' conciliado(s) por referencia.' +
+        (r.saldoBanco == null ? ' El estado guardado no trajo un saldo final legible: importa el PDF del mes para conciliar contra el banco.' : '') + '</p>' +
+        lista('En libros sin respaldo en el estado', r.enLibrosSinBanco, filaL) +
+        lista('En el estado sin respaldo en libros', r.enBancoSinLibros, filaB) +
+        (r.diferenciasImporte.length ? '<div style="margin-top:8px"><b>Con la misma referencia pero importe distinto (' + r.diferenciasImporte.length + ')</b><table><tbody>' +
+            r.diferenciasImporte.map((p) => '<tr><td style="white-space:nowrap">' + esc(p.libro.fecha) + '</td><td>' + esc(p.libro.concepto || '') + '<br><span class="rojo">Libros ' + dinero(p.libro.firmado) + ' ≠ banco ' + dinero(firmadoMov(p.banco.tipo, p.banco.monto)) + '</span></td><td class="num">' + dinero(p.diferencia) + '</td></tr>').join('') + '</tbody></table></div>' : '') +
+        (r.saldoBanco != null ? '<p style="margin-top:8px">Saldo ajustado según libros: <b>' + dinero(r.ajustadoLibros) + '</b> · Saldo ajustado según banco: <b>' + dinero(r.ajustadoBanco) + '</b> ' +
+            (r.conciliada ? '— coinciden: la diferencia queda explicada por las partidas listadas.' : '— NO coinciden: queda diferencia sin explicar.') + '</p>' : '') +
+        '<p><button type="button" id="btnImpConc" class="secundario chico">Imprimir conciliación</button></p>';
+    $('btnImpConc').onclick = () => {
+        const w = window.open('', '_blank', 'width=760,height=640');
+        if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+        w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Conciliación bancaria · ' + esc(mes) + '</title><style>body{font-family:Georgia,serif;margin:32px;color:#111}table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid #ccc;padding:4px 6px;text-align:left}.num{text-align:right}h1{font-size:18px}h2{font-size:14px;margin-top:18px}</style></head><body>' +
+            '<h1>Conciliación bancaria · ' + esc(mes) + '</h1><p>' + esc(CUENTAS.find((c) => c.id === cuentaActiva).nombre) + ' · ' + esc(r.estado) + '</p>' +
+            '<p>Saldo según libros: <b>' + dinero(r.saldoLibros) + '</b> · Saldo según banco: <b>' + (r.saldoBanco == null ? '—' : dinero(r.saldoBanco)) + '</b> · Diferencia: <b>' + (r.diferencia == null ? '—' : dinero(r.diferencia)) + '</b></p>' +
+            '<h2>En libros sin respaldo en el estado (' + r.enLibrosSinBanco.length + ')</h2>' + (r.enLibrosSinBanco.length ? '<table>' + r.enLibrosSinBanco.map(filaL).join('') + '</table>' : '<p>—</p>') +
+            '<h2>En el estado sin respaldo en libros (' + r.enBancoSinLibros.length + ')</h2>' + (r.enBancoSinLibros.length ? '<table>' + r.enBancoSinLibros.map(filaB).join('') + '</table>' : '<p>—</p>') +
+            '<h2>Con la misma referencia pero importe distinto (' + r.diferenciasImporte.length + ')</h2>' + (r.diferenciasImporte.length ? '<table>' + r.diferenciasImporte.map((p) => '<tr><td>' + esc(p.libro.fecha) + '</td><td>' + esc(p.libro.concepto || '') + '</td><td class="num">' + dinero(p.diferencia) + '</td></tr>').join('') + '</table>' : '<p>—</p>') +
+            '</body></html>');
+        w.document.close(); w.focus(); w.print();
+    };
+}
+
+/* ---------- Fase 14, bloque 3: cuarentena de importaciones ------
+ * Control de totales del importador (copia de Finanzas T1/T2/T3/T5):
+ * T1 la cantidad declarada por el banco coincide con la extraída;
+ * T2 la cadena de saldos corridos cuadra operación a operación;
+ * T3 saldo inicial + neto = saldo final (aviso fuerte, NO retiene);
+ * T5 el estado es de la cuenta que elegiste. Un estado retenido no
+ * es un movimiento todavía: no mueve saldos, no entra en los estados
+ * ni en la conciliación. Solo sale con tu palabra: Liberar lo
+ * importa como una importación normal y Descartar lo archiva; cada
+ * decisión queda firmada con tu usuario y la fecha. */
+function controlTotales(ops, saldoLineaIni, saldoLinea, cantidadDeclarada, cuentaPdf, cuentaEsperada) {
+    const motivos = [], avisos = [];
+    const firmados = (ops || []).map((op) => firmadoMov(op.tipo, op.monto));
+    if (cantidadDeclarada != null && ops.length !== cantidadDeclarada) motivos.push('T1: el banco declara ' + cantidadDeclarada + ' movimientos y se extrajeron ' + ops.length);
+    const conSaldo = (ops || []).filter((o) => o.saldo != null);
+    if (conSaldo.length && !conSaldo.every((o) => o.saldo === 0)) {
+        let saldoCorrido = saldoLineaIni;
+        for (let i = 0; i < ops.length; i++) {
+            if (ops[i].saldo == null) continue;
+            if (saldoCorrido == null) { saldoCorrido = ops[i].saldo; continue; }
+            if (Math.abs(saldoCorrido + firmados[i] - ops[i].saldo) > 0.005) { motivos.push('T2: la cadena de saldos se rompe en la operación ' + (i + 1) + ' (' + ops[i].fecha + ')'); break; }
+            saldoCorrido = ops[i].saldo;
+        }
+    }
+    if (saldoLineaIni != null && saldoLinea != null) {
+        const neto = firmados.reduce((s, v) => Math.round((s + v) * 100) / 100, 0);
+        if (Math.abs(saldoLineaIni + neto - saldoLinea) > 0.005) avisos.push('T3: saldo inicial + neto (' + (saldoLineaIni + neto) + ') ≠ saldo final del banco (' + saldoLinea + '): puede faltar un movimiento o sobrar uno');
+    }
+    if (cuentaPdf && cuentaEsperada && cuentaPdf !== cuentaEsperada) motivos.push('T5: el estado es de la cuenta ' + cuentaPdf + ' y elegiste la cuenta ' + cuentaEsperada);
+    return { ok: motivos.length === 0, motivos, avisos };
+}
+function cuarentenaRetener(conta, entrada) {
+    conta.cuarentena = conta.cuarentena || [];
+    const dup = conta.cuarentena.some((x) => x.estado === 'retenida' && x.archivo === entrada.archivo && x.cuenta === entrada.cuenta && x.motivo === entrada.motivo && (x.detalle || '') === (entrada.detalle || ''));
+    if (dup) return { ok: true, duplicada: true };
+    conta.seqCuar = (conta.seqCuar || 0) + 1;
+    const en = Object.assign({}, entrada, { id: 'CU' + conta.seqCuar, fechaImport: hoyLocal(), estado: 'retenida', decisionDe: '', fechaDecision: '' });
+    if (!Array.isArray(en.ops)) en.ops = [];
+    conta.cuarentena.push(en);
+    return { ok: true, id: en.id };
+}
+function cuarentenaDecidir(conta, id, decision, usuario) {
+    const en = (conta.cuarentena || []).find((x) => x.id === id);
+    if (!en || en.estado !== 'retenida') return { ok: false, motivo: 'La entrada ya no está retenida' };
+    if (decision !== 'liberada' && decision !== 'descartada') return { ok: false, motivo: 'Decisión no válida' };
+    en.estado = decision; en.decisionDe = usuario || ''; en.fechaDecision = hoyLocal();
+    return { ok: true, entrada: en };
+}
+function cuentaEsperada() {
+    const perfil = (fiscalDoc && fiscalDoc.meta && fiscalDoc.meta.perfil) || {};
+    const dig = (s) => String(s || '').replace(/\D/g, '');
+    if (cuentaActiva === 'tarjeta_usd') return dig(perfil.cuentaUsd) || '';
+    return dig(perfil.cuentaCup) || '';
+}
+/* La vista: la lista de retenidos con Liberar / Descartar. */
+function pintarCuarentena() {
+    const lista = (contaDoc.cuarentena || []).filter((x) => x.estado === 'retenida');
+    const resueltas = (contaDoc.cuarentena || []).filter((x) => x.estado !== 'retenida');
+    let html = lista.length ? '' : '<p class="tenue">Nada retenido: los estados que pasan el control de totales entran directos a la vista previa.</p>';
+    lista.forEach((en) => {
+        const nPend = (en.ops || []).length;
+        html += '<div style="border:1px solid #B23218;border-radius:8px;padding:10px;margin-bottom:8px"><div class="fila"><span class="rojo">Retenido</span><b>' + esc(en.archivo || '') + '</b><span class="tenue">' + esc(CUENTAS.find((c) => c.id === en.cuenta).nombre) + ' · retenido el ' + esc(en.fechaImport || '') + ' · ' + esc(en.motivo || '') + '</span>' +
+            '<span style="margin-left:auto" class="fila"><button type="button" class="secundario chico" data-cuar-ver="' + esc(en.id) + '">Ver operaciones (' + nPend + ')</button>' +
+            '<button type="button" class="chico" data-cuar-liberar="' + esc(en.id) + '">Liberar lote</button>' +
+            '<button type="button" class="secundario chico" data-cuar-descartar="' + esc(en.id) + '">Descartar</button></span></div>' +
+            (en.detalle ? '<p class="tenue">' + esc(en.detalle) + '</p>' : '') +
+            '<div id="cuarOps-' + esc(en.id) + '" style="display:none"><table><tbody>' + (en.ops || []).map((p) => '<tr><td style="white-space:nowrap">' + esc(p.op.fecha) + '</td><td>' + esc(p.op.concepto) + '</td><td>' + esc(p.clasificacion) + '</td><td class="num">' + dinero(p.op.monto) + '</td></tr>').join('') + '</tbody></table></div></div>';
+    });
+    if (resueltas.length) html += '<p class="tenue">Resueltas: ' + resueltas.map((x) => esc(x.archivo || '') + ' → ' + (x.estado === 'liberada' ? 'liberada' : 'descartada') + ' por ' + esc(x.decisionDe || '') + ' el ' + esc(x.fechaDecision || '')).join(' · ') + '</p>';
+    $('cuarentena').innerHTML = html;
+    document.querySelectorAll('[data-cuar-ver]').forEach((b) => { b.onclick = () => { const el = $('cuarOps-' + b.dataset.cuarVer); if (el) el.style.display = (el.style.display === 'none') ? '' : 'none'; }; });
+    document.querySelectorAll('[data-cuar-liberar]').forEach((b) => { b.onclick = () => cuarentenaLiberar(b.dataset.cuarLiberar); });
+    document.querySelectorAll('[data-cuar-descartar]').forEach((b) => { b.onclick = () => cuarentenaDescartar(b.dataset.cuarDescartar); });
+}
+async function cuarentenaLiberar(id) {
+    const en = (contaDoc.cuarentena || []).find((x) => x.id === id);
+    if (!en || en.estado !== 'retenida') return;
+    const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
+    const aImportar = (en.ops || []).filter((p) => p.op && !refs.has(p.op.refC) && !movs.some((m) => m.fecha === p.op.fecha && m.concepto === p.op.concepto && Number(m.monto) === p.op.monto && (m.cuenta || 'chequera') === en.cuenta));
+    const enCerrado = aImportar.filter((p) => contaCandados[String(p.op.fecha || '').slice(0, 7)]);
+    if (enCerrado.length) { aviso('Hay ' + enCerrado.length + ' operación(es) de un mes ya cerrado en este lote: no se puede liberar', 'error'); return; }
+    if (!confirm('¿Liberar el lote «' + (en.archivo || '') + '» (' + aImportar.length + ' operación(es) nueva(s))? Se importa como una importación normal, con su deduplicación y su registro de estado.')) return;
+    const cuentaAntes = cuentaActiva;
+    cuentaActiva = en.cuenta;
+    try {
+        const n = await aplicarImportacion(aImportar, en.archivo || '', en.saldoBanco);
+        cuarentenaDecidir(contaDoc, id, 'liberada', sesion ? sesion.username : '');
+        await bd().docGuardar(token, 'conta', contaDoc);
+        aviso('Lote liberado: ' + n + ' operación(es) importada(s)');
+        pintarTabla(); pintarConciliacion(); pintarConcAuto(); pintarCuarentena();
+        bus.postMessage({ tipo: 'datos', slot: 'mov' });
+    } catch (e) { aviso('No se pudo liberar: ' + e.message, 'error'); }
+    finally { cuentaActiva = cuentaAntes; }
+}
+async function cuarentenaDescartar(id) {
+    const en = (contaDoc.cuarentena || []).find((x) => x.id === id);
+    if (!en || en.estado !== 'retenida') return;
+    if (!confirm('¿Descartar «' + (en.archivo || '') + '»? Queda archivado para siempre y la app te avisará si el mismo estado vuelve.')) return;
+    cuarentenaDecidir(contaDoc, id, 'descartada', sesion ? sesion.username : '');
+    try { await bd().docGuardar(token, 'conta', contaDoc); aviso('Estado descartado'); pintarCuarentena(); }
+    catch (e) { aviso('No se pudo descartar: ' + e.message, 'error'); }
+}
+
+/* Fase 14, bloque 4: la tabla de reglas del negocio. */
+function pintarReglas() {
+    const reglas = (contaDoc && contaDoc.reglas) || [];
+    $('reglas').innerHTML = reglas.length ? '<table><thead><tr><th>Concepto</th><th>Patrón</th><th>Clasificación</th><th class="num">Veces</th><th></th></tr></thead><tbody>' +
+        reglas.map((r) => '<tr><td>' + esc(r.conceptoOriginal || '') + '</td><td class="tenue">' + esc(r.patron || '') + '</td><td>' + esc(r.clasificacion || '') + '</td><td class="num">' + (r.veces || 1) + '</td>' +
+        '<td><button type="button" class="secundario chico" data-regla-borrar="' + esc(r.id) + '">Quitar</button></td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Todavía no hay reglas: clasifica un movimiento y marca «Recordar esta clasificación como regla».</p>';
+    document.querySelectorAll('[data-regla-borrar]').forEach((b) => { b.onclick = async () => {
+        if (!confirm('¿Quitar esta regla? Los conceptos iguales volverán a clasificarse con las reglas fijas.')) return;
+        contaDoc.reglas = (contaDoc.reglas || []).filter((x) => String(x.id) !== String(b.dataset.reglaBorrar));
+        try { await bd().docGuardar(token, 'conta', contaDoc); pintarReglas(); } catch (e) { aviso('No se pudo quitar: ' + e.message, 'error'); }
+    }; });
+}
+
+/* Fase 9 del plan, bloque 1: la edición pasa al modal. La clase
+ * 'onat' del guardado manual (r4) se calcula igual en el alta y
+ * en la edición, por eso vive en esta función común. */
+function claseManual(concepto, tipo, clasificacion) {
+    const c = clasificar({ concepto, tipo }, contaDoc);
+    return (c.clase === 'onat' || /^pago de onat$/i.test(clasificacion) || /^onat\b/i.test(clasificacion) || (tipo === 'gasto' && /\bonat\b/i.test(concepto))) ? 'onat' : 'normal';
+}
 function editar(id) {
     const m = movs.find((x) => String(x.id) === String(id));
     if (!m) return;
     editandoId = m.id;
-    $('fFecha').value = m.fecha || '';
-    $('fConcepto').value = m.concepto || '';
-    $('fTipo').value = m.tipo || 'gasto';
-    $('fClasificacion').value = (m.clasificacion === 'Por clasificar') ? '' : (m.clasificacion || '');
-    $('fMonto').value = m.monto || '';
-    $('formTitulo').textContent = 'Editar movimiento';
-    $('btnCancelarEd').style.display = '';
-    $('fConcepto').focus();
+    $('mFecha').value = m.fecha || '';
+    $('mConcepto').value = m.concepto || '';
+    $('mTipo').value = m.tipo || 'gasto';
+    $('mClasificacion').value = (m.clasificacion === 'Por clasificar') ? '' : (m.clasificacion || '');
+    $('mMonto').value = m.monto || '';
+    $('modalMov').classList.add('abierto');
+    $('mConcepto').focus();
+}
+function cerrarModalMov() {
+    editandoId = null;
+    $('modalMov').classList.remove('abierto');
+}
+async function guardarModalMov() {
+    const m = movs.find((x) => String(x.id) === String(editandoId));
+    if (!m) { cerrarModalMov(); return; }
+    const fecha = $('mFecha').value, concepto = $('mConcepto').value.trim(),
+        tipo = $('mTipo').value, monto = parseFloat($('mMonto').value);
+    if (!fecha || !concepto || !(monto > 0)) { aviso('Faltan la fecha, el concepto o un monto válido', 'error'); return; }
+    /* El mes cerrado se mira en los dos lados: ni el mes de origen
+     * ni el mes nuevo pueden estar cerrados. */
+    if (contaCandados[String(m.fecha || '').slice(0, 7)] || contaCandados[fecha.slice(0, 7)]) { aviso('El mes de ' + (m.fecha || '').slice(0, 7) + ' o el de ' + fecha + ' está cerrado: no se editan movimientos en un período cerrado', 'error'); return; }
+    const clasificacion = $('mClasificacion').value.trim() || 'Por clasificar';
+    const clase = claseManual(concepto, tipo, clasificacion);
+    Object.assign(m, { fecha, concepto, tipo, clasificacion, monto, clase });
+    try {
+        await guardar();
+        /* Fase 14, bloque 4: si lo pidió, la clasificación queda
+         * como regla para los conceptos iguales que vengan. */
+        const chk = $('mGuardarRegla');
+        if (chk && chk.checked && clasificacion !== 'Por clasificar') {
+            guardarRegla(contaDoc, concepto, clasificacion);
+            await bd().docGuardar(token, 'conta', contaDoc);
+            pintarReglas();
+        }
+        if (chk) chk.checked = false;
+        aviso('Movimiento actualizado');
+        cerrarModalMov(); pintarTabla(); pintarConciliacion();
+        bus.postMessage({ tipo: 'datos', slot: 'mov' });
+    } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
 }
 async function borrar(id) {
     const previo = movs.find((x) => String(x.id) === String(id));
@@ -244,10 +761,9 @@ async function borrar(id) {
     catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
 }
 function cancelarEd() {
-    editandoId = null;
+    /* Fase 9: el formulario de la página es solo alta; la edición
+     * vive en el modal. */
     $('fFecha').value = ''; $('fConcepto').value = ''; $('fClasificacion').value = ''; $('fMonto').value = '';
-    $('formTitulo').textContent = 'Añadir movimiento a mano';
-    $('btnCancelarEd').style.display = 'none';
 }
 async function guardarMov() {
     const fecha = $('fFecha').value, concepto = $('fConcepto').value.trim(),
@@ -258,19 +774,17 @@ async function guardarMov() {
     /* El guardado manual siempre ponía clase 'normal': un pago ONAT
      * anotado a mano no contaba en el Resumen ni en el Vector fiscal.
      * La clase 'onat' sale del clasificador de la importación (código
-     * de tributo en el concepto) o de la clasificación que el usuario
-     * eligió («Pago de ONAT» / «ONAT»). */
-    const c = clasificar({ concepto, tipo });
-    const clase = (c.clase === 'onat' || /^pago de onat$/i.test(clasificacion) || /^onat\b/i.test(clasificacion)) ? 'onat' : 'normal';
-    if (editandoId) {
-        const m = movs.find((x) => String(x.id) === String(editandoId));
-        if (m) Object.assign(m, { fecha, concepto, tipo, clasificacion, monto, clase });
-    } else {
-        movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase });
-    }
+     * de tributo en el concepto), de la clasificación que el usuario
+     * eligió («Pago de ONAT» / «ONAT») o del propio concepto que
+     * escribió («Pago de ONAT»): si el usuario lo anotó así, es un
+     * pago de ONAT aunque dejara la clasificación en
+     * «Por clasificar». Solo vale para gastos: un ingreso con ONAT
+     * en el concepto sería una devolución, no un pago. */
+    const clase = claseManual(concepto, tipo, clasificacion);
+    movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase });
     try {
         await guardar();
-        aviso(editandoId ? 'Movimiento actualizado' : 'Movimiento guardado');
+        aviso('Movimiento guardado');
         cancelarEd(); pintarTabla(); pintarConciliacion();
         bus.postMessage({ tipo: 'datos', slot: 'mov' });
     } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
@@ -318,7 +832,7 @@ function volcarOp(buf, ops, invalidas) {
 }
 function parsearLineas(lineas, buf) {
     const ops = [], invalidas = [];
-    let saldoLinea = null, saldoLineaIni = null, cantidadDeclarada = null;
+    let saldoLinea = null, saldoLineaIni = null, cantidadDeclarada = null, cuentaPdf = null;
     lineas.forEach((line) => {
         const ms = RE_INICIO.exec(line);
         if (ms) {
@@ -327,6 +841,8 @@ function parsearLineas(lineas, buf) {
             extraerFin(buf);
             return;
         }
+        const mcta = /^Sucursal y Cuenta:\s*(.*)$/.exec(line);
+        if (mcta) { const dig = (mcta[1].match(/\d+/g) || []).join(''); if (dig) cuentaPdf = dig; return; }
         if (RE_OMITIR.test(line)) {
             if (/^Saldo (Contable|Disponible)\b/.test(line)) {
                 const msl = /(-?[\d,]+\.\d{2})(?:\s+(?:Cr|Db))?\s*$/.exec(line);
@@ -342,13 +858,14 @@ function parsearLineas(lineas, buf) {
         }
         if (buf) { buf.obs = unirLinea(buf.obs, line); extraerFin(buf); }
     });
-    return { ops, resto: buf, saldoLinea, saldoLineaIni, cantidadDeclarada, invalidas };
+    return { ops, resto: buf, saldoLinea, saldoLineaIni, cantidadDeclarada, invalidas, cuentaPdf };
 }
 /* Clasificación (reglas de Leonardo, 2026-10-24/25): transferencia entre
    cuentas propias (mueve saldo, no es ingreso), cobro por correo = venta
    QR (801), ONAT solo con código de tributo en el concepto, y en gastos:
-   contingencia / utilidades / salario. Lo demás: «Por clasificar». */
-function clasificar(op) {
+   contingencia / utilidades / salario. Lo demás: «Por clasificar».
+   Fase 14, bloque 4: una regla aprendida manda sobre las 10 fijas. */
+function clasificar(op, conta) {
     const t = normTxt(op.concepto || '');
     const r = { clase: 'normal', qr: false, clasificacion: 'Por clasificar' };
     if (/transferencia entre cuentas|traspaso entre cuentas/.test(t)) { r.clase = 'transferencia'; r.clasificacion = 'Transferencia entre cuentas'; }
@@ -368,6 +885,13 @@ function clasificar(op) {
     if (esCorreo && op.tipo === 'ingreso' && r.clase === 'normal') r.clasificacion = 'Ventas (cobro por correo/QR)';
     if (/comision/.test(t) && op.tipo === 'gasto' && r.clase === 'normal') r.clasificacion = 'Comisión bancaria';
     r.qr = r.qr && r.clase !== 'transferencia';
+    const regla = reglaPara(conta, op.concepto);
+    if (regla) {
+        r.clasificacion = regla.clasificacion;
+        if (/^pago de onat\b/i.test(regla.clasificacion) || /^onat\b/i.test(regla.clasificacion)) r.clase = 'onat';
+        else if (regla.clasificacion === 'Transferencia entre cuentas') { r.clase = 'transferencia'; r.qr = false; }
+        else if (r.clase === 'onat' || r.clase === 'transferencia') r.clase = 'normal';
+    }
     return r;
 }
 async function lineasDePagina(pdf, n) {
@@ -401,6 +925,114 @@ function cargarPdfJs() {
     }
     return pdfjsPromesa;
 }
+/* Fase 28, bloque 2: importar el estado en CSV. El CSV se lee
+ * con las mismas reglas de clasificación del PDF y entra por la
+ * misma vista previa. */
+function parsearCSVEstado(texto) {
+    const limpio = String(texto || '').replace(/^\uFEFF/, '');
+    const lineas = limpio.split(/\r\n|\r|\n/).filter((l) => l.trim() !== '');
+    if (!lineas.length) return { cabecera: [], filas: [] };
+    const sep = lineas[0].indexOf(';') >= 0 ? ';' : ',';
+    const partir = (linea) => {
+        const celdas = [];
+        let cur = '', comillas = false;
+        for (let i = 0; i < linea.length; i++) {
+            const ch = linea[i];
+            if (ch === '"') {
+                if (comillas && linea[i + 1] === '"') { cur += '"'; i++; }
+                else comillas = !comillas;
+            } else if (ch === sep && !comillas) { celdas.push(cur.trim()); cur = ''; }
+            else cur += ch;
+        }
+        celdas.push(cur.trim());
+        return celdas;
+    };
+    return { cabecera: partir(lineas[0]), filas: lineas.slice(1).map(partir) };
+}
+function normalizarCabecera(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+function detectarColumnas(cabecera) {
+    const mapa = { fecha: -1, concepto: -1, monto: -1, tipo: -1, ref: -1 };
+    cabecera.forEach((h, i) => {
+        const n = normalizarCabecera(h);
+        if (mapa.fecha < 0 && (n === 'fecha' || n.indexOf('fecha') === 0)) mapa.fecha = i;
+        else if (mapa.concepto < 0 && (n === 'concepto' || n === 'descripcion' || n === 'detalle' || n === 'glosa')) mapa.concepto = i;
+        else if (mapa.monto < 0 && (n === 'monto' || n === 'importe' || n === 'total' || n === 'valor')) mapa.monto = i;
+        else if (mapa.tipo < 0 && (n === 'tipo' || n === 'debe' || n === 'haber' || n === 'operacion')) mapa.tipo = i;
+        else if (mapa.ref < 0 && (n === 'ref' || n === 'referencia' || n === 'numero' || n === 'no')) mapa.ref = i;
+    });
+    return mapa;
+}
+function numeroCSVEstado(s) {
+    const t = String(s || '').trim().replace(/\s/g, '');
+    if (!t) return null;
+    let v;
+    if (t.indexOf('.') >= 0 && t.indexOf(',') >= 0) v = Number(t.replace(/\./g, '').replace(',', '.'));
+    else if (t.indexOf(',') >= 0) v = Number(t.replace(',', '.'));
+    else v = Number(t);
+    return isNaN(v) ? null : v;
+}
+function fechaCSVEstado(s) {
+    const t = String(s || '').trim();
+    let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+    return null;
+}
+function opsDesdeCSV(filas, mapa) {
+    const ops = [], invalidas = [];
+    for (const fila of filas) {
+        const fecha = mapa.fecha >= 0 ? fechaCSVEstado(fila[mapa.fecha]) : null;
+        const monto = mapa.monto >= 0 ? numeroCSVEstado(fila[mapa.monto]) : null;
+        const concepto = mapa.concepto >= 0 ? String(fila[mapa.concepto] || '').trim() : '';
+        if (!fecha || monto === null || !concepto) { if (fecha) invalidas.push({ fecha }); continue; }
+        let tipo = 'ingreso';
+        if (mapa.tipo >= 0) {
+            const tv = normalizarCabecera(fila[mapa.tipo]);
+            tipo = (tv.indexOf('ingreso') >= 0 || tv.indexOf('credito') >= 0 || tv === 'cr' || tv === 'c') ? 'ingreso' : 'gasto';
+        } else tipo = monto >= 0 ? 'ingreso' : 'gasto';
+        ops.push({ fecha, concepto, monto: Math.abs(monto), tipo, refC: mapa.ref >= 0 ? String(fila[mapa.ref] || '').trim() : '', refO: '' });
+    }
+    return { ops, invalidas };
+}
+async function leerCsv() {
+    const f = $('fCsv').files && $('fCsv').files[0];
+    if (!f) { aviso('Elige primero el archivo CSV del estado', 'error'); return; }
+    $('csvEstado').textContent = 'Leyendo el CSV…';
+    try {
+        const texto = await f.text();
+        const { cabecera, filas } = parsearCSVEstado(texto);
+        if (!cabecera.length || !filas.length) throw new Error('El CSV no trae columnas ni filas');
+        const mapa = detectarColumnas(cabecera);
+        const opciones = ['<option value="-1">— ninguna —</option>'] + cabecera.map((h, i) => '<option value="' + i + '">' + esc(h) + '</option>').join('');
+        const sel = (id, valor) => '<select id="' + id + '">' + opciones.replace('value="' + valor + '"', 'value="' + valor + '" selected') + '</select>';
+        $('csvMapa').innerHTML = '<p>Revisa qué columna es cada cosa:</p><div class="fila">' +
+            '<label>Fecha ' + sel('csvColFecha', mapa.fecha) + '</label>' +
+            '<label>Concepto ' + sel('csvColConcepto', mapa.concepto) + '</label>' +
+            '<label>Importe ' + sel('csvColMonto', mapa.monto) + '</label>' +
+            '<label>Tipo ' + sel('csvColTipo', mapa.tipo) + '</label>' +
+            '<label>Referencia ' + sel('csvColRef', mapa.ref) + '</label>' +
+            '<button class="principal" id="btnCsvPrevia">Ver la vista previa</button></div>';
+        $('btnCsvPrevia').onclick = () => {
+            const m2 = { fecha: Number($('csvColFecha').value), concepto: Number($('csvColConcepto').value), monto: Number($('csvColMonto').value), tipo: Number($('csvColTipo').value), ref: Number($('csvColRef').value) };
+            if (m2.fecha < 0 || m2.concepto < 0 || m2.monto < 0) { aviso('La fecha, el concepto y el importe son obligatorios', 'error'); return; }
+            const { ops, invalidas } = opsDesdeCSV(filas, m2);
+            if (!ops.length) { aviso('El CSV no trae operaciones válidas (fecha, concepto e importe en cada fila)', 'error'); return; }
+            const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
+            previaOps = ops.map((op) => {
+                const c = clasificar(op, contaDoc);
+                return { op, clase: c.clase, qr: c.qr, clasificacion: c.clasificacion,
+                    duplicada: (op.refC && refs.has(op.refC)) || movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === op.monto && (m.cuenta || 'chequera') === cuentaActiva) };
+            });
+            previaOps.saldoBanco = null;
+            previaOps.invalidas = invalidas;
+            previaOps.cantidadDeclarada = null;
+            previaOps.archivo = f.name || '';
+            pintarPrevia();
+            $('csvEstado').textContent = 'Vista previa lista: revisa y marca lo que quieres importar.';
+        };
+    } catch (e) { aviso('No se pudo leer el CSV: ' + String((e && e.message) || e), 'error'); $('csvEstado').textContent = ''; }
+}
 async function leerPdf() {
     const f = $('fPdf').files && $('fPdf').files[0];
     if (!f) { aviso('Elige primero el archivo PDF del estado', 'error'); return; }
@@ -408,18 +1040,20 @@ async function leerPdf() {
     try {
         await cargarPdfJs();
         const pdf = await window.pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
-        let ops = [], invalidas = [], buf = null, saldoLinea = null, cantidadDeclarada = null;
+        let ops = [], invalidas = [], buf = null, saldoLinea = null, saldoLineaIni = null, cantidadDeclarada = null, cuentaPdf = null;
         for (let n = 1; n <= pdf.numPages; n++) {
             const r = parsearLineas(await lineasDePagina(pdf, n), buf);
             ops = ops.concat(r.ops); invalidas = invalidas.concat(r.invalidas); buf = r.resto;
             if (r.saldoLinea != null) saldoLinea = r.saldoLinea;
+            if (r.saldoLineaIni != null) saldoLineaIni = r.saldoLineaIni;
             if (r.cantidadDeclarada != null) cantidadDeclarada = r.cantidadDeclarada;
+            if (r.cuentaPdf) cuentaPdf = r.cuentaPdf;
         }
         if (buf) { const p = cerrarBuf(buf); if (p) { if (fechaCalendarioOk(p.fecha)) ops.push(p); else invalidas.push(p); } }
         if (!ops.length && !invalidas.length) throw new Error('No se encontraron operaciones con el formato de BANDEC en este PDF');
         const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
         previaOps = ops.map((op) => {
-            const c = clasificar(op);
+            const c = clasificar(op, contaDoc);
             return { op, clase: c.clase, qr: c.qr, clasificacion: c.clasificacion,
                 duplicada: refs.has(op.refC) || movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === op.monto && (m.cuenta || 'chequera') === cuentaActiva) };
         });
@@ -427,6 +1061,24 @@ async function leerPdf() {
         previaOps.saldoBanco = saldoBanco;
         previaOps.invalidas = invalidas;
         previaOps.cantidadDeclarada = cantidadDeclarada;
+        previaOps.archivo = f.name || '';
+        /* Fase 14, bloque 3: control de totales. Si el estado no
+         * pasa (T1/T2/T5), va a la cuarentena entero: no se importa
+         * nada de él hasta que lo liberes. T3 solo avisa. */
+        const control = controlTotales(ops, saldoLineaIni, saldoLinea, cantidadDeclarada, cuentaPdf, cuentaEsperada());
+        if (!control.ok) {
+            const r = cuarentenaRetener(contaDoc, { archivo: f.name || '', cuenta: cuentaActiva, motivo: control.motivos[0], detalle: control.motivos.join('; '), saldoBanco, ops: previaOps.map((p) => ({ op: p.op, clase: p.clase, qr: p.qr, clasificacion: p.clasificacion })) });
+            await bd().docGuardar(token, 'conta', contaDoc);
+            previaOps = null; pintarPrevia(); pintarCuarentena();
+            $('pdfEstado').textContent = '';
+            aviso(r.duplicada ? 'Este estado ya estaba retenido en la cuarentena.' : 'Estado retenido en la cuarentena: ' + control.motivos.join('; ') + '. Revísalo y libéralo o descártalo desde la tarjeta «Cuarentena de importaciones».', 'error');
+            return;
+        }
+        /* ¿Este estado ya se descartó antes? */
+        const refsNuevas = ops.map((o) => o.refC || '').sort().join(',');
+        const descartado = (contaDoc.cuarentena || []).find((x) => x.estado === 'descartada' && (x.ops || []).map((p) => (p.op && p.op.refC) || '').sort().join(',') === refsNuevas && refsNuevas.length > 0);
+        if (descartado) aviso('Ojo: este estado ya fue descartado el ' + (descartado.fechaDecision || '') + ' por ' + (descartado.decisionDe || '') + '. Si lo importas, vuelve a entrar.', 'error');
+        if (control.avisos.length) aviso(control.avisos.join(' '), 'error');
         pintarPrevia();
         $('pdfEstado').textContent = 'Leídas ' + ops.length + ' operaciones' +
             (cantidadDeclarada != null ? ' (el banco declara ' + cantidadDeclarada + ')' : '') +
@@ -461,27 +1113,43 @@ function pintarPrevia() {
     $('btnDescartarPrevia').onclick = () => { previaOps = null; pintarPrevia(); };
     $('btnImportarPrevia').onclick = importarPrevia;
 }
+/* Fase 14, bloque 2: la importación que usan la vista previa y la
+ * cuarentena (bloque 3): crea los movimientos (con su refO, para la
+ * conciliación automática), registra el estado en conta.estadosBanco
+ * y guarda movs + conta en UNA transacción. */
+async function aplicarImportacion(items, archivo, saldoBanco) {
+    let n = 0;
+    const opsEstado = [];
+    items.forEach((p) => {
+        movs.push({ id: 'pdf' + (p.op.refC || (Date.now() + n + Math.floor(Math.random() * 999))), fecha: p.op.fecha, concepto: p.op.concepto,
+            tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
+            clase: p.clase, qr: p.qr, ref: p.op.refC || '', refO: p.op.refO || '', conciliado: true, origen: 'pdf_banco' });
+        opsEstado.push({ refC: p.op.refC || '', refO: p.op.refO || '', fecha: p.op.fecha, concepto: p.op.concepto, monto: p.op.monto, tipo: p.op.tipo });
+        n++;
+    });
+    if (opsEstado.length) {
+        const fechas = opsEstado.map((o) => o.fecha).sort();
+        registrarEstadoBanco(contaDoc, { cuenta: cuentaActiva, archivo: archivo || '', desde: fechas[0], hasta: fechas[fechas.length - 1], saldoBancoFin: saldoBanco, fechaImport: hoyLocal(), ops: opsEstado });
+    }
+    if (saldoBanco != null) {
+        try { localStorage.setItem(claveConciliacion(), JSON.stringify({ saldoBanco, fecha: hoyLocal() })); } catch (e) { /* nada */ }
+    }
+    await bd().docGuardarMultiple(token, [{ slot: 'mov', valor: movs }, { slot: 'conta', valor: contaDoc }]);
+    return n;
+}
 async function importarPrevia() {
     const marcadas = new Set(Array.from(document.querySelectorAll('[data-previa]:checked')).map((c) => Number(c.dataset.previa)));
     const enCerrado = previaOps.filter((p, i) => marcadas.has(i) && !p.duplicada && contaCandados[String(p.op.fecha || '').slice(0, 7)]);
     if (enCerrado.length) { aviso('Hay ' + enCerrado.length + ' operación(es) de un mes ya cerrado: desmárcalas, un período cerrado no se toca', 'error'); return; }
-    let n = 0;
-    previaOps.forEach((p, i) => {
-        if (!marcadas.has(i) || p.duplicada) return;
-        movs.push({ id: 'pdf' + (p.op.refC || (Date.now() + i)), fecha: p.op.fecha, concepto: p.op.concepto,
-            tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
-            clase: p.clase, qr: p.qr, ref: p.op.refC || '', conciliado: true });
-        n++;
-    });
-    if (previaOps.saldoBanco != null) {
-        try { localStorage.setItem(claveConciliacion(), JSON.stringify({ saldoBanco: previaOps.saldoBanco, fecha: hoyLocal() })); } catch (e) { /* nada */ }
-    }
+    const aImportar = previaOps.filter((p, i) => marcadas.has(i) && !p.duplicada);
+    const archivo = previaOps.archivo || '';
+    const saldoBanco = previaOps.saldoBanco;
     previaOps = null; pintarPrevia();
-    if (!n) { aviso('No había operaciones nuevas marcadas', 'error'); return; }
+    if (!aImportar.length) { aviso('No había operaciones nuevas marcadas', 'error'); return; }
     try {
-        await guardar();
+        const n = await aplicarImportacion(aImportar, archivo, saldoBanco);
         aviso('Importadas ' + n + ' operaciones del estado de cuenta');
-        pintarTabla(); pintarConciliacion();
+        pintarTabla(); pintarConciliacion(); pintarConcAuto();
         bus.postMessage({ tipo: 'datos', slot: 'mov' });
     } catch (e) { aviso('No se pudo guardar: ' + e.message, 'error'); }
 }
@@ -509,16 +1177,28 @@ async function pintarIndicador() {
         }
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         movs = (await bd().docLeer(token, 'mov')) || [];
-        const contaDoc = (await bd().docLeer(token, 'conta')) || {};
+        contaDoc = (await bd().docLeer(token, 'conta')) || {};
         contaCandados = contaDoc.candados || {};
+        fiscalDoc = (await bd().docLeer(token, 'fiscal')) || {};
         if (!Array.isArray(movs)) movs = [];
+        /* Fase 5, bloque 1: el Resumen deja la cuenta pedida en
+         * localStorage para que la Chequera arranque en ella. */
+        try { const c = localStorage.getItem('saldova_chequera_cuenta'); if (c && ['chequera', 'tarjeta_cup', 'tarjeta_usd'].includes(c)) { cuentaActiva = c; localStorage.removeItem('saldova_chequera_cuenta'); } } catch (e) { /* nada */ }
         $('mes').value = mesActual();
         $('fFecha').value = hoyLocal();
-        pintarCuentas(); pintarTabla(); pintarConciliacion();
+        pintarCuentas(); pintarTabla(); pintarConciliacion(); pintarCuarentena(); pintarReglas(); pintarCajaChica(); pintarAnticipos();
+        $('concMes').value = mesActual();
+        $('btnConciliar').addEventListener('click', pintarConcAuto);
+        $('concMes').addEventListener('change', pintarConcAuto);
         $('mes').onchange = () => { pintarTabla(); pintarConciliacion(); };
         $('btnGuardarMov').onclick = guardarMov;
         $('btnCancelarEd').onclick = cancelarEd;
+        /* Fase 9, bloque 1: modal de edición. */
+        $('btnGuardarModalMov').onclick = guardarModalMov;
+        $('btnCancelarModalMov').onclick = cerrarModalMov;
+        $('modalMov').addEventListener('click', (e) => { if (e.target === $('modalMov')) cerrarModalMov(); });
         $('btnLeerPdf').onclick = leerPdf;
+        $('btnLeerCsv').onclick = leerCsv;
 
         /* Pestañas internas del módulo (modelo .exe) */
         (() => {

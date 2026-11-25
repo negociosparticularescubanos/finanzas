@@ -43,13 +43,45 @@
 </div>
 
 <div class="tarjeta">
+    <h2>Registro de pagos QR</h2>
+    <p class="tenue">Los cobros por comercio electrónico (QR) del mes, como vienen del estado de cuenta. Son ventas: no se teclean, se importan.</p>
+    <div class="fila"><input type="month" id="qrMes"><button type="button" id="qrVer" class="secundario chico">Ver</button>
+    <button type="button" id="qrImp" class="secundario chico">Imprimir</button>
+    <button type="button" id="qrCsv" class="secundario chico">Descargar CSV</button></div>
+    <div id="qrTabla"><p class="tenue">Elige el mes.</p></div>
+    <p class="tenue" id="qrTotal"></p>
+</div>
+
+<div class="tarjeta">
+    <h2>Informe programado del mes</h2>
+    <p class="tenue">El día que elijas, «Qué toca hoy» te recuerda enviar el informe del mes. La página no envía sola sin internet: el envío sale en un toque con el resumen ya escrito.</p>
+    <div class="fila"><label>Día del mes <input type="number" id="ipDia" min="1" max="28" style="width:60px"></label>
+    <label>Canal <select id="ipCanal"><option value="whatsapp">WhatsApp</option><option value="correo">Correo</option></select></label>
+    <label>Destino <input id="ipDestino" placeholder="teléfono o correo" style="width:170px"></label></div>
+    <div class="fila"><button type="button" id="ipGuardar">Guardar la programación</button>
+    <button type="button" id="ipEnviar" class="secundario chico">Enviar el informe de este mes ahora</button></div>
+    <p class="tenue" id="ipEstado"></p>
+</div>
+
+<div class="tarjeta">
     <h2>Meses cerrados</h2>
     <div id="cerrados"><p class="tenue">Cargando…</p></div>
     <p class="tenue">El cierre queda registrado con su resumen. Reabrir un mes cerrado es decisión del administrador y queda en el historial.</p>
+    <div class="fila"><select id="cReabrirMes"></select><button type="button" id="cReabrir" class="secundario chico">Reabrir mes</button></div>
+    <p class="tenue">Un mes solo se reabre desde su salva de final de mes: sin salva no hay reapertura. Al reabrir, sus asientos quedan marcados y al volver a cerrar se muestra todo lo que cambió.</p>
+</div>
+
+<div class="tarjeta">
+    <h2>Cierre anual y Balance de Apertura</h2>
+    <p class="tenue">Regulariza los ingresos y gastos del año contra la cuenta de resultado y deja el Balance de Apertura del año siguiente. Con el plan del dueño la cadena es 901 → 905 → 520 → 510; con el oficial, 999 → 630.</p>
+    <div class="fila"><input type="number" id="caAnio" min="2000" max="2100" style="width:90px"><button type="button" id="caCerrar">Cerrar año contable</button>
+    <button type="button" id="caImpCierre" class="secundario chico">Imprimir cierre anual</button>
+    <button type="button" id="caImpApertura" class="secundario chico">Imprimir Balance de Apertura</button></div>
+    <div id="caLista"><p class="tenue">Cargando…</p></div>
 </div>
 
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, guardarArchivoReal, hoyLocal, mesLocal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, guardarArchivoReal, hoyLocal, mesLocal, validarLineasAsiento, cuentaAuto, esOnat, descargarCSV, existeCuenta } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(8);
@@ -57,7 +89,7 @@ aplicarFondo(8);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, movs = [], aft = null, rrhh = null, hist = [], sesion = null;
+let conta = null, movs = [], aft = null, rrhh = null, hist = [], sesion = null, cfgResumen = {};
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -76,8 +108,53 @@ function revision(mes) {
     for (const a of asientosMes) for (const l of a.lineas) { td += Number(l.debe) || 0; th += Number(l.haber) || 0; }
     puntos.push({ ok: asientosMes.length > 0 && r2(td) === r2(th), bloquea: true,
         texto: 'Asientos del mes: ' + asientosMes.length + ' asiento(s), Debe ' + fmt(td) + ' = Haber ' + fmt(th) + (asientosMes.length ? '' : ' — no hay asientos en el mes') });
+    /* Fase 16, bloque 1: validación antes de cerrar (función 2). Lo que
+     * ya existía miraba el total del mes; esto mira cada asiento, cada
+     * línea y cada factura, y cada punto dice dónde se arregla. */
+    const descuadrados = asientosMes.filter((a) => {
+        let d = 0, h = 0;
+        for (const l of a.lineas || []) { d += Number(l.debe) || 0; h += Number(l.haber) || 0; }
+        return r2(d) !== r2(h);
+    });
+    puntos.push({ ok: descuadrados.length === 0, bloquea: true, modulo: 'contabilidad',
+        texto: descuadrados.length ? 'Asiento(s) descuadrado(s): nº ' + descuadrados.map((a) => a.numero).join(', ') + ' (el Debe no es igual al Haber)' : 'Todos los asientos del mes cuadran uno por uno' });
+    const cuentasMal = [];
+    for (const a of asientosMes) for (const l of a.lineas || []) {
+        if (!l.cuenta || !existeCuenta(conta.plan || [], l.cuenta)) cuentasMal.push('nº ' + a.numero + ' · ' + (l.cuenta || 'sin cuenta'));
+    }
+    puntos.push({ ok: cuentasMal.length === 0, bloquea: true, modulo: 'contabilidad',
+        texto: cuentasMal.length ? 'Línea(s) con cuenta que no existe en el plan: ' + cuentasMal.slice(0, 5).join('; ') + (cuentasMal.length > 5 ? '…' : '') : 'Todas las líneas usan cuentas del plan' });
+    const raros = [];
+    for (const a of asientosMes) {
+        let d = 0, h = 0;
+        for (const l of a.lineas || []) {
+            d += Number(l.debe) || 0; h += Number(l.haber) || 0;
+            if ((Number(l.debe) || 0) > 0 && (Number(l.haber) || 0) > 0) raros.push('nº ' + a.numero + ': línea con Debe y Haber a la vez');
+            if ((Number(l.debe) || 0) < 0 || (Number(l.haber) || 0) < 0) raros.push('nº ' + a.numero + ': importe negativo');
+        }
+        if (r2(d) === 0 && r2(h) === 0) raros.push('nº ' + a.numero + ': asiento en 0');
+    }
+    puntos.push({ ok: raros.length === 0, bloquea: false, modulo: 'contabilidad',
+        texto: raros.length ? 'Montos raros (aviso: no bloquea el cierre): ' + raros.slice(0, 5).join('; ') + (raros.length > 5 ? '…' : '') : 'Sin montos raros en el mes' });
+    const facMes = ((conta.gestion || {}).facturas || []).filter((f) => (f.fecha || '').startsWith(mes));
+    const vistos = {};
+    const duplicadas = [];
+    for (const f of facMes) {
+        const n = String(f.numero || '').trim();
+        if (!n) continue;
+        if (vistos[n]) duplicadas.push(n);
+        else vistos[n] = true;
+    }
+    puntos.push({ ok: duplicadas.length === 0, bloquea: true, modulo: 'gestion',
+        texto: duplicadas.length ? 'Factura(s) con número repetido en el mes: ' + [...new Set(duplicadas)].join(', ') : 'Sin facturas duplicadas en el mes' });
+    /* Salud de la base: movimientos del mes que apuntan a un asiento
+     * que ya no existe (quedó huérfano). */
+    const idsAsientos = new Set((conta.asientos || []).map((a) => a.id));
+    const huerfanos = movs.filter((m) => (m.fecha || '').startsWith(mes) && m.asientoId && !idsAsientos.has(m.asientoId));
+    puntos.push({ ok: huerfanos.length === 0, bloquea: false, modulo: 'chequera',
+        texto: huerfanos.length ? 'Salud de la base (aviso: no bloquea): ' + huerfanos.length + ' movimiento(s) apuntan a un asiento que ya no existe' : 'Salud de la base: ningún movimiento apunta a un asiento perdido' });
     const porClasificar = movs.filter((m) => (m.fecha || '').startsWith(mes) && (m.clasificacion || '') === 'Por clasificar');
-    puntos.push({ ok: porClasificar.length === 0, bloquea: true,
+    puntos.push({ ok: porClasificar.length === 0, bloquea: true, modulo: 'chequera',
         texto: porClasificar.length ? 'Quedan ' + porClasificar.length + ' movimiento(s) «Por clasificar» en la Chequera: sin clasificar no se puede cerrar' : 'Sin movimientos «Por clasificar» en el mes' });
     const hayActivos = aft && (aft.activos || []).some((a) => a.estado !== 'baja');
     const depOk = !hayActivos || (aft.ultimaDepreciacion && aft.ultimaDepreciacion >= mes);
@@ -98,6 +175,10 @@ function revision(mes) {
         texto: !hayTrab ? 'Sin trabajadores: la nómina no aplica' : nomOk ? 'Nómina del mes registrada' : 'Hay trabajadores pero no nómina de ' + mes + ' (aviso: no bloquea el cierre)' });
     const yaCerrado = hist.some((h) => h.mes === mes) || (conta.candados && conta.candados[mes]);
     if (yaCerrado) puntos.push({ ok: false, bloquea: true, texto: 'Este mes YA está cerrado' });
+    /* Fase 13, bloque 2: un mes reabierto se puede trabajar, pero al
+     * volver a cerrar se muestra lo que cambió. */
+    const reap = (conta.reaperturas || []).find((r) => r.mes === mes);
+    if (reap) puntos.push({ ok: true, bloquea: false, texto: 'Mes reabierto por ' + esc(reap.por || '') + ' el ' + esc(reap.fecha || '') + ' (desde su salva de final de mes): al volver a cerrar se mostrará todo lo que cambió en este mes y en los siguientes' });
     return puntos;
 }
 function pintarPasos() {
@@ -121,18 +202,403 @@ function pintarPasos() {
         (p.hecho ? '' : ' <span class="tenue">(' + p.falta + ')</span>') + '</div>').join('') +
         '<p class="tenue">' + (cerrado ? 'Mes cerrado: todo hecho.' : actual >= 0 ? 'Vas por el paso ' + (actual + 1) + ' de 5.' : '') + '</p>';
 }
+function irA(modulo) {
+    if (window.parent !== window && window.parent.abrirModulo) window.parent.abrirModulo(modulo);
+}
 function pintarRevision() {
     const mes = $('cMes').value;
     if (!mes) return;
     pintarPasos();
     const puntos = revision(mes);
+    const NOMBRE_MODULO = { contabilidad: 'Contabilidad', gestion: 'Gestión', chequera: 'Chequera' };
     $('revision').innerHTML = puntos.map((p) =>
-        '<div class="punto"><span class="' + (p.ok ? 'ok' : 'mal') + '">' + (p.ok ? '✔' : '✘') + '</span> ' + p.texto + '</div>').join('');
+        '<div class="punto"><span class="' + (p.ok ? 'ok' : 'mal') + '">' + (p.ok ? '✔' : '✘') + '</span> ' + p.texto +
+        (p.modulo && !p.ok ? ' <button type="button" class="chico secundario" data-modulo="' + p.modulo + '">Ir a ' + (NOMBRE_MODULO[p.modulo] || p.modulo) + '</button>' : '') + '</div>').join('');
+    $('revision').querySelectorAll('[data-modulo]').forEach((b) => b.addEventListener('click', () => irA(b.dataset.modulo)));
 }
 function pintarCerrados() {
     $('cerrados').innerHTML = hist.map((h) =>
-        '<div class="fila"><b>' + h.mes + '</b><span class="tenue">cerrado el ' + h.cerradoEn + ' por ' + esc(h.por) + ' · ' + (h.resumen || '') + '</span></div>').join('') ||
+        h.reabiertoEn
+            ? '<div class="fila"><b>' + h.mes + '</b><span class="tenue">reabierto el ' + h.reabiertoEn + ' por ' + esc(h.por) + ' · ' + (h.resumen || '') + '</span></div>'
+            : '<div class="fila"><b>' + h.mes + '</b><span class="tenue">cerrado el ' + h.cerradoEn + ' por ' + esc(h.por) + ' · ' + (h.resumen || '') + '</span></div>').join('') ||
         '<p class="tenue">Todavía no hay meses cerrados.</p>';
+}
+
+/* ---------- Fase 13, bloque 2: reapertura de mes (regla F13) --------
+ * Un mes cerrado solo se reabre desde su salva de final de mes; la
+ * app hace 3 salvas automáticas por mes (al iniciar, a mitad y antes
+ * de cerrar). Al reabrir se marca el mes y sus asientos, queda la
+ * traza de quién y cuándo, y al volver a cerrar se muestra lo que
+ * cambió en el mes y en los meses siguientes. */
+function leerRegistroSalvas() {
+    try { return JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) { return []; }
+}
+function guardarRegistroSalvas(lista) {
+    try { localStorage.setItem('saldova_salvas', JSON.stringify((lista || []).slice(0, 24))); } catch (e) { /* el registro es un extra */ }
+}
+function salvaCierreExiste(registro, mes) {
+    return (registro || []).find((x) => x.mes === mes && (x.tipo || 'cierre') === 'cierre') || null;
+}
+function salvasFaltantes(registro, mes, dia) {
+    const tiene = (tipo) => (registro || []).some((x) => x.mes === mes && (x.tipo || 'cierre') === tipo);
+    const faltan = [];
+    if (!tiene('inicio')) faltan.push('inicio');
+    if (dia >= 15 && !tiene('mitad')) faltan.push('mitad');
+    return faltan;
+}
+async function crearSalva(mes, tipo) {
+    try {
+        const bytesC = await bd().exportar(tokenSesion());
+        const nombre = 'saldova-salva-' + mes + '-' + tipo + '.db';
+        await guardarArchivoReal(bytesC, nombre, 'Salva automática de Saldova', '.db');
+        const reg = leerRegistroSalvas();
+        reg.unshift({ fecha: hoyLocal(), mes, tipo, archivo: nombre });
+        guardarRegistroSalvas(reg);
+        return true;
+    } catch (e) { return false; }
+}
+function ultimoDiaMes(mes) {
+    const [y, m] = String(mes).split('-').map(Number);
+    return mes + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');
+}
+/* Totales del mes como los muestra el Resumen (ingresos, costo y
+ * gastos desde los asientos; ONAT desde los movimientos) + nº de
+ * asientos y saldos de balance al final del mes: es la foto que se
+ * guarda al reabrir y se compara al volver a cerrar. */
+function totalesMes(conta, movs, mes) {
+    const porMes = new Map();
+    let asientos = 0;
+    for (const a of (conta.asientos || [])) {
+        if (String(a.fecha || '').slice(0, 7) !== mes) continue;
+        asientos++;
+        for (const l of (a.lineas || [])) {
+            const e = porMes.get(l.cuenta) || { debe: 0, haber: 0 };
+            e.debe = r2(e.debe + (Number(l.debe) || 0)); e.haber = r2(e.haber + (Number(l.haber) || 0));
+            porMes.set(l.cuenta, e);
+        }
+    }
+    const mapa = new Map();
+    for (const c of (conta.plan || [])) mapa.set(c.codigo, c);
+    const ctaCosto = cuentaAuto(conta.plan, 'costo_ventas', '695-000');
+    let ingresos = 0, costo = 0, gastos = 0;
+    for (const [cod, g] of porMes.entries()) {
+        const c = mapa.get(cod); if (!c) continue;
+        if (ctaCosto && cod === ctaCosto) costo = r2(costo + (g.debe - g.haber));
+        else if (c.grupo === 'ingreso') ingresos = r2(ingresos + (g.haber - g.debe));
+        else if (c.grupo === 'gasto') gastos = r2(gastos + (g.debe - g.haber));
+    }
+    const onat = r2((movs || []).filter((m) => esOnat(m) && String(m.fecha || '').slice(0, 7) === mes)
+        .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+    const utilidad = r2(ingresos - costo - gastos - onat);
+    const saldos = mayorHastaPlan(conta, ultimoDiaMes(mes), null)
+        .filter((s) => (s.grupo === 'activo' || s.grupo === 'pasivo' || s.grupo === 'patrimonio') && Math.abs(s.saldoFirmado) > 0.004)
+        .map((s) => ({ cuenta: s.cuenta, nombre: s.nombre, saldoFirmado: s.saldoFirmado }));
+    return { ingresos, costo, gastos, onat, utilidad, asientos, saldos };
+}
+function reaperturaImpacto(conta, movs, mes) {
+    const meses = new Set();
+    for (const a of (conta.asientos || [])) { const m = String(a.fecha || '').slice(0, 7); if (m > mes) meses.add(m); }
+    for (const m of (movs || [])) { const mm = String(m.fecha || '').slice(0, 7); if (mm > mes) meses.add(mm); }
+    const tot = totalesMes(conta, movs, mes);
+    return { mesesPosteriores: [...meses].sort(), cuentas: tot.saldos.map((s) => s.cuenta), nAsientos: tot.asientos };
+}
+function reaperturaDiff(antes, ahora) {
+    const diffs = [];
+    for (const k of ['ingresos', 'costo', 'gastos', 'onat', 'utilidad', 'asientos']) {
+        if (r2((ahora[k] || 0) - (antes[k] || 0)) !== 0) diffs.push({ campo: k, antes: antes[k] || 0, ahora: ahora[k] || 0 });
+    }
+    const mapaAntes = new Map((antes.saldos || []).map((s) => [s.cuenta, s]));
+    const mapaAhora = new Map((ahora.saldos || []).map((s) => [s.cuenta, s]));
+    const cuentas = new Set([...mapaAntes.keys(), ...mapaAhora.keys()]);
+    for (const cod of [...cuentas].sort()) {
+        const a = mapaAntes.get(cod), b = mapaAhora.get(cod);
+        const va = a ? a.saldoFirmado : 0, vb = b ? b.saldoFirmado : 0;
+        if (r2(vb - va) !== 0) diffs.push({ campo: 'saldo ' + cod + (b ? ' «' + (b.nombre || '') + '»' : ''), antes: va, ahora: vb });
+    }
+    return diffs;
+}
+
+/* ---------- Fase 13, bloque 1: cierre anual + Balance de Apertura ------
+ * Copia de Finanzas ctaCierreAnual: regulariza ingresos y gastos
+ * contra la cuenta de resultado y traslada el neto a utilidades
+ * retenidas; el Balance de Apertura del año siguiente son los saldos
+ * de las cuentas de balance al 31 de diciembre. Con el plan del
+ * dueño la cadena es 901 → 905 → 520 → 510; con el oficial,
+ * 999 → 630 (son las cuentas que trae ese plan, no se inventa
+ * ninguna). */
+/* La cuenta del concepto para el cierre. Primero el campo `auto`
+ * del plan (inyectado por Contabilidad según el plan activo); luego
+ * los defectos, pero solo si la cuenta tiene el grupo que le toca:
+ * el 510-000 y el 520-000 existen en los dos planes con otro
+ * sentido (en el oficial son pasivos), y el `cuentaAuto` general
+ * los devolvería mal. */
+function cuentaCierre(plan, concepto, defectos, grupo) {
+    for (const c of (plan || [])) {
+        if (c.auto && String(c.auto).split(',').map((x) => x.trim()).includes(concepto)) return c.codigo;
+    }
+    for (const d of defectos) {
+        const c = (plan || []).find((x) => x.codigo === d);
+        if (c && c.grupo === grupo) return d;
+    }
+    return '';
+}
+function resultadosAnio(conta, anio) {
+    const mapa = new Map();
+    for (const c of (conta.plan || [])) mapa.set(c.codigo, c);
+    const det = new Map();
+    for (const a of (conta.asientos || [])) {
+        if (String(a.fecha || '').slice(0, 4) !== String(anio)) continue;
+        for (const l of (a.lineas || [])) {
+            const c = mapa.get(l.cuenta); if (!c) continue;
+            if (c.grupo !== 'ingreso' && c.grupo !== 'gasto' && c.grupo !== 'costo') continue;
+            const e = det.get(l.cuenta) || { codigo: l.cuenta, nombre: c.nombre, grupo: c.grupo, importe: 0 };
+            e.importe = r2(e.importe + (c.grupo === 'ingreso' ? (Number(l.haber) || 0) - (Number(l.debe) || 0) : (Number(l.debe) || 0) - (Number(l.haber) || 0)));
+            det.set(l.cuenta, e);
+        }
+    }
+    const detIngresos = [...det.values()].filter((d) => d.grupo === 'ingreso' && Math.abs(d.importe) > 0.004).sort((a, b) => b.importe - a.importe);
+    const detGastos = [...det.values()].filter((d) => d.grupo !== 'ingreso' && Math.abs(d.importe) > 0.004).sort((a, b) => b.importe - a.importe);
+    const ingresos = r2(detIngresos.reduce((s, d) => s + d.importe, 0));
+    const gastos = r2(detGastos.reduce((s, d) => s + d.importe, 0));
+    return { ingresos, gastos, resultado: r2(ingresos - gastos), detIngresos, detGastos };
+}
+function mayorHastaPlan(conta, hasta, extra) {
+    const mapa = new Map();
+    for (const c of (conta.plan || [])) mapa.set(c.codigo, c);
+    const m = new Map();
+    const todos = [...(conta.asientos || []), ...(extra || [])];
+    for (const a of todos) {
+        if (hasta && String(a.fecha || '') > hasta) continue;
+        for (const l of (a.lineas || [])) {
+            const e = m.get(l.cuenta) || { debe: 0, haber: 0 };
+            e.debe = r2(e.debe + (Number(l.debe) || 0)); e.haber = r2(e.haber + (Number(l.haber) || 0));
+            m.set(l.cuenta, e);
+        }
+    }
+    const saldos = [];
+    for (const [cod, e] of m.entries()) {
+        const c = mapa.get(cod); if (!c) continue;
+        const firmado = c.naturaleza === 'acreedora' ? r2(e.haber - e.debe) : r2(e.debe - e.haber);
+        saldos.push({ cuenta: cod, nombre: c.nombre, grupo: c.grupo, debe: e.debe, haber: e.haber, saldoFirmado: firmado });
+    }
+    return saldos;
+}
+function situacionDeSaldos(saldos) {
+    let activo = 0, pasivo = 0, patrimonio = 0;
+    for (const s of saldos) {
+        if (s.grupo === 'activo') activo = r2(activo + s.saldoFirmado);
+        else if (s.grupo === 'pasivo') pasivo = r2(pasivo + s.saldoFirmado);
+        else if (s.grupo === 'patrimonio') patrimonio = r2(patrimonio + s.saldoFirmado);
+    }
+    return { activo, pasivo, patrimonio };
+}
+/* Una línea con el importe firmado: si el importe es negativo va al
+ * lado contrario, así el asiento siempre cuadra aunque una cuenta
+ * tenga un saldo al revés (una devolución, por ejemplo). */
+function lineaFirmada(cod, importe, ladoPositivo) {
+    if (ladoPositivo === 'debe') return importe >= 0 ? { cuenta: cod, debe: importe, haber: 0 } : { cuenta: cod, debe: 0, haber: -importe };
+    return importe >= 0 ? { cuenta: cod, debe: 0, haber: importe } : { cuenta: cod, debe: -importe, haber: 0 };
+}
+function cierreAnualCalc(conta, anio) {
+    const anioS = String(anio);
+    if ((conta.cierres || []).some((c) => String(c.anio) === anioS)) return { ok: false, motivo: 'El año ' + anioS + ' ya está cerrado' };
+    const res = cuentaCierre(conta.plan, 'resultado', ['901-000', '999-000'], 'cierre');
+    const ret = cuentaCierre(conta.plan, 'utilidades_retenidas', ['510-000', '630-000'], 'patrimonio');
+    if (!res) return { ok: false, motivo: 'El plan de cuentas activo no trae cuenta de resultado (901-000 en el plan del dueño, 999-000 en el oficial): el cierre anual no se puede hacer' };
+    if (!ret) return { ok: false, motivo: 'El plan de cuentas activo no trae utilidades retenidas (510-000 en el plan del dueño, 630-000 en el oficial): el cierre anual no se puede hacer' };
+    const liq = cuentaCierre(conta.plan, 'liquidacion', ['905-000'], 'cierre');
+    const resEj = cuentaCierre(conta.plan, 'resultado_ejercicio', ['520-000'], 'patrimonio');
+    const r = resultadosAnio(conta, anioS);
+    const fecha = anioS + '-12-31';
+    const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
+    const asientos = [];
+    if (r.detIngresos.length) {
+        const lin = r.detIngresos.map((d) => lineaFirmada(d.codigo, d.importe, 'debe'));
+        lin.push(lineaFirmada(res, r.ingresos, 'haber'));
+        asientos.push({ fecha, concepto: 'Regularización de ingresos · ' + anioS, origen: 'cierre', fuenteKey: 'cierre:' + anioS + ':reg', lineas: lin });
+    }
+    if (r.detGastos.length) {
+        const lin = [lineaFirmada(res, r.gastos, 'debe')];
+        for (const d of r.detGastos) lin.push(lineaFirmada(d.codigo, d.importe, 'haber'));
+        asientos.push({ fecha, concepto: 'Regularización de costos y gastos · ' + anioS, origen: 'cierre', fuenteKey: 'cierre:' + anioS + ':regg', lineas: lin });
+    }
+    const neto = r.resultado;
+    if (Math.abs(neto) > 0.005) {
+        const N = Math.abs(neto);
+        const pasos = (liq && resEj)
+            ? [[res, liq, 'cierre:' + anioS + ':traslado', 'Traslado a la liquidación del resultado · ' + anioS],
+               [liq, resEj, 'cierre:' + anioS + ':liquidacion', 'Liquidación del resultado del ejercicio · ' + anioS],
+               [resEj, ret, 'cierre:' + anioS + ':retenidas', 'Resultado neto a utilidades retenidas · ' + anioS]]
+            : [[res, ret, 'cierre:' + anioS + ':retenidas', 'Resultado neto a utilidades retenidas · ' + anioS]];
+        for (const [c1, c2, fk, conc] of pasos) {
+            const lin = neto > 0 ? [L(c1, N, 0), L(c2, 0, N)] : [L(c2, N, 0), L(c1, 0, N)];
+            asientos.push({ fecha, concepto: conc, origen: 'cierre', fuenteKey: fk, lineas: lin });
+        }
+    }
+    for (const a of asientos) {
+        const err = validarLineasAsiento(conta.plan, a.lineas);
+        if (err) return { ok: false, motivo: err };
+    }
+    const saldosTodos = mayorHastaPlan(conta, fecha, asientos);
+    const saldos = saldosTodos.filter((s) => s.grupo !== 'ingreso' && s.grupo !== 'gasto' && s.grupo !== 'costo' && Math.abs(s.saldoFirmado) > 0.004)
+        .sort((a, b) => String(a.cuenta).localeCompare(String(b.cuenta)));
+    const situacion = situacionDeSaldos(saldos);
+    const sinCerrar = [];
+    for (let m = 1; m <= 12; m++) {
+        const mes = anioS + '-' + String(m).padStart(2, '0');
+        const hayDatos = (conta.asientos || []).some((a) => String(a.fecha || '').slice(0, 7) === mes);
+        if (hayDatos && !(conta.candados && conta.candados[mes])) sinCerrar.push(mes);
+    }
+    const saldosCierre = saldos.map((s) => ({ cuenta: s.cuenta, nombre: s.nombre, saldoFirmado: s.saldoFirmado }));
+    const apertura = { anio: Number(anioS) + 1, fecha: (Number(anioS) + 1) + '-01-01', situacion, saldos: saldosCierre };
+    return { ok: true, resultado: neto, ingresos: r.ingresos, gastos: r.gastos, detIngresos: r.detIngresos, detGastos: r.detGastos, asientos, apertura, saldos: saldosCierre, situacion, sinCerrar };
+}
+/* ---------- Fase 13, bloque 1: interfaz del cierre anual ---------- */
+function pintarCierresAnuales() {
+    const cierres = conta.cierres || [];
+    const aperturas = conta.aperturas || [];
+    $('caLista').innerHTML =
+        (cierres.map((x) => '<div class="fila"><b>Año ' + esc(String(x.anio)) + '</b><span class="tenue">cerrado el ' + esc(x.fecha || '') + ' · Resultado: $' + fmt(Number(x.resultado) || 0) + '</span></div>').join('') +
+        aperturas.map((a) => '<div class="fila"><b>Balance de Apertura ' + esc(String(a.anio)) + '</b><span class="tenue">(' + esc(a.fecha || '') + '): Activo $' + fmt(Number((a.situacion || {}).activo) || 0) + ' = Pasivo $' + fmt(Number((a.situacion || {}).pasivo) || 0) + ' + Patrimonio $' + fmt(Number((a.situacion || {}).patrimonio) || 0) + ' · ' + (a.saldos || []).length + ' cuenta(s) con saldo</span></div>').join('')) ||
+        '<p class="tenue">Todavía no hay cierres anuales.</p>';
+}
+function imprimirTablaSimple(titulo, subtitulo, filas, pie) {
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}.num{text-align:right}</style></head><body>' +
+        '<h2 style="text-align:center">' + esc(titulo) + '</h2><p>' + esc(subtitulo) + '</p>' + filas + (pie || '') + '</body></html>');
+    w.document.close(); w.print();
+}
+function imprimirCierreAnual() {
+    const cierres = conta.cierres || [];
+    if (!cierres.length) { aviso('Todavía no hay ningún cierre anual registrado', 'error'); return; }
+    const anioInp = String($('caAnio').value || '').trim();
+    const cierre = (anioInp && cierres.find((x) => String(x.anio) === anioInp)) || cierres[cierres.length - 1];
+    const saldos = cierre.saldos || [];
+    let totD = 0, totH = 0;
+    const filas = saldos.map((s) => {
+        const d = Number(s.saldoFirmado) > 0 ? Number(s.saldoFirmado) : 0, h = Number(s.saldoFirmado) < 0 ? -Number(s.saldoFirmado) : 0;
+        totD = r2(totD + d); totH = r2(totH + h);
+        return '<tr><td>' + esc(s.cuenta) + '</td><td>' + esc(s.nombre || '') + '</td><td class="num">' + (d ? fmt(d) : '') + '</td><td class="num">' + (h ? fmt(h) : '') + '</td></tr>';
+    }).join('');
+    imprimirTablaSimple('CIERRE ANUAL · ' + cierre.anio, (sesion ? sesion.negocio + ' · ' : '') + 'Ejercicio cerrado: ' + cierre.anio + ' · Fecha de cierre: ' + (cierre.fecha || ''),
+        '<table><thead><tr><th>Cuenta</th><th>Descripción</th><th class="num">Saldo deudor</th><th class="num">Saldo acreedor</th></tr></thead><tbody>' + filas +
+        '<tr><td colspan="2"><b>TOTALES</b></td><td class="num"><b>' + fmt(totD) + '</b></td><td class="num"><b>' + fmt(totH) + '</b></td></tr></tbody></table>',
+        '<p><b>RESULTADO DEL EJERCICIO: $' + fmt(Number(cierre.resultado) || 0) + '</b></p>');
+}
+function imprimirApertura() {
+    const aperturas = conta.aperturas || [];
+    if (!aperturas.length) { aviso('Todavía no hay ningún Balance de Apertura registrado', 'error'); return; }
+    const anioInp = Number($('caAnio').value || 0);
+    const ap = (anioInp && aperturas.find((a) => Number(a.anio) === anioInp + 1)) || aperturas[aperturas.length - 1];
+    let totD = 0, totH = 0;
+    const filas = (ap.saldos || []).map((s) => {
+        const d = Number(s.saldoFirmado) > 0 ? Number(s.saldoFirmado) : 0, h = Number(s.saldoFirmado) < 0 ? -Number(s.saldoFirmado) : 0;
+        totD = r2(totD + d); totH = r2(totH + h);
+        return '<tr><td>' + esc(s.cuenta) + '</td><td>' + esc(s.nombre || '') + '</td><td class="num">' + (d ? fmt(d) : '') + '</td><td class="num">' + (h ? fmt(h) : '') + '</td></tr>';
+    }).join('');
+    const sit = ap.situacion || {};
+    imprimirTablaSimple('BALANCE DE APERTURA · ' + ap.anio, (sesion ? sesion.negocio + ' · ' : '') + 'Ejercicio nuevo: ' + ap.anio + ' · Fecha de apertura: ' + (ap.fecha || ''),
+        '<table><thead><tr><th>Cuenta</th><th>Descripción</th><th class="num">Saldo deudor</th><th class="num">Saldo acreedor</th></tr></thead><tbody>' + filas +
+        '<tr><td colspan="2"><b>TOTALES</b></td><td class="num"><b>' + fmt(totD) + '</b></td><td class="num"><b>' + fmt(totH) + '</b></td></tr></tbody></table>',
+        '<p><b>ACTIVO = PASIVO + PATRIMONIO: $' + fmt(Number(sit.activo) || 0) + ' = $' + fmt(Number(sit.pasivo) || 0) + ' + $' + fmt(Number(sit.patrimonio) || 0) + '</b></p>');
+}
+/* ---------- Fase 13, bloque 4: informe programado del mes -------
+ * Copia de Finanzas infProgResumenTexto/infProgRender: el día
+ * elegido, «Qué toca hoy» recuerda enviar el informe; el texto sale
+ * de los mismos totales que muestra el Resumen. Sin internet la
+ * página no envía sola: el envío abre WhatsApp o el correo con el
+ * resumen ya escrito. */
+function informeResumenTexto(conta, movs, mes, negocio) {
+    const t = totalesMes(conta, movs, mes);
+    const f = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nMovs = (movs || []).filter((m) => String(m.fecha || '').slice(0, 7) === mes).length;
+    return 'Informe de ' + negocio + ' · ' + mes +
+        '\nIngresos del mes: $' + f(t.ingresos) +
+        '\nGastos del mes: $' + f(r2(t.gastos + t.costo)) +
+        '\nONAT pagado: $' + f(t.onat) +
+        '\nResultado: $' + f(t.utilidad) +
+        '\nMovimientos: ' + nMovs;
+}
+function informeTocaHoy(cfg, hoyStr) {
+    const prog = (cfg && cfg.informeProg) || null;
+    if (!prog || !prog.dia) return false;
+    const mes = String(hoyStr || '').slice(0, 7);
+    const dia = Number(String(hoyStr || '').slice(8, 10)) || 0;
+    if (dia !== Number(prog.dia)) return false;
+    return prog.enviado !== mes;
+}
+/* ---------- Fase 13, bloque 3: registro de pagos QR -------------
+ * Copia de Finanzas qrRegistroBox: los cobros por comercio
+ * electrónico del mes (movs con qr, solo ingresos), en orden de
+ * fecha, con su total. */
+function registroQR(movs, mes) {
+    const filas = (movs || [])
+        .filter((m) => m.qr && m.tipo === 'ingreso' && String(m.fecha || '').slice(0, 7) === mes)
+        .map((m) => ({ fecha: m.fecha || '', concepto: m.concepto || '', cuenta: m.cuenta || 'chequera', monto: r2(Math.abs(Number(m.monto) || 0)) }))
+        .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.concepto).localeCompare(String(b.concepto)));
+    return { filas, total: r2(filas.reduce((s, f) => s + f.monto, 0)) };
+}
+const NOMBRE_CUENTA_QR = { chequera: 'Chequera', tarjeta_cup: 'Tarjeta CUP', tarjeta_usd: 'Tarjeta USD' };
+function pintarQR() {
+    const mes = $('qrMes').value;
+    if (!mes) return;
+    const reg = registroQR(movs, mes);
+    $('qrTabla').innerHTML = reg.filas.length
+        ? '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Fecha</th><th style="text-align:left">Concepto</th><th style="text-align:left">Cuenta</th><th style="text-align:right">Monto (CUP)</th></tr></thead><tbody>' +
+          reg.filas.map((f) => '<tr><td>' + esc(f.fecha) + '</td><td>' + esc(f.concepto) + '</td><td>' + esc(NOMBRE_CUENTA_QR[f.cuenta] || f.cuenta) + '</td><td style="text-align:right">$' + fmt(f.monto) + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Este mes no tiene pagos marcados como comercio electrónico (QR). Cuando importes un estado de cuenta con créditos recibidos por correo, aparecerán aquí solos.</p>';
+    $('qrTotal').innerHTML = reg.filas.length ? '<b>Total QR del mes: $' + fmt(reg.total) + '</b> · ' + reg.filas.length + ' pago(s)' : '';
+}
+function imprimirQR() {
+    const mes = $('qrMes').value;
+    if (!mes) return;
+    const reg = registroQR(movs, mes);
+    if (!reg.filas.length) { aviso('Este mes no tiene pagos QR', 'error'); return; }
+    imprimirTablaSimple('REGISTRO DE PAGOS QR · ' + mes, (sesion ? sesion.negocio + ' · ' : '') + 'Cobros por comercio electrónico del mes.',
+        '<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Cuenta</th><th class="num">Monto (CUP)</th></tr></thead><tbody>' +
+        reg.filas.map((f) => '<tr><td>' + esc(f.fecha) + '</td><td>' + esc(f.concepto) + '</td><td>' + esc(NOMBRE_CUENTA_QR[f.cuenta] || f.cuenta) + '</td><td class="num">' + fmt(f.monto) + '</td></tr>').join('') + '</tbody></table>',
+        '<p><b>Total QR del mes: $' + fmt(reg.total) + '</b></p>');
+}
+/* ---------- Fase 13, bloque 2: interfaz de reapertura ---------- */
+function pintarReabrir() {
+    const cerrados = Object.keys(conta.candados || {}).sort().reverse();
+    $('cReabrirMes').innerHTML = cerrados.length
+        ? cerrados.map((m) => '<option value="' + m + '">' + m + '</option>').join('')
+        : '<option value="">Sin meses cerrados</option>';
+}
+/* ---------- Fase 13, bloque 4: interfaz del informe programado ---------- */
+function pintarIpEstado() {
+    const prog = (cfgResumen && cfgResumen.informeProg) || null;
+    if (!prog || !prog.dia) { $('ipEstado').textContent = 'Todavía no hay informe programado.'; return; }
+    const mes = mesLocal();
+    $('ipEstado').textContent = 'Programado: día ' + prog.dia + ' de cada mes por ' + (prog.canal === 'correo' ? 'correo' : 'WhatsApp') + ' a ' + (prog.destino || '—') + ' · ' +
+        (prog.enviado === mes ? 'El informe de este mes ya se envió.' : 'El informe de este mes todavía no se envía.');
+}
+function ipEnviarAhora() {
+    const prog = (cfgResumen && cfgResumen.informeProg) || null;
+    const mes = mesLocal();
+    const txt = informeResumenTexto(conta, movs, mes, sesion ? sesion.negocio : 'Mi negocio');
+    cfgResumen.informeProg = { ...(prog || {}), enviado: mes };
+    bd().docGuardar(tokenSesion(), 'resumen', cfgResumen).catch(() => {});
+    pintarIpEstado();
+    if (prog && prog.canal === 'correo') {
+        location.href = 'mailto:' + encodeURIComponent(prog.destino || '') + '?subject=' + encodeURIComponent('Informe mensual · ' + mes) + '&body=' + encodeURIComponent(txt);
+    } else {
+        const tel = String((prog && prog.destino) || '').replace(/[^0-9]/g, '');
+        if (tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(txt), '_blank');
+        else { aviso('Falta el destino (teléfono) para enviar por WhatsApp. El texto quedó listo para copiar:\n\n' + txt, 'error'); return; }
+    }
+    aviso('Informe de ' + mes + ' marcado como enviado.');
+}
+async function salvasAutomaticas() {
+    if (sesion && sesion.role === 'consultor') return;
+    const mes = mesLocal();
+    const dia = Number(hoyLocal().slice(8, 10)) || 1;
+    for (const tipo of salvasFaltantes(leerRegistroSalvas(), mes, dia)) {
+        const ok = await crearSalva(mes, tipo);
+        if (ok) aviso('Salva automática de ' + (tipo === 'inicio' ? 'inicio de mes' : 'mitad de mes') + ' guardada: saldova-salva-' + mes + '-' + tipo + '.db');
+    }
 }
 (async () => {
     try {
@@ -143,11 +609,60 @@ function pintarCerrados() {
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
         conta.candados = conta.candados || {};
         conta.cierres = conta.cierres || [];
+        conta.aperturas = conta.aperturas || [];
+        conta.reaperturas = conta.reaperturas || [];
         movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
         aft = await bd().docLeer(tokenSesion(), 'aft');
         rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
         hist = (await bd().docLeer(tokenSesion(), 'hist')) || [];
+        cfgResumen = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
         $('cMes').value = mesLocal();
+        $('qrMes').value = mesLocal();
+        $('qrVer').addEventListener('click', pintarQR);
+        $('qrMes').addEventListener('change', pintarQR);
+        $('qrImp').addEventListener('click', imprimirQR);
+        $('qrCsv').addEventListener('click', () => {
+            const mes = $('qrMes').value;
+            const reg = registroQR(movs, mes);
+            if (!reg.filas.length) { aviso('Este mes no tiene pagos QR', 'error'); return; }
+            descargarCSV('registro-qr-' + mes + '.csv', [['Fecha', 'Concepto', 'Cuenta', 'Monto (CUP)']].concat(reg.filas.map((f) => [f.fecha, f.concepto, NOMBRE_CUENTA_QR[f.cuenta] || f.cuenta, String(f.monto).replace('.', ',')])));
+        });
+        /* Fase 13, bloque 4: informe programado. */
+        const prog0 = (cfgResumen && cfgResumen.informeProg) || {};
+        $('ipDia').value = prog0.dia || 5;
+        $('ipCanal').value = prog0.canal || 'whatsapp';
+        $('ipDestino').value = prog0.destino || '';
+        $('ipGuardar').addEventListener('click', async () => {
+            const dia = Math.max(1, Math.min(28, Number($('ipDia').value) || 5));
+            cfgResumen.informeProg = { dia, canal: $('ipCanal').value, destino: $('ipDestino').value.trim(), enviado: (cfgResumen.informeProg || {}).enviado || '' };
+            await bd().docGuardar(tokenSesion(), 'resumen', cfgResumen);
+            aviso('Informe programado: día ' + dia + ' de cada mes por ' + (cfgResumen.informeProg.canal === 'correo' ? 'correo' : 'WhatsApp') + '.');
+            pintarIpEstado();
+        });
+        $('ipEnviar').addEventListener('click', ipEnviarAhora);
+        $('caAnio').value = new Date().getFullYear() - 1;
+        $('caCerrar').addEventListener('click', async () => {
+            const anio = Number($('caAnio').value);
+            if (!(anio > 2000 && anio < 2100)) { aviso('Escribe el año a cerrar', 'error'); return; }
+            const calc = cierreAnualCalc(conta, anio);
+            if (!calc.ok) { aviso(calc.motivo, 'error'); return; }
+            const adv = calc.sinCerrar.length ? '\n\nOjo: estos meses del año tienen datos y NO están cerrados: ' + calc.sinCerrar.join(', ') + '. El cierre anual no los bloquea; ciérralos mes a mes si te falta.' : '';
+            if (!confirm('El cierre anual regulariza ingresos ($' + fmt(calc.ingresos) + ') y gastos ($' + fmt(calc.gastos) + ') contra la cuenta de resultado, bloquea el año y crea el Balance de Apertura del ' + (anio + 1) + '. Resultado del ejercicio: $' + fmt(calc.resultado) + '.' + adv + '\n\n¿Continuar?')) return;
+            const ids = [];
+            for (const a of calc.asientos) {
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                const id = 'a' + Date.now().toString(36) + ids.length;
+                conta.asientos.push({ ...a, id, numero: conta.seqAsiento });
+                ids.push(id);
+            }
+            conta.cierres.push({ anio: String(anio), fecha: anio + '-12-31', resultado: calc.resultado, ingresos: calc.ingresos, gastos: calc.gastos, asientosIds: ids, saldos: calc.saldos });
+            conta.aperturas.push(calc.apertura);
+            await bd().docGuardar(tokenSesion(), 'conta', conta);
+            aviso('Año ' + anio + ' cerrado. Resultado del ejercicio: $' + fmt(calc.resultado) + '. Balance de Apertura ' + (anio + 1) + ' creado.');
+            pintarCierresAnuales();
+        });
+        $('caImpCierre').addEventListener('click', imprimirCierreAnual);
+        $('caImpApertura').addEventListener('click', imprimirApertura);
         $('cVer').addEventListener('click', pintarRevision);
         $('cMes').addEventListener('change', pintarRevision);
         $('cCerrar').addEventListener('click', async () => {
@@ -155,36 +670,77 @@ function pintarCerrados() {
             const puntos = revision(mes);
             const bloqueos = puntos.filter((p) => p.bloquea && !p.ok);
             if (bloqueos.length) { aviso('No se puede cerrar: ' + bloqueos[0].texto, 'error'); return; }
+            /* Fase 13, bloque 2: si el mes se reabrió, al volver a
+             * cerrar se muestra lo que cambió en el mes y en los
+             * meses siguientes (foto guardada al reabrir vs ahora). */
+            const reapIdx = (conta.reaperturas || []).findIndex((r) => r.mes === mes);
+            if (reapIdx >= 0) {
+                const antes = conta.reaperturas[reapIdx].snapshot;
+                const ahora = totalesMes(conta, movs, mes);
+                const diffs = reaperturaDiff(antes, ahora);
+                const imp = reaperturaImpacto(conta, movs, mes);
+                const textoDiff = diffs.length
+                    ? diffs.map((d) => '- ' + d.campo + ': $' + fmt(d.antes) + ' → $' + fmt(d.ahora)).join('\n')
+                    : 'Nada cambió en el mes desde que se reabrió.';
+                if (!confirm('Vas a volver a cerrar ' + mes + ', que se reabrió el ' + conta.reaperturas[reapIdx].fecha + ' por ' + conta.reaperturas[reapIdx].por + '.\n\nLo que cambió en el mes:\n' + textoDiff +
+                    '\n\nMeses siguientes con datos (sus saldos parten de este mes): ' + (imp.mesesPosteriores.join(', ') || 'ninguno') + '.\n\n¿Cerrar ' + mes + ' de nuevo?')) return;
+            }
+            /* Fase 13, bloque 2: la salva de final de mes se crea
+             * ANTES del candado, para que guarde el mes completo y
+             * todavía abierto: es la garantía desde la que se puede
+             * reabrir. */
+            const salvaOk = await crearSalva(mes, 'cierre');
+            if (salvaOk) aviso('Salva de final de mes guardada: saldova-salva-' + mes + '-cierre.db');
             const asientosMes = (conta.asientos || []).filter((a) => (a.fecha || '').startsWith(mes)).length;
-            const entrada = { mes, cerradoEn: hoyLocal(), por: sesion.username, resumen: asientosMes + ' asiento(s) en el mes' };
+            const entrada = { mes, cerradoEn: hoyLocal(), por: sesion.username, resumen: asientosMes + ' asiento(s) en el mes' + (reapIdx >= 0 ? ' · mes reabierto vuelto a cerrar' : '') };
             hist.push(entrada);
             conta.candados[mes] = true;
             conta.cierres.push(entrada);
+            if (reapIdx >= 0) conta.reaperturas.splice(reapIdx, 1);
             /* M-1: historial (hist) + candado (conta) en UNA
              * transacción: antes, si el segundo fallaba, hist decía
              * «cerrado» pero ningún módulo veía el candado. */
             await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'hist', valor: hist }, { slot: 'conta', valor: conta }]);
             aviso('Mes ' + mes + ' cerrado');
-            try {
-                const bytesC = await bd().exportar(tokenSesion());
-                const nombreSalva = 'saldova-salva-' + mes + '.db';
-                await guardarArchivoReal(bytesC, nombreSalva, 'Salva automática de Saldova', '.db');
-                let sv = []; try { sv = JSON.parse(localStorage.getItem('saldova_salvas') || '[]'); } catch (e) {}
-                sv.unshift({ fecha: hoyLocal(), mes, archivo: nombreSalva });
-                localStorage.setItem('saldova_salvas', JSON.stringify(sv.slice(0, 24)));
-                aviso('Salva automática guardada: ' + nombreSalva);
-            } catch (e) { /* la salva es un extra: el cierre ya está hecho */ }
-            pintarRevision(); pintarCerrados();
+            pintarRevision(); pintarCerrados(); pintarReabrir();
+        });
+        $('cReabrir').addEventListener('click', async () => {
+            if (sesion.role !== 'admin') { aviso('Solo el administrador reabre un mes cerrado', 'error'); return; }
+            const mes = $('cReabrirMes').value;
+            if (!mes) { aviso('No hay meses cerrados para reabrir', 'error'); return; }
+            if (!(conta.candados && conta.candados[mes])) { aviso('Ese mes no está cerrado', 'error'); return; }
+            const salva = salvaCierreExiste(leerRegistroSalvas(), mes);
+            if (!salva) { aviso('Sin salva de final de mes no se puede reabrir ' + mes + ': la salva es la garantía para volver atrás. Si la tienes en archivo, impórtala desde el Panel y vuelve a intentarlo.', 'error'); return; }
+            const imp = reaperturaImpacto(conta, movs, mes);
+            const texto = 'Vas a reabrir ' + mes + ' desde su salva de final de mes (' + salva.archivo + ', ' + salva.fecha + ').\n\nSi cambias algo en este mes, se ven afectados:\n' +
+                (imp.mesesPosteriores.length ? '- Los meses siguientes con datos: ' + imp.mesesPosteriores.join(', ') + '\n' : '- Ningún mes siguiente tiene datos todavía.\n') +
+                '- ' + imp.cuentas.length + ' cuenta(s) con saldo en el mes' + (imp.cuentas.length ? ' (' + imp.cuentas.slice(0, 8).join(', ') + (imp.cuentas.length > 8 ? '…' : '') + ')' : '') + '\n' +
+                '- Los totales del año en Trimestres y el Registro de Control.\n\nAl volver a cerrar se te mostrará todo lo que cambió.\n\n¿Reabrir ' + mes + '?';
+            if (!confirm(texto)) return;
+            const snapshot = totalesMes(conta, movs, mes);
+            delete conta.candados[mes];
+            for (const a of (conta.asientos || [])) if (String(a.fecha || '').slice(0, 7) === mes) a.reabierto = true;
+            conta.reaperturas = conta.reaperturas || [];
+            conta.reaperturas.push({ mes, por: sesion.username, fecha: hoyLocal(), desdeSalva: salva.archivo, snapshot });
+            hist.push({ mes, reabiertoEn: hoyLocal(), por: sesion.username, resumen: 'Reabierto desde la salva de final de mes (' + salva.archivo + ')' });
+            await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'hist', valor: hist }, { slot: 'conta', valor: conta }]);
+            aviso('Mes ' + mes + ' reabierto: ya se puede registrar en él. Al volver a cerrar verás lo que cambió.');
+            pintarRevision(); pintarCerrados(); pintarReabrir();
         });
         pintarRevision();
         pintarCerrados();
+        pintarCierresAnuales();
+        pintarReabrir();
+        pintarQR();
+        pintarIpEstado();
+        salvasAutomaticas();
         /* Pestañas internas del módulo (modelo .exe) */
         (() => {
             const estilo = document.createElement('style');
             estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
             document.head.appendChild(estilo);
-            const grupos = [['mes', 'El mes'], ['cerrados', 'Meses cerrados']];
-            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; return x.indexOf('Meses cerrados') === 0 ? 'cerrados' : 'mes'; };
+            const grupos = [['mes', 'El mes'], ['anual', 'Cierre anual'], ['cerrados', 'Meses cerrados']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; return x.indexOf('Meses cerrados') === 0 ? 'cerrados' : x.indexOf('Cierre anual') === 0 ? 'anual' : 'mes'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
             const primera = document.querySelector('.tarjeta');

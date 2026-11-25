@@ -38,10 +38,90 @@
     <div class="fila">
         <input id="tNombre" placeholder="Nombre y apellidos" style="min-width:200px">
         <input id="tCi" placeholder="Carné de identidad" size="13">
-        <input id="tCargo" placeholder="Cargo" size="16">
+        <select id="tSexo" title="Sexo (para la edad de jubilación)"><option value="">Sexo…</option><option value="F">Mujer</option><option value="M">Hombre</option></select>
+        <input id="tCargo" placeholder="Cargo" size="16" list="puestosList">
+        <datalist id="puestosList"></datalist>
         <input id="tSalario" class="monto" type="number" step="0.01" min="0" placeholder="Salario">
+        <input id="tAlta" type="date" title="Fecha de alta">
+        <input id="tDireccion" placeholder="Dirección" style="min-width:180px">
         <button type="button" id="tAdd" class="secundario chico">Añadir trabajador</button>
     </div>
+</div>
+
+<!-- Fase 12, bloque 4: puestos de trabajo (plazas aprobadas vs
+     ocupadas, aviso de sobreplantilla). -->
+<div class="tarjeta">
+    <h2>Puestos de trabajo</h2>
+    <p class="tenue">La plantilla compara las plazas aprobadas por el negocio con las ocupadas por los trabajadores activos. Al crear un trabajador puedes elegir su cargo de esta lista.</p>
+    <div class="fila">
+        <input id="puNombre" placeholder="Nombre del puesto (ej. Cajero)" style="min-width:200px">
+        <label>Plazas <input id="puPlazas" class="monto" type="number" step="1" min="1" value="1"></label>
+        <button type="button" id="puAdd" class="secundario chico">Añadir puesto</button>
+    </div>
+    <div id="puestos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 12, bloque 1: documentos de nómina. Las tres tarjetas se
+     abren desde los botones de cada trabajador (Contrato / Tarjeta
+     SC-4-08 / Expediente) y viven en la pestaña Documentos. -->
+<div class="tarjeta" id="ctrabCard" style="display:none">
+    <h2>Contrato de trabajo</h2>
+    <p class="tenue">Se genera al momento con los datos de la ficha del negocio y del trabajador, por tiempo determinado. Los valores de horario, jornada, régimen, seguridad y día de pago son los del negocio: se guardan la primera vez y salen solos en los demás contratos (puedes ajustarlos aquí mismo para este).</p>
+    <input type="hidden" id="ctTrabId">
+    <div class="fila">
+        <label>Cargo <input id="ctCargo" size="18"></label>
+        <label>Salario escala <input id="ctSalario" class="monto" type="number" step="0.01" min="0"></label>
+        <label>Término <input id="ctTermino" size="16" placeholder="Ej.: 3 meses"></label>
+        <label>Fecha de inicio <input id="ctInicio" type="date"></label>
+    </div>
+    <div class="fila">
+        <label>Lugar de trabajo <input id="ctLugar" size="20"></label>
+        <label>Horario <input id="ctHorario" size="12"></label>
+        <label>Jornada <input id="ctJornada" size="12"></label>
+        <label>Régimen de trabajo y descanso <input id="ctRegimen" size="20"></label>
+    </div>
+    <div class="fila">
+        <label>Condiciones de seguridad y salud <input id="ctSST" size="28"></label>
+        <label>Día de pago <input id="ctDiaPago" size="6" placeholder="1ro"></label>
+        <label>Pagos adicionales <input id="ctAdicionales" size="20"></label>
+    </div>
+    <div class="fila"><label><input type="checkbox" id="ctAnexoIncluir"> Incluir el ANEXO con el contenido de trabajo del cargo</label></div>
+    <div class="fila"><label>Texto del ANEXO (es el texto del negocio: si lo cambias, queda guardado para los próximos)<br><textarea id="ctAnexo" rows="4" style="width:100%;min-width:300px"></textarea></label></div>
+    <div class="fila"><button type="button" id="ctGenerar">Generar el contrato</button> <button type="button" class="secundario chico" id="ctCerrar">Cancelar</button></div>
+</div>
+
+<div class="tarjeta" id="tarjCard" style="display:none">
+    <h2>Tarjeta de salario · SC-4-08</h2>
+    <p class="tenue">La tarjeta se llena sola desde las nóminas guardadas (días trabajados y salario devengado del mes). Puedes corregir cualquier celda: lo que escribas manda sobre lo calculado y queda guardado. Si el trabajador cobró garantía salarial del 60 %, anota aquí el 100 % que le hubiera correspondido (así lo pide el INASS).</p>
+    <input type="hidden" id="tarjTrabId">
+    <div class="fila"><label>Año <select id="tarjAnioSel"></select></label> <span id="tarjNombre" class="tenue"></span></div>
+    <div id="tarjTabla"><p class="tenue">Cargando…</p></div>
+    <div class="fila"><button type="button" id="tarjGuardar">Guardar tarjeta</button> <button type="button" class="secundario chico" id="tarjImprimir">Imprimir tarjeta (SC-4-08)</button> <button type="button" class="secundario chico" id="tarjCerrar">Cerrar</button></div>
+</div>
+
+<div class="tarjeta" id="expdCard" style="display:none">
+    <h2>Expediente laboral</h2>
+    <p class="tenue">Primero van los <b>documentos de entrada</b>, los que formalizan el contrato; el <b>expediente laboral completo</b> lleva la relación oficial de la <b>Ley 189/2026, Capítulo V, artículo 77</b>: se confecciona en <b>papel y digital</b> (art. 76) en los <b>15 días siguientes al período de prueba</b> cuando la relación supera los 6 meses, y el trabajador puede <b>revisarlo cuando quiera</b> (art. 78). Marca lo que ya está y anota su fecha o referencia.</p>
+    <input type="hidden" id="expdTrabId">
+    <div id="expdAviso"></div>
+    <div id="expdBody"></div>
+    <div class="fila"><button type="button" id="expdGuardar">Guardar expediente</button> <button type="button" class="secundario chico" id="expdImprimir">Imprimir índice del expediente</button> <button type="button" class="secundario chico" id="expdCerrar">Cerrar</button></div>
+</div>
+
+<!-- Fase 12, bloque 4: evaluación anual del desempeño (Ley 189/2026,
+     arts. 71-74). -->
+<div class="tarjeta">
+    <h2>Evaluación anual del desempeño</h2>
+    <p class="tenue">Una evaluación por trabajador y año, con su resultado y la valoración escrita. Queda guardada en la ficha del trabajador.</p>
+    <div class="fila">
+        <label>Trabajador <select id="evTrab"></select></label>
+        <label>Año <input id="evAnio" class="monto" type="number" step="1" min="2000" max="2100"></label>
+        <label>Resultado <select id="evNota"><option value="Excelente">Excelente</option><option value="Muy bien">Muy bien</option><option value="Bien">Bien</option><option value="Regular">Regular</option><option value="Deficiente">Deficiente</option></select></label>
+        <label>Fecha <input id="evFecha" type="date"></label>
+    </div>
+    <div class="fila"><label>Valoración<br><textarea id="evTexto" rows="2" style="width:100%;min-width:300px" placeholder="Qué hizo bien, qué debe mejorar…"></textarea></label></div>
+    <div class="fila"><button type="button" id="evGuardar">Guardar evaluación</button></div>
+    <div id="evaluaciones"><p class="tenue">Cargando…</p></div>
 </div>
 
 <div class="tarjeta">
@@ -52,6 +132,138 @@
     <button type="button" id="nDias" class="secundario chico">Brutos desde los días</button></div>
     <p class="tenue" id="notaAportes">El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto.</p>
     <div id="nomina"><p class="tenue">Elige el mes y prepara la nómina.</p></div>
+</div>
+
+<!-- Fase 12, bloque 4: parámetros fiscales de la nómina. -->
+<div class="tarjeta">
+    <h2>Parámetros fiscales de la nómina</h2>
+    <p class="tenue">Los porcentajes que usa la nómina para los aportes del empleador y la provisión de vacaciones. Si la ley cambia, se ajustan aquí y la nómina y su asiento los usan desde el mes siguiente.</p>
+    <div class="fila">
+        <label>Seguridad Social (empleador, %) <input id="prSs" class="monto" type="number" step="0.01" min="0"></label>
+        <label>IUFT (empleador, %) <input id="prIuft" class="monto" type="number" step="0.01" min="0"></label>
+        <label>Provisión de vacaciones (%) <input id="prProv" class="monto" type="number" step="0.01" min="0"></label>
+        <button type="button" id="prGuardar">Guardar parámetros</button>
+    </div>
+</div>
+
+<!-- Fase 12, bloque 2: pre-nómina / tarjeta de tiempo. -->
+<div class="tarjeta">
+    <h2>Pre-nómina · Tarjeta de tiempo</h2>
+    <p class="tenue">Documento previo del mes: se <b>genera solo</b> desde los trabajadores (días trabajados, ausencias, licencias y horas extras). Revísala, ajústala si hace falta y <b>apruébala</b>: al aprobar, esos días alimentan la nómina del mes sin redigitar nada (bruto = salario × días ÷ 30 + horas extra a (salario ÷ 240) × 1,5). Si no la usas, la nómina se calcula como siempre.</p>
+    <div class="fila"><button type="button" id="pmGenerar" class="secundario chico">Generar desde los trabajadores</button>
+    <button type="button" id="pmAprobar">Aprobar y alimentar la nómina</button>
+    <button type="button" id="pmImprimir" class="secundario chico">Imprimir pre-nómina</button>
+    <span id="pmEstado" class="tenue"></span></div>
+    <div id="prenomina"><p class="tenue">Sin pre-nómina en este mes.</p></div>
+</div>
+
+<!-- Fase 21, bloque 2: registro de asistencia. El día a día de
+     cada trabajador (entrada, salida, nota); el resumen del mes
+     alimenta la pre-nómina: los días con entrada son los días
+     trabajados. La tarjeta SC-4-08 sigue saliendo de la nómina. -->
+<div class="tarjeta">
+    <h2>Registro de asistencia</h2>
+    <p class="tenue">El día a día: a qué hora entró y a qué hora salió cada trabajador. El mes se resume en días y horas, y con el botón de abajo los días con entrada pasan a la pre-nómina como días trabajados (solo los trabajadores que tienen días registrados; los demás quedan como estaban).</p>
+    <div class="fila">
+        <label>Trabajador <select id="asTrab"></select></label>
+        <label>Mes <input id="asMes" type="month"></label>
+        <button type="button" id="asGuardar">Guardar la asistencia</button>
+        <button type="button" id="asAPrenomina" class="secundario chico">Llenar la pre-nómina con estos días</button>
+    </div>
+    <div id="asResumen" class="tenue"></div>
+    <div id="asTabla"></div>
+</div>
+
+<!-- Fase 12, bloque 3: adelantos a trabajadores (submayor 139-000). -->
+<div class="tarjeta">
+    <h2>Adelantos a trabajadores · Submayor 139-000</h2>
+    <p class="tenue">Cada adelanto o préstamo a un trabajador nace con su <b>asiento automático</b> (Debe 139-000 con el trabajador / Haber banco o caja) y se <b>descuenta solo en las nóminas siguientes</b>, hasta donde alcance el líquido de cada mes: el saldo pendiente baja sin que tengas que acordarte de cobrarlo. Se empieza a descontar en la nómina del mes de su fecha.</p>
+    <div class="fila">
+        <label>Trabajador <select id="adTrab"></select></label>
+        <label>Fecha <input id="adFecha" type="date"></label>
+        <label>Importe <input id="adImporte" class="monto" type="number" step="0.01" min="0" placeholder="0.00"></label>
+        <label>Sale de <select id="adSalida"><option value="chequera">Banco CUP (110-010)</option><option value="tarjeta_usd">Banco USD (110-020)</option><option value="caja">Caja (101-010)</option></select></label>
+        <label>Concepto <input id="adConcepto" size="20" maxlength="80" placeholder="Adelanto de salario"></label>
+        <button type="button" id="adAdd">Registrar adelanto</button>
+    </div>
+    <div id="adelantos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 31, bloque 2: reporte de gastos por empleado. El
+     empleado anota sus gastos (con la foto del recibo, que queda
+     guardada en el equipo), los agrupa en un reporte y lo envía a
+     aprobar; el jefe aprueba o lo devuelve con un comentario; al
+     aprobar, el gasto se registra en la Chequera y se reembolsa
+     desde la cuenta elegida. -->
+<div class="tarjeta">
+    <h2>Reportes de gastos</h2>
+    <p class="tenue">El empleado anota sus gastos con la foto del recibo, los agrupa en un reporte y lo envía a aprobar. Al aprobar, cada gasto se registra en la Chequera y se reembolsa desde la cuenta elegida. El mes cerrado no deja aprobar: el reembolso no se puede asentar en un período cerrado.</p>
+    <div class="fila">
+        <label>Trabajador <select id="rgTrab"></select></label>
+        <label>Fecha <input id="rgFecha" type="date"></label>
+        <button type="button" id="rgCrear" class="secundario chico">Crear reporte</button>
+    </div>
+    <div class="fila">
+        <label>Reporte <select id="rgReporte"></select></label>
+        <label>Fecha <input id="rgFechaLin" type="date"></label>
+        <input id="rgConcepto" placeholder="Concepto del gasto" style="min-width:180px">
+        <input id="rgMonto" type="number" step="0.01" min="0" class="monto" placeholder="Monto">
+        <label>Cuenta <select id="rgCuentaGasto" class="cuenta"></select></label>
+        <label>Foto del recibo <input id="rgRecibo" type="file" accept="image/*,.pdf"></label>
+        <button type="button" id="rgAddLin" class="secundario chico">Añadir el gasto</button>
+    </div>
+    <div class="fila">
+        <label>Se reembolsa desde <select id="rgCuenta"><option value="chequera">Chequera</option><option value="tarjeta_cup">Tarjeta CUP</option><option value="tarjeta_usd">Tarjeta USD</option></select></label>
+    </div>
+    <div id="reportesGastos"><p class="tenue">Cargando…</p></div>
+</div>
+
+<!-- Fase 12, bloque 5: expediente de retiro / jubilación (INASS). -->
+<div class="tarjeta">
+    <h2>Expediente de retiro · INASS</h2>
+    <p class="tenue">La app vigila quién se acerca a la edad de jubilación (60 años las mujeres, 65 los hombres, según el CI de su ficha) y cuántos años de servicio acumula en su tarjeta SC-4-08, estima la pensión y lleva el expediente del trámite ante la Filial del INASS (la cuantía oficial la fija siempre el INASS). También cubre el retiro por enfermedad: la pensión por invalidez que dictamina la Comisión de Peritaje Médico Laboral.</p>
+    <div id="retVigilancia"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta" id="retDetalle" style="display:none">
+    <h2>Expediente de retiro</h2>
+    <input type="hidden" id="retTrabId">
+    <div id="retCalcBox" class="tenue"></div>
+    <div class="fila">
+        <label>Tipo de retiro <select id="retTipo"><option value="edad">Pensión por edad</option><option value="invalidez">Pensión por invalidez (enfermedad)</option></select></label>
+        <label>Estado del trámite <select id="retEstado"><option value="preparacion">En preparación</option><option value="presentado">Presentado en la filial</option><option value="concedida">Pensión concedida</option><option value="denegada">Denegada</option><option value="cerrado">Cerrado (baja hecha)</option></select></label>
+        <label>Años acreditados fuera de la app <input id="retAniosPrevios" class="monto" type="number" min="0" step="0.1" placeholder="0"></label>
+        <label>Base mensual manual <input id="retBaseManual" class="monto" type="number" min="0" step="0.01" placeholder="automática"></label>
+    </div>
+    <h2 style="font-size:14px;margin-top:10px">Pasos del trámite ante la Filial del INASS</h2>
+    <div class="fila">
+        <label>Solicitud del trabajador <input id="retSolicitud" type="date"></label>
+        <label>Certificación SNC-4-09 emitida <input id="retCertificacion" type="date"></label>
+        <label>Presentación en la filial <input id="retPresentacion" type="date"></label>
+        <label>Resolución <input id="retResolucion" type="date"></label>
+        <label>N.º de resolución <input id="retResolucionNum" size="10"></label>
+        <label>Baja efectuada <input id="retBaja" type="date"></label>
+    </div>
+    <div id="retPeritajeBox" style="display:none">
+        <h2 style="font-size:14px;margin-top:10px">Vía de enfermedad — Comisión de Peritaje Médico Laboral</h2>
+        <div class="fila">
+            <label>Remisión a la Comisión <input id="retRemision" type="date"></label>
+            <label>Dictamen <input id="retDictamen" type="date"></label>
+            <label>Clase de invalidez <select id="retClase"><option value="total">Total (no puede seguir trabajando)</option><option value="parcial">Parcial (puesto adecuado)</option></select></label>
+            <label>Origen <select id="retOrigen"><option value="comun">Enfermedad común</option><option value="laboral">Accidente de trabajo / enfermedad profesional</option></select></label>
+            <label>Fase (si es parcial) <select id="retFase"><option value="provisional">Provisional</option><option value="definitiva">Definitiva</option></select></label>
+            <label>Nuevo salario (parcial definitiva) <input id="retSalarioNuevo" class="monto" type="number" min="0" step="0.01" placeholder="salario del nuevo puesto"></label>
+            <label>Próximo reexamen <input id="retReexamen" type="date"></label>
+            <label><input type="checkbox" id="retGran"> Gran inválido (necesita asistencia constante: +20 %)</label>
+        </div>
+    </div>
+    <h2 style="font-size:14px;margin-top:10px">Reincorporación (si vuelve a trabajar cobrando la pensión)</h2>
+    <div class="fila">
+        <label>Fecha de reincorporación <input id="retReincFecha" type="date"></label>
+        <label>Puesto al que se reincorpora <input id="retReincPuesto" size="20"></label>
+        <label>Notas del trámite <input id="retNotas" size="30"></label>
+    </div>
+    <div class="fila"><button type="button" id="retGuardar">Guardar el trámite</button> <button type="button" class="secundario chico" id="retCertImprimir">Imprimir certificación SNC-4-09</button> <button type="button" class="secundario chico" id="retResumenImprimir">Hoja resumen del expediente</button> <button type="button" class="secundario chico" id="retDarBaja">Dar la baja por retiro</button> <button type="button" class="secundario chico" id="retCerrar">Cerrar</button></div>
 </div>
 
 <div class="tarjeta">
@@ -65,21 +277,32 @@
     </div>
 </div>
 
+<!-- Fase 12, bloque 1: documento del contrato de trabajo generado. -->
+<div id="modalContrato" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">
+    <div style="background:#fff;border-radius:8px;max-width:760px;width:100%;padding:16px">
+        <h2 style="margin-top:0">Contrato de trabajo</h2>
+        <div id="modalContratoTxt" style="border:1px solid #B9CFE8;border-radius:6px;padding:14px;max-height:60vh;overflow:auto"></div>
+        <div class="fila" style="margin-top:10px"><button type="button" id="modalContratoCopiar">Copiar el texto</button> <button type="button" class="secundario" id="modalContratoImprimir">Imprimir</button> <button type="button" class="secundario" id="modalContratoCerrar">Cerrar</button></div>
+    </div>
+</div>
+
 <style>
 .pest-bar { display:flex; flex-wrap:wrap; gap:4px; margin:10px 0 12px; }
 .pest-bar button { background: linear-gradient(#DCE8F5,#C6D9EE); border:1px solid #8FA8C8; border-radius:6px 6px 0 0; padding:6px 12px; font-weight:600; color:#1A3E5E; cursor:pointer; }
 .pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
 </style>
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
-import 'componentes';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, guardarMultiple, hoyLocal, mesLocal } from 'nucleo';
+import { adjuntoLeer } from 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(4);
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let rrhh = null, conta = null;
+let rrhh = null, conta = null, fiscal = null, movs = [];
+/* Meses en español para la tarjeta SC-4-08 y la pre-nómina. */
+const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -95,13 +318,953 @@ async function guardar() { await bd().docGuardar(tokenSesion(), 'rrhh', rrhh); }
 function pintarTrabajadores() {
     const lista = rrhh.trabajadores || [];
     $('trabajadores').innerHTML = lista.map((t) =>
-        '<div class="fila"><b>' + esc(t.nombre) + '</b><span class="tenue">' + esc(t.cargo || '') + ' · CI ' + esc(t.ci || '') + ' · Salario ' + fmt(t.salario) + '</span>' +
+        '<div class="fila"><b>' + esc(t.nombre) + '</b><span class="tenue">' + esc(t.cargo || '') + ' · CI ' + esc(t.ci || '') + ' · Salario ' + fmt(t.salario) + (t.fechaAlta ? ' · desde ' + esc(t.fechaAlta) : '') + (t.fechaBaja ? ' · <b>DE BAJA ' + esc(t.fechaBaja) + '</b>' : '') + '</span>' +
+        '<button type="button" class="chico secundario" data-ctrab="' + t.id + '">Contrato</button>' +
+        '<button type="button" class="chico secundario" data-tarj="' + t.id + '">Tarjeta SC-4-08</button>' +
+        '<button type="button" class="chico secundario" data-expd="' + t.id + '">Expediente</button>' +
         '<button type="button" class="chico secundario" data-del="' + t.id + '">Quitar</button></div>').join('') ||
         '<p class="tenue">Sin trabajadores todavía.</p>';
     $('trabajadores').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         rrhh.trabajadores = rrhh.trabajadores.filter((t) => t.id !== b.dataset.del);
         await guardar(); pintarTrabajadores(); aviso('Trabajador quitado');
     }));
+    $('trabajadores').querySelectorAll('[data-ctrab]').forEach((b) => b.addEventListener('click', () => contratoAbrir(b.dataset.ctrab)));
+    $('trabajadores').querySelectorAll('[data-tarj]').forEach((b) => b.addEventListener('click', () => tarjetaAbrir(b.dataset.tarj)));
+    $('trabajadores').querySelectorAll('[data-expd]').forEach((b) => b.addEventListener('click', () => expdAbrir(b.dataset.expd)));
+}
+/* Fase 12, bloque 1: documentos de nómina (contrato de trabajo,
+ * tarjeta de salario SC-4-08 y expediente laboral), copiados de
+ * Finanzas (ctrabDocumento, tarjMes/tarjAnio, EXPD_ENTRADA y
+ * EXPD_ITEMS de la Ley 189/2026, Cap. V, art. 77). */
+const EXPD_ENTRADA = [
+    ['e_identidad', 'Documento de identidad y domicilio del trabajador'],
+    ['e_calificacion', 'Calificación formal, si el cargo la exige'],
+    ['e_registro', 'Registro de Inscripción Profesional, si aplica'],
+    ['e_graduado', 'Documento oficial de asignación del recién graduado, si procede'],
+    ['e_nombramiento', 'Nombramiento o designación, si corresponde'],
+];
+const EXPD_ITEMS = [
+    ['datos', 'Nombres y apellidos, número de identidad permanente y domicilio'],
+    ['contratos', 'Contratos de trabajo y sus suplementos'],
+    ['nombramiento', 'Nombramiento o designación y sus modificaciones, cuando corresponda'],
+    ['eleccion', 'Acuerdo de elección y acta de toma de posesión, cuando corresponda'],
+    ['inscripcion', 'Certificación de actualización del Registro de Inscripción Profesional, cuando se requiera'],
+    ['graduado', 'Documento de asignación del recién graduado, cuando proceda'],
+    ['calificacion', 'Copia del título o calificación formal (previa presentación del original)'],
+    ['segsocial', 'Documentos que acrediten el tiempo de servicio y las remuneraciones devengadas (para la seguridad social)'],
+    ['peritaje', 'Dictámenes de la Comisión de Peritaje Médico Laboral'],
+    ['disciplina', 'Copia de medidas disciplinarias impuestas y sentencias con trascendencia laboral (se mantienen hasta la rehabilitación o el cumplimiento)'],
+    ['indice', 'Índice de relación de documentos'],
+    ['acta', 'Copia del acta de entrega del expediente'],
+];
+function diasEnMes(mes) { const p = String(mes || '').split('-'); const y = Number(p[0]) || 0, m = Number(p[1]) || 1; return new Date(y, m, 0).getDate(); }
+/* Fecha larga en español: 2026-11-25 → «25 de noviembre de 2026». */
+function fechaLarga(f) { const p = String(f || '').split('-'); if (p.length < 3) return ''; return Number(p[2]) + ' de ' + MESES_ES[(Number(p[1]) || 1) - 1] + ' de ' + p[0]; }
+function contratoTrabajoTexto(t, d, perfil) {
+    const p = (perfil && perfil.razon) ? perfil : null;
+    const razon = (p && (p.nombreComercial || p.razon)) || '';
+    const rep = (p && p.representante) || {};
+    const domicilio = p ? [p.direccion, p.municipio, p.provincia].filter((x) => x && String(x).trim()).join(', ') : '';
+    const empleador = (rep.nombre ? esc(rep.nombre) : '________________') + ' en representación de ' + esc(razon || '________________') + ', en su condición de ' + esc(rep.cargo || '________________') + ', a los efectos del presente contrato, se denomina el EMPLEADOR, con domicilio en: ' + esc(domicilio || '________________');
+    const P = (x) => '<p style="margin:0 0 8px">' + x + '</p>';
+    const inicioTxt = d.inicio ? ('el ' + fechaLarga(d.inicio)) : 'a partir de la firma de las partes';
+    let h = '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:13.5px;line-height:1.55;color:#111;text-align:justify">';
+    h += '<p style="text-align:center;margin:0 0 12px"><b>CONTRATO DE TRABAJO POR TIEMPO DETERMINADO</b></p>';
+    h += P('Al efecto de suscribir el presente contrato de trabajo, el que tiene toda la fuerza legal que en derecho se requiere, comparecen:');
+    h += P('DE UNA PARTE: ' + empleador);
+    h += P('Y DE OTRA PARTE: <b>' + esc(t.nombre || '') + '</b>, quien concurre por su propio derecho y cuyos datos personales son:<br>No. Carné de Identidad: ' + esc(t.ci || '________________') + '<br>Dirección: ' + esc(t.direccion || '________________________________________________________') + '<br>el que en lo sucesivo y a los efectos del presente documento se denomina el TRABAJADOR.');
+    h += P('Ambas partes, libre y voluntariamente:');
+    h += '<p style="text-align:center;margin:10px 0"><b>C O N V I E N E N</b></p>';
+    h += P('<b>PRIMERO:</b> Establecer el presente contrato de trabajo por tiempo determinado, por el término de ' + esc(d.termino || '________________') + ', con fecha de inicio ' + inicioTxt + '.');
+    h += P('<b>SEGUNDO:</b> El Trabajador prestará sus servicios a la entidad bajo las condiciones siguientes:');
+    h += P('a) Desempeñará la ocupación o cargo denominado: ' + esc(d.cargo || 'Trabajador Integral') + (d.anexoIncluir ? ' cuyo contenido de trabajo aparece en ANEXO.' : ' cuyo contenido de trabajo es el propio de su ocupación.'));
+    h += P('b) El lugar de trabajo será en: ' + esc(d.lugar || razon) + ' con un horario de ' + esc(d.horario) + ', una jornada de ' + esc(d.jornada) + ' y un régimen de trabajo y descanso de: ' + esc(d.regimen));
+    h += P('c) El puesto de trabajo tiene las condiciones de seguridad y salud en el trabajo, en correspondencia con el cargo o labor son las siguientes: ' + esc(d.sst) + '.');
+    h += P('e) Se exige una idoneidad demostrada basada en lo dispuesto en el Artículo 36 del Código de Trabajo y el Convenio Colectivo de Trabajo.');
+    h += P('<b>TERCERO:</b> La cuantía de la remuneración es de: ' + fmt(d.salario) + '<br>Salario escala: ' + fmt(d.salario) + '<br>a) Pagos adicionales siguientes: ' + (d.adicionales ? esc(d.adicionales) : '______________________________________') + '<br>El pago se realiza con periodicidad: Mensual los días ' + esc(d.diaPago || '1ro') + '.');
+    h += P('<b>CUARTO:</b> El trabajador se compromete a cumplir con el contenido de trabajo que aparece descrito en este contrato, a mantener la idoneidad demostrada requerida, a obedecer las órdenes impartidas por los superiores y a acatar el Convenio Colectivo de Trabajo y el Reglamento Disciplinario Interno de la entidad, así como las demás disposiciones vigentes que rigen las materias de organización del trabajo y seguridad y salud en el trabajo.');
+    h += P('<b>QUINTO:</b> El empleador se compromete a abonar al trabajador su salario en la forma establecida y a cumplir las normas de seguridad y salud, seguridad social, vacaciones anuales pagadas y demás disposiciones vigentes, que constituyen derechos laborales.');
+    h += P('<b>SEXTO:</b> El presente contrato de trabajo se dará por terminado al concluir el término por el cual ha sido pactado o por otra causa establecida en la legislación laboral y se modifica según lo dispuesto en el Artículo 42 del Código de Trabajo.');
+    h += P('<b>SÉPTIMO:</b> Ambas partes convienen en lo expresado en el siguiente documento, comprometiéndose a su más estricto cumplimiento.');
+    h += P('Y PARA QUE ASÍ CONSTE se extiende el presente contrato de trabajo que suscriben las partes de común acuerdo, en original y copia, en ' + esc(d.lugar || razon) + ' a los ' + fechaLarga(d.inicio) + '.');
+    h += '<table style="width:100%;margin-top:30px"><tr><td style="width:50%;text-align:center">______________________<br><b>El empleador</b></td><td style="width:50%;text-align:center">____________________________<br><b>El Trabajador</b></td></tr></table>';
+    if (d.anexoIncluir) {
+        h += '<div style="page-break-before:always"></div>';
+        h += '<p style="text-align:center;margin:0 0 4px"><b>ANEXO</b></p>';
+        h += '<p style="text-align:center;margin:0 0 10px"><b>Contenido de trabajo del cargo ' + esc(d.cargo || 'Trabajador Integral') + '</b></p>';
+        String(d.anexo || '').split(/\n\n+/).forEach((par) => { const tx = par.trim(); if (tx) h += '<p style="margin:0 0 8px">' + esc(tx).replace(/\n/g, '<br>') + '</p>'; });
+    }
+    h += '</div>';
+    return h;
+}
+function contratoAbrir(wid) {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    const def = rrhh.contratoDefaults || {};
+    const c = t.contrato || {};
+    $('ctTrabId').value = wid;
+    $('ctCargo').value = c.cargo || t.cargo || '';
+    $('ctSalario').value = c.salario != null ? c.salario : (t.salario || 0);
+    $('ctTermino').value = c.termino || '';
+    $('ctInicio').value = c.inicio || t.fechaAlta || '';
+    $('ctLugar').value = c.lugar || def.lugar || ((fiscal && fiscal.meta && fiscal.meta.perfil && fiscal.meta.perfil.razon) || '');
+    $('ctHorario').value = c.horario || def.horario || '';
+    $('ctJornada').value = c.jornada || def.jornada || '';
+    $('ctRegimen').value = c.regimen || def.regimen || '';
+    $('ctSST').value = c.sst || def.sst || '';
+    $('ctDiaPago').value = c.diaPago || def.diaPago || '';
+    $('ctAdicionales').value = c.adicionales || '';
+    $('ctAnexoIncluir').checked = !!c.anexoIncluir;
+    $('ctAnexo').value = c.anexo || def.anexo || '';
+    $('ctrabCard').style.display = ''; $('ctrabCard').dataset.abierta = '1';
+    document.querySelectorAll('.tarjeta').forEach((x) => { if (x.id !== 'ctrabCard' && x.id !== 'tarjCard' && x.id !== 'expdCard') x.style.display = 'none'; });
+    document.querySelectorAll('.pest-bar button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === 'documentos'));
+    $('ctrabCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function contratoLeer() {
+    return { cargo: $('ctCargo').value.trim(), salario: Number($('ctSalario').value) || 0, termino: $('ctTermino').value.trim(), inicio: $('ctInicio').value || '', lugar: $('ctLugar').value.trim(), horario: $('ctHorario').value.trim(), jornada: $('ctJornada').value.trim(), regimen: $('ctRegimen').value.trim(), sst: $('ctSST').value.trim(), diaPago: $('ctDiaPago').value.trim(), adicionales: $('ctAdicionales').value.trim(), anexoIncluir: !!$('ctAnexoIncluir').checked, anexo: $('ctAnexo').value };
+}
+async function contratoGenerar() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('ctTrabId').value);
+    if (!t) { aviso('Elige primero el trabajador', 'error'); return; }
+    const d = contratoLeer();
+    if (!d.cargo || !(d.salario > 0)) { aviso('El contrato necesita cargo y salario', 'error'); return; }
+    t.contrato = d;
+    rrhh.contratoDefaults = rrhh.contratoDefaults || {};
+    ['lugar', 'horario', 'jornada', 'regimen', 'sst', 'diaPago', 'anexo'].forEach((k) => { if (d[k]) rrhh.contratoDefaults[k] = d[k]; });
+    await guardar();
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    $('modalContratoTxt').innerHTML = contratoTrabajoTexto(t, d, perfil);
+    $('modalContrato').style.display = 'flex';
+    aviso('Contrato generado y guardado en la ficha del trabajador');
+}
+function tarjetaClaveDe(comp) {
+    comp = comp || {}; const p = [];
+    const aj = Number(comp.diasAusJust) || 0, ai = Number(comp.diasAusInjust) || 0;
+    if (aj > 0) p.push('Ausencias justificadas ' + aj + ' d');
+    if (ai > 0) p.push('Ausencias injustificadas ' + ai + ' d');
+    if (!(aj > 0 || ai > 0) && Number(comp.diasAus) > 0) p.push('Ausencias ' + Number(comp.diasAus) + ' d');
+    if (Number(comp.diasLic) > 0) p.push('Licencia ' + Number(comp.diasLic) + ' d');
+    if (Number(comp.heHoras) > 0) p.push('Horas extras ' + Number(comp.heHoras) + ' h');
+    return p.join(' · ');
+}
+/* Un mes de la tarjeta SC-4-08: {dias, devengado, clave, hayNomina,
+ * override}. Días y devengado salen de la nómina guardada de ese
+ * mes; lo tecleado a mano manda (override en
+ * rrhh.tarjetas[wid][anio][mes]). */
+function tarjetaMes(rrhh, t, anio, mi) {
+    const mes = String(anio) + '-' + String(mi + 1).padStart(2, '0');
+    const nom = (rrhh.nominas || {})[mes];
+    const linea = nom ? (nom.trabajadores || []).find((x) => x.id === t.id) : null;
+    let dias = 0, dev = 0, clave = '';
+    if (linea) {
+        const comp = linea.comp || {};
+        const dMes = diasEnMes(mes);
+        const aus = ((Number(comp.diasAusJust) || 0) + (Number(comp.diasAusInjust) || 0)) > 0 ? (Number(comp.diasAusJust) || 0) + (Number(comp.diasAusInjust) || 0) : (Number(comp.diasAus) || 0);
+        /* Los días guardados en la línea de la nómina mandan (es la
+         * columna editable); si no están, se derivan del control. */
+        dias = (linea.dias !== undefined && linea.dias !== null && linea.dias !== '') ? Number(linea.dias)
+            : (comp.diasTrab !== undefined && comp.diasTrab !== null && comp.diasTrab !== '') ? Number(comp.diasTrab) : Math.max(0, dMes - aus - (Number(comp.diasLic) || 0));
+        dias = Math.max(0, Math.min(dMes, dias));
+        dev = Number(linea.bruto) || 0;
+        clave = tarjetaClaveDe(comp);
+    }
+    const vac = (((rrhh.vacaciones || {})[t.id] || {}).disfrutes || []);
+    const dv = vac.filter((d) => String(d.fecha || '').slice(0, 7) === mes).reduce((s, d) => s + (Number(d.dias) || 0), 0);
+    if (dv > 0) clave = (clave ? clave + ' · ' : '') + 'Vacaciones ' + dv + ' d';
+    const ov = (((rrhh.tarjetas || {})[t.id] || {})[anio] || {})[mi] || null;
+    if (ov) { if (ov.d !== undefined && ov.d !== null && ov.d !== '') dias = Number(ov.d) || 0; if (ov.s !== undefined && ov.s !== null && ov.s !== '') dev = Number(ov.s) || 0; if (ov.c !== undefined) clave = String(ov.c || ''); }
+    return { dias, devengado: r2(dev), clave, hayNomina: !!linea, override: !!ov };
+}
+function tarjetaAnio(rrhh, t, anio) {
+    const filas = []; let td = 0, ts = 0;
+    for (let mi = 0; mi < 12; mi++) { const f = tarjetaMes(rrhh, t, anio, mi); f.mes = MESES_ES[mi]; filas.push(f); td += Number(f.dias) || 0; ts += Number(f.devengado) || 0; }
+    return { filas, totDias: td, totSal: r2(ts) };
+}
+function tarjetaAbrir(wid) {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    $('tarjTrabId').value = wid;
+    $('tarjNombre').textContent = t.nombre || '';
+    const anioHoy = new Date().getFullYear();
+    $('tarjAnioSel').innerHTML = [anioHoy - 1, anioHoy, anioHoy + 1].map((a) => '<option value="' + a + '"' + (a === anioHoy ? ' selected' : '') + '>' + a + '</option>').join('');
+    $('tarjCard').style.display = ''; $('tarjCard').dataset.abierta = '1';
+    document.querySelectorAll('.tarjeta').forEach((x) => { if (x.id !== 'ctrabCard' && x.id !== 'tarjCard' && x.id !== 'expdCard') x.style.display = 'none'; });
+    document.querySelectorAll('.pest-bar button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === 'documentos'));
+    tarjetaPintar();
+    $('tarjCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function tarjetaPintar() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('tarjTrabId').value);
+    if (!t) { $('tarjTabla').innerHTML = '<p class="tenue">Sin trabajador.</p>'; return; }
+    const anio = Number($('tarjAnioSel').value) || new Date().getFullYear();
+    const res = tarjetaAnio(rrhh, t, anio);
+    $('tarjTabla').innerHTML = '<table><thead><tr><th>Mes</th><th class="num">Días</th><th class="num">Salario devengado</th><th>Clave / incidencia</th></tr></thead><tbody>' +
+        res.filas.map((f, mi) => '<tr><td>' + f.mes + (f.override ? ' ✎' : '') + '</td>' +
+            '<td class="num"><input class="monto" type="number" step="1" min="0" data-td="' + mi + '" value="' + f.dias + '"></td>' +
+            '<td class="num"><input class="monto" type="number" step="0.01" min="0" data-ts="' + mi + '" value="' + f.devengado + '"></td>' +
+            '<td><input type="text" style="width:100%" data-tc="' + mi + '" value="' + esc(f.clave) + '"></td></tr>').join('') +
+        '<tr class="totales"><td>Total del año</td><td class="num">' + res.totDias + '</td><td class="num">' + fmt(res.totSal) + '</td><td></td></tr></tbody></table>';
+}
+async function tarjetaGuardar() {
+    const wid = $('tarjTrabId').value, anio = Number($('tarjAnioSel').value) || new Date().getFullYear();
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    rrhh.tarjetas = rrhh.tarjetas || {};
+    rrhh.tarjetas[wid] = rrhh.tarjetas[wid] || {};
+    const ov = {};
+    for (let mi = 0; mi < 12; mi++) {
+        const calc = tarjetaMes(rrhh, t, anio, mi);
+        const dEl = $('tarjTabla').querySelector('[data-td="' + mi + '"]'), sEl = $('tarjTabla').querySelector('[data-ts="' + mi + '"]'), cEl = $('tarjTabla').querySelector('[data-tc="' + mi + '"]');
+        const d = dEl ? dEl.value : '', s = sEl ? sEl.value : '', c = cEl ? cEl.value : '';
+        const cambia = (d !== '' && Number(d) !== calc.dias) || (s !== '' && Number(s) !== calc.devengado) || c !== calc.clave;
+        if (cambia) ov[mi] = { d: d === '' ? calc.dias : Number(d), s: s === '' ? calc.devengado : Number(s), c };
+    }
+    rrhh.tarjetas[wid][anio] = ov;
+    await guardar(); tarjetaPintar(); aviso('Tarjeta guardada');
+}
+function tarjetaImprimir() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('tarjTrabId').value);
+    if (!t) return;
+    const anio = Number($('tarjAnioSel').value) || new Date().getFullYear();
+    const res = tarjetaAnio(rrhh, t, anio);
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    const razon = perfil ? (perfil.nombreComercial || perfil.razon || '') : '';
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>Tarjeta SC-4-08 ' + esc(t.nombre) + ' ' + anio + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' +
+        '<h2 style="text-align:center">TARJETA DE SALARIO · SC-4-08</h2><p><b>' + esc(razon) + '</b><br>Trabajador: <b>' + esc(t.nombre) + '</b> · CI ' + esc(t.ci || '') + ' · Año ' + anio + '</p>' +
+        '<table><thead><tr><th>Mes</th><th>Días</th><th>Salario devengado</th><th>Clave / incidencia</th></tr></thead><tbody>' +
+        res.filas.map((f) => '<tr><td>' + f.mes + '</td><td>' + f.dias + '</td><td>' + fmt(f.devengado) + '</td><td>' + esc(f.clave) + '</td></tr>').join('') +
+        '<tr><td><b>Total del año</b></td><td><b>' + res.totDias + '</b></td><td><b>' + fmt(res.totSal) + '</b></td><td></td></tr></tbody></table></body></html>');
+    w.document.close(); w.print();
+}
+/* Meses de relación laboral (alta → hoy, o hasta la baja). */
+function expdMesesRelacion(t) {
+    if (!t || !t.fechaAlta) return null;
+    const a = new Date(String(t.fechaAlta).slice(0, 10) + 'T00:00:00'); if (isNaN(a)) return null;
+    const fin = t.fechaBaja ? new Date(String(t.fechaBaja).slice(0, 10) + 'T00:00:00') : new Date();
+    let m = (fin.getFullYear() - a.getFullYear()) * 12 + (fin.getMonth() - a.getMonth());
+    if (fin.getDate() < a.getDate()) m--;
+    return Math.max(0, m);
+}
+function expdAbrir(wid) {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    $('expdTrabId').value = wid;
+    $('expdCard').style.display = ''; $('expdCard').dataset.abierta = '1';
+    document.querySelectorAll('.tarjeta').forEach((x) => { if (x.id !== 'ctrabCard' && x.id !== 'tarjCard' && x.id !== 'expdCard') x.style.display = 'none'; });
+    document.querySelectorAll('.pest-bar button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === 'documentos'));
+    expdPintar();
+    $('expdCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function expdPintar() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('expdTrabId').value);
+    if (!t) { $('expdBody').innerHTML = '<p class="tenue">Sin trabajador.</p>'; return; }
+    const items = (((rrhh.expedientes || {})[t.id] || {}).items) || {};
+    const meses = expdMesesRelacion(t);
+    const falta = EXPD_ITEMS.some(([k]) => !items[k] || !items[k].tiene) || EXPD_ENTRADA.some(([k]) => !items[k] || !items[k].tiene);
+    $('expdAviso').innerHTML = (meses != null && meses > 6 && falta)
+        ? '<p class="tenue"><b>La relación supera los 6 meses (' + meses + '): el expediente completo es obligatorio</b> (Ley 189/2026, arts. 76-77) y debe estar listo en los 15 días siguientes al período de prueba.</p>'
+        : (meses != null ? '<p class="tenue">Relación: ' + meses + ' mes(es). El expediente completo es obligatorio cuando supere los 6 meses.</p>' : '');
+    const fila = ([k, txt]) => {
+        const it = items[k] || {};
+        return '<div class="fila"><label><input type="checkbox" data-expd="' + k + '"' + (it.tiene ? ' checked' : '') + '> ' + esc(txt) + '</label>' +
+            '<input type="date" data-expd-fecha="' + k + '" value="' + esc(it.fecha || '') + '" title="Fecha o referencia">' +
+            '<input type="text" data-expd-nota="' + k + '" value="' + esc(it.nota || '') + '" placeholder="Nota o referencia" style="min-width:160px"></div>';
+    };
+    $('expdBody').innerHTML = '<h2 style="font-size:14px">A · Documentos de entrada</h2>' + EXPD_ENTRADA.map(fila).join('') +
+        '<h2 style="font-size:14px;margin-top:10px">B · Expediente completo (Ley 189/2026, art. 77)</h2>' + EXPD_ITEMS.map(fila).join('');
+}
+async function expdGuardar() {
+    const wid = $('expdTrabId').value;
+    if (!wid) return;
+    rrhh.expedientes = rrhh.expedientes || {};
+    const items = {};
+    $('expdBody').querySelectorAll('[data-expd]').forEach((c) => {
+        const k = c.dataset.expd;
+        const fEl = $('expdBody').querySelector('[data-expd-fecha="' + k + '"]'), nEl = $('expdBody').querySelector('[data-expd-nota="' + k + '"]');
+        items[k] = { tiene: !!c.checked, fecha: fEl ? fEl.value : '', nota: nEl ? nEl.value.trim() : '' };
+    });
+    rrhh.expedientes[wid] = { items };
+    await guardar(); aviso('Expediente guardado');
+}
+function expdImprimir() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('expdTrabId').value);
+    if (!t) return;
+    const items = (((rrhh.expedientes || {})[t.id] || {}).items) || {};
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    const razon = perfil ? (perfil.nombreComercial || perfil.razon || '') : '';
+    const fila = ([k, txt]) => { const it = items[k] || {}; return '<tr><td>' + (it.tiene ? '✓' : '☐') + '</td><td>' + esc(txt) + '</td><td>' + esc(it.fecha || '') + '</td><td>' + esc(it.nota || '') + '</td></tr>'; };
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>Expediente laboral ' + esc(t.nombre) + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' +
+        '<h2 style="text-align:center">EXPEDIENTE LABORAL · ÍNDICE DE DOCUMENTOS</h2><p><b>' + esc(razon) + '</b><br>Trabajador: <b>' + esc(t.nombre) + '</b> · CI ' + esc(t.ci || '') + ' · Ley 189/2026 · Cap. V, art. 77</p>' +
+        '<h3>A · Documentos de entrada</h3><table><thead><tr><th></th><th>Documento</th><th>Fecha</th><th>Nota</th></tr></thead><tbody>' + EXPD_ENTRADA.map(fila).join('') + '</tbody></table>' +
+        '<h3>B · Expediente completo (art. 77)</h3><table><thead><tr><th></th><th>Documento</th><th>Fecha</th><th>Nota</th></tr></thead><tbody>' + EXPD_ITEMS.map(fila).join('') + '</tbody></table></body></html>');
+    w.document.close(); w.print();
+}
+/* Fase 12, bloque 2: pre-nómina / tarjeta de tiempo, copiada de
+ * Finanzas (nomPrenominaFilasDesdeControl, nomPrenominaGenerar,
+ * nomPrenominaAprobar). La pre-nómina es el documento previo del
+ * mes: al aprobarla, sus días alimentan la nómina (bruto = salario
+ * × días ÷ 30 + horas extra a (salario ÷ 240) × 1,5). */
+function prenominaBruto(salario, diasTrab, heHoras) {
+    const s = Number(salario) || 0;
+    return r2(s * (Number(diasTrab) || 0) / 30 + (Number(heHoras) || 0) * (s / 240) * 1.5);
+}
+function prenominaFilas(rrhh, mes) {
+    const diasMes = diasEnMes(mes);
+    const nom = (rrhh.nominas || {})[mes];
+    const filas = {};
+    for (const t of (rrhh.trabajadores || [])) {
+        if (t.fechaBaja && String(t.fechaBaja).slice(0, 7) < mes) continue;
+        if (t.fechaAlta && String(t.fechaAlta).slice(0, 7) > mes) continue;
+        const linea = nom ? (nom.trabajadores || []).find((x) => x.id === t.id) : null;
+        const comp = (linea && linea.comp) || {};
+        const ausJust = Number(comp.diasAusJust) || 0, ausInjust = Number(comp.diasAusInjust) || 0;
+        const aus = (ausJust + ausInjust) > 0 ? ausJust + ausInjust : (Number(comp.diasAus) || 0);
+        const lic = Number(comp.diasLic) || 0;
+        const trab = (linea && linea.dias !== undefined && linea.dias !== null && linea.dias !== '') ? Number(linea.dias)
+            : (comp.diasTrab !== undefined && comp.diasTrab !== null && comp.diasTrab !== '') ? Number(comp.diasTrab) : Math.max(0, diasMes - aus - lic);
+        filas[t.id] = { nombre: t.nombre || '', cargo: t.cargo || '', diasTrab: Math.max(0, Math.min(diasMes, trab)), diasAus: aus, diasAusJust: ausJust, diasAusInjust: ausInjust, diasLic: lic, heHoras: Number(comp.heHoras) || 0 };
+    }
+    return filas;
+}
+function prenominaGenerar(rrhh, mes, hoyStr) {
+    const ex = (rrhh.prenominas || {})[mes];
+    if (ex && ex.estado === 'aprobada') return { ok: false, motivo: 'La pre-nómina de ' + mes + ' ya está aprobada: sus datos ya alimentan la nómina de ese mes.' };
+    const filas = prenominaFilas(rrhh, mes);
+    if (!Object.keys(filas).length) return { ok: false, motivo: 'No hay trabajadores para la pre-nómina de ' + mes + '.' };
+    rrhh.prenominas = rrhh.prenominas || {};
+    rrhh.prenominas[mes] = { estado: 'borrador', generado: hoyStr, aprobadoEn: '', filas };
+    return { ok: true, doc: rrhh.prenominas[mes] };
+}
+function prenominaAprobar(rrhh, mes, hoyStr) {
+    const doc = (rrhh.prenominas || {})[mes];
+    if (!doc) return { ok: false, motivo: 'Primero genera la pre-nómina de ' + mes + '.' };
+    if (doc.estado === 'aprobada') return { ok: true, ya: true };
+    rrhh.nominas = rrhh.nominas || {};
+    if (!rrhh.nominas[mes]) rrhh.nominas[mes] = { trabajadores: [] };
+    const diasMes = diasEnMes(mes);
+    for (const wid of Object.keys(doc.filas || {})) {
+        const f = doc.filas[wid] || {};
+        const base = (rrhh.trabajadores || []).find((x) => x.id === wid);
+        if (!base) continue;
+        let linea = rrhh.nominas[mes].trabajadores.find((x) => x.id === wid);
+        if (!linea) { linea = { id: wid, nombre: base.nombre, bruto: 0, impPersonal: 0, dias: 30, descuento: (rrhh.descuentos && rrhh.descuentos[wid]) || 0 }; rrhh.nominas[mes].trabajadores.push(linea); }
+        const comp = { diasTrab: Math.max(0, Math.min(diasMes, Number(f.diasTrab) || 0)), diasAus: Math.max(0, Number(f.diasAus) || 0), diasAusJust: Math.max(0, Number(f.diasAusJust) || 0), diasAusInjust: Math.max(0, Number(f.diasAusInjust) || 0), diasLic: Math.max(0, Number(f.diasLic) || 0), heHoras: Math.max(0, Number(f.heHoras) || 0) };
+        if (comp.diasAusJust + comp.diasAusInjust > 0) comp.diasAus = comp.diasAusJust + comp.diasAusInjust;
+        linea.comp = comp;
+        linea.dias = comp.diasTrab;
+        linea.bruto = prenominaBruto(Number(base.salario) || 0, comp.diasTrab, comp.heHoras);
+    }
+    doc.estado = 'aprobada'; doc.aprobadoEn = hoyStr;
+    return { ok: true };
+}
+/* Fase 21, bloque 2: registro de asistencia. Los días con entrada
+ * son los días trabajados del mes. */
+function horasDia(entrada, salida) {
+    const aMin = (s) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})$/); return m ? (Number(m[1]) * 60 + Number(m[2])) : null; };
+    const a = aMin(entrada), b = aMin(salida);
+    if (a == null || b == null || b <= a) return null;
+    return Math.round((b - a) / 6) / 10;
+}
+function resumenAsistencia(asistencia, wid, mes) {
+    const reg = ((asistencia || {})[wid] || {});
+    let dias = 0, horas = 0, incompletos = 0;
+    for (const f of Object.keys(reg)) {
+        if (String(f).slice(0, 7) !== mes) continue;
+        const r = reg[f] || {};
+        if (!r.entrada) continue;
+        dias++;
+        const h = horasDia(r.entrada, r.salida);
+        if (h == null) incompletos++;
+        else horas = Math.round((horas + h) * 10) / 10;
+    }
+    return { dias, horas, incompletos };
+}
+function diasTrabDesdeAsistencia(asistencia, mes) {
+    const out = {};
+    for (const wid of Object.keys(asistencia || {})) {
+        const r = resumenAsistencia(asistencia, wid, mes);
+        if (r.dias > 0) out[wid] = r.dias;
+    }
+    return out;
+}
+function pintarAsistencia() {
+    const valTrab = $('asTrab').value;
+    $('asTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('') || '<option value="">— sin trabajadores —</option>';
+    if (valTrab) $('asTrab').value = valTrab;
+    const wid = $('asTrab').value, mes = $('asMes').value;
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t || !mes) { $('asTabla').innerHTML = '<p class="tenue">Elige un trabajador y un mes.</p>'; $('asResumen').textContent = ''; return; }
+    const reg = ((rrhh.asistencia || {})[wid] || {});
+    const nDias = diasEnMes(mes);
+    let filas = '';
+    for (let d = 1; d <= nDias; d++) {
+        const f = mes + '-' + String(d).padStart(2, '0');
+        const r = reg[f] || {};
+        const h = horasDia(r.entrada, r.salida);
+        filas += '<tr><td>' + f + '</td><td><input type="time" data-as-e="' + f + '" value="' + esc(r.entrada || '') + '"></td><td><input type="time" data-as-s="' + f + '" value="' + esc(r.salida || '') + '"></td><td class="num">' + (h == null ? '—' : h + ' h') + '</td><td><input type="text" style="width:100%" data-as-n="' + f + '" value="' + esc(r.nota || '') + '" placeholder="Nota"></td></tr>';
+    }
+    $('asTabla').innerHTML = '<table><thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th class="num">Horas</th><th>Nota</th></tr></thead><tbody>' + filas + '</tbody></table>';
+    const res = resumenAsistencia(rrhh.asistencia, wid, mes);
+    $('asResumen').textContent = res.dias + ' día(s) con entrada · ' + res.horas + ' h en el mes' + (res.incompletos ? ' · ' + res.incompletos + ' día(s) sin salida (revisa la hora)' : '');
+}
+function pintarPrenomina() {
+    const mes = $('nMes').value;
+    const doc = (rrhh.prenominas || {})[mes];
+    $('pmEstado').textContent = doc ? (doc.estado === 'aprobada' ? 'Aprobada el ' + doc.aprobadoEn + ' · ya alimenta la nómina.' : 'Borrador generado el ' + (doc.generado || '') + ' · revísala y apruébala.') : '';
+    if (!doc) { $('prenomina').innerHTML = '<p class="tenue">Sin pre-nómina en ' + mes + '. Pulsa «Generar» para crearla desde los trabajadores.</p>'; return; }
+    const filas = Object.entries(doc.filas || {}).map(([wid, f]) =>
+        '<tr><td>' + esc(f.nombre) + '</td>' +
+        '<td class="num"><input class="monto" type="number" step="1" min="0" max="31" data-pm="diasTrab" data-wid="' + wid + '" value="' + f.diasTrab + '"></td>' +
+        '<td class="num"><input class="monto" type="number" step="1" min="0" data-pm="diasAusJust" data-wid="' + wid + '" value="' + f.diasAusJust + '"></td>' +
+        '<td class="num"><input class="monto" type="number" step="1" min="0" data-pm="diasAusInjust" data-wid="' + wid + '" value="' + f.diasAusInjust + '"></td>' +
+        '<td class="num"><input class="monto" type="number" step="1" min="0" data-pm="diasLic" data-wid="' + wid + '" value="' + f.diasLic + '"></td>' +
+        '<td class="num"><input class="monto" type="number" step="0.5" min="0" data-pm="heHoras" data-wid="' + wid + '" value="' + f.heHoras + '"></td></tr>').join('');
+    $('prenomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días trabajados</th><th class="num">Aus. justificadas</th><th class="num">Aus. injustificadas</th><th class="num">Licencias</th><th class="num">Horas extras</th></tr></thead><tbody>' + (filas || '<tr><td colspan="6" class="tenue">Sin trabajadores.</td></tr>') + '</tbody></table>';
+    if (doc.estado !== 'aprobada') {
+        $('prenomina').querySelectorAll('input[data-pm]').forEach((inp) => inp.addEventListener('change', async () => {
+            const f = doc.filas[inp.dataset.wid];
+            if (!f) return;
+            f[inp.dataset.pm] = Number(inp.value) || 0;
+            if (inp.dataset.pm === 'diasAusJust' || inp.dataset.pm === 'diasAusInjust') f.diasAus = (Number(f.diasAusJust) || 0) + (Number(f.diasAusInjust) || 0);
+            await guardar(); pintarPrenomina();
+        }));
+    } else {
+        $('prenomina').querySelectorAll('input').forEach((inp) => { inp.disabled = true; });
+    }
+}
+function prenominaImprimir() {
+    const mes = $('nMes').value;
+    const doc = (rrhh.prenominas || {})[mes];
+    if (!doc) { aviso('No hay pre-nómina en ' + mes, 'error'); return; }
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    const razon = perfil ? (perfil.nombreComercial || perfil.razon || '') : '';
+    const filas = Object.values(doc.filas || {}).map((f) =>
+        '<tr><td>' + esc(f.nombre) + '</td><td>' + f.diasTrab + '</td><td>' + f.diasAusJust + '</td><td>' + f.diasAusInjust + '</td><td>' + f.diasLic + '</td><td>' + f.heHoras + '</td></tr>').join('');
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>Pre-nómina ' + mes + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' +
+        '<h2 style="text-align:center">PRE-NÓMINA · TARJETA DE TIEMPO</h2><p><b>' + esc(razon) + '</b><br>Mes: ' + mes + ' · Estado: ' + (doc.estado === 'aprobada' ? 'aprobada el ' + doc.aprobadoEn : 'borrador') + '</p>' +
+        '<table><thead><tr><th>Trabajador</th><th>Días trabajados</th><th>Aus. just.</th><th>Aus. injust.</th><th>Licencias</th><th>Horas extras</th></tr></thead><tbody>' + filas + '</tbody></table></body></html>');
+    w.document.close(); w.print();
+}
+/* Fase 12, bloque 3: complementos, ajustes y adelantos por
+ * trabajador + submayor de adelantos (139-000), copiados de
+ * Finanzas (nomAdelantosFIFO, nomSubmayorAdelantos). Reglas:
+ * · Un adelanto empieza a descontarse en la nómina del MES DE SU
+ *   FECHA y en las siguientes, hasta agotarse.
+ * · En cada nómina, el descuento = lo pendiente, topado por el
+ *   líquido de ese mes (el líquido NUNCA queda negativo) y se
+ *   aplica a los adelantos más antiguos primero (FIFO).
+ * · El descuento no se guarda en ningún sitio: se DERIVA por FIFO
+ *   de los adelantos y de las nóminas, igual que los demás
+ *   submayores se derivan de sus documentos. */
+/* Líquido de una línea de nómina ANTES del descuento de adelanto:
+ * bruto + complemento − impuesto personal − ajuste aplicado. */
+function liquidoPreAdelanto(t) {
+    const base = (Number(t.bruto) || 0) + (Number(t.complemento) || 0) - (Number(t.impPersonal) || 0);
+    const desc = t.descAplicado != null ? Number(t.descAplicado) || 0 : Math.min(base, Number(t.descuento) || 0);
+    return r2(base - desc);
+}
+function adelantosFIFO(adelantos, periodosNomina, netoEn) {
+    const ads = (adelantos || []).map((a) => ({ id: a.id, periodo: String(a.fecha || '').slice(0, 7), fecha: String(a.fecha || ''), importe: Math.max(0, r2(a.importe)) })).filter((a) => a.periodo && a.importe > 0)
+        .sort((x, y) => x.periodo.localeCompare(y.periodo) || x.fecha.localeCompare(y.fecha) || String(x.id).localeCompare(String(y.id)));
+    const pers = new Set((periodosNomina || []).filter(Boolean)); ads.forEach((a) => pers.add(a.periodo));
+    const orden = [...pers].sort();
+    const cola = []; const descPorPeriodo = {}, descPorAdelanto = {}, saldoTras = {};
+    for (const per of orden) {
+        for (const ad of ads) if (ad.periodo === per) cola.push({ id: ad.id, restante: ad.importe });
+        const neto = netoEn(per);
+        if (neto != null) {
+            let disp = Math.max(0, r2(neto)), desc = 0;
+            while (disp > 0.004 && cola.length) { const c = cola[0]; const take = Math.min(c.restante, disp); c.restante = r2(c.restante - take); disp = r2(disp - take); desc = r2(desc + take); descPorAdelanto[c.id] = r2((descPorAdelanto[c.id] || 0) + take); if (c.restante <= 0.004) cola.shift(); }
+            if (desc > 0) descPorPeriodo[per] = desc;
+        }
+        saldoTras[per] = r2(cola.reduce((s, c) => s + c.restante, 0));
+    }
+    return { descPorPeriodo, descPorAdelanto, saldoTras, saldoFinal: r2(cola.reduce((s, c) => s + c.restante, 0)) };
+}
+/* Neto (antes del adelanto) de un trabajador en un mes: null si no
+ * hay nómina de ese mes. */
+function netoAdelantoEn(rrhh, workerId, mes) {
+    const nom = (rrhh.nominas || {})[mes];
+    if (!nom) return null;
+    const linea = (nom.trabajadores || []).find((x) => x.id === workerId);
+    if (!linea) return null;
+    return liquidoPreAdelanto(linea);
+}
+function descAdelantoMes(rrhh, workerId, mes, netoOverride) {
+    const ads = (rrhh.adelantos || []).filter((a) => String(a.trabajadorId) === String(workerId));
+    if (!ads.length) return { descuento: 0, saldoTras: null };
+    const tl = adelantosFIFO(ads, Object.keys(rrhh.nominas || {}), (per) => (per === mes && netoOverride != null) ? netoOverride : netoAdelantoEn(rrhh, workerId, per));
+    return { descuento: tl.descPorPeriodo[mes] || 0, saldoTras: (tl.saldoTras[mes] != null) ? tl.saldoTras[mes] : tl.saldoFinal };
+}
+function submayorAdelantos(rrhh) {
+    const ads = Array.isArray(rrhh.adelantos) ? rrhh.adelantos : [];
+    const grupos = {}; const orden = [];
+    for (const a of ads) {
+        const k = String(a.trabajadorId || '');
+        if (!grupos[k]) { const t = (rrhh.trabajadores || []).find((x) => String(x.id) === k); grupos[k] = { trabajadorId: k, nombre: (t && t.nombre) || a.nombre || '', filas: [], saldoTotal: 0 }; orden.push(grupos[k]); }
+        grupos[k].filas.push(a);
+    }
+    let totalPendiente = 0, totalDescontado = 0;
+    for (const g of orden) {
+        const tl = adelantosFIFO(g.filas, Object.keys(rrhh.nominas || {}), (per) => netoAdelantoEn(rrhh, g.trabajadorId, per));
+        g.filas = g.filas.map((a) => { const d = tl.descPorAdelanto[a.id] || 0; totalDescontado = r2(totalDescontado + d); return { adelanto: a, descontado: d, saldo: r2((Number(a.importe) || 0) - d) }; })
+            .sort((x, y) => String(x.adelanto.fecha).localeCompare(String(y.adelanto.fecha)) || String(x.adelanto.id).localeCompare(String(y.adelanto.id)));
+        g.saldoTotal = tl.saldoFinal; totalPendiente = r2(totalPendiente + tl.saldoFinal);
+    }
+    return { grupos: orden, totalPendiente, totalDescontado };
+}
+function pintarAdelantos() {
+    $('adTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('');
+    const sub = submayorAdelantos(rrhh);
+    if (!sub.grupos.length) { $('adelantos').innerHTML = '<p class="tenue">Sin adelantos registrados.</p>'; return; }
+    $('adelantos').innerHTML = sub.grupos.map((g) =>
+        '<h2 style="font-size:14px;margin-top:10px">' + esc(g.nombre) + ' · saldo pendiente ' + fmt(g.saldoTotal) + '</h2>' +
+        '<table><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th><th class="num">Descontado</th><th class="num">Saldo</th></tr></thead><tbody>' +
+        g.filas.map((f) => '<tr><td>' + esc(f.adelanto.fecha) + '</td><td>' + esc(f.adelanto.concepto || 'Adelanto de salario') + '</td><td class="num">' + fmt(f.adelanto.importe) + '</td><td class="num">' + fmt(f.descontado) + '</td><td class="num">' + fmt(f.saldo) + '</td></tr>').join('') +
+        '</tbody></table>').join('') +
+        '<p class="tenue">Total descontado en nóminas: ' + fmt(sub.totalDescontado) + ' · Total pendiente: ' + fmt(sub.totalPendiente) + '.</p>';
+}
+/* Fase 31, bloque 2: reporte de gastos por empleado. */
+function totalReporte(lineas) { return r2((lineas || []).reduce((s, l) => s + (Number(l.monto) || 0), 0)); }
+function aprobarReporte(reporte) {
+    if (!reporte) return { ok: false, motivo: 'Sin reporte' };
+    if (reporte.estado !== 'enviado') return { ok: false, motivo: 'El reporte tiene que estar enviado para aprobarlo' };
+    if (!(totalReporte(reporte.lineas) > 0)) return { ok: false, motivo: 'El reporte no tiene gastos' };
+    const copia = JSON.parse(JSON.stringify(reporte));
+    copia.estado = 'aprobado';
+    return { ok: true, reporte: copia };
+}
+function devolverReporte(reporte, comentario) {
+    if (!reporte) return { ok: false, motivo: 'Sin reporte' };
+    if (reporte.estado !== 'enviado') return { ok: false, motivo: 'El reporte tiene que estar enviado para devolverlo' };
+    if (!String(comentario || '').trim()) return { ok: false, motivo: 'Di por qué se devuelve' };
+    const copia = JSON.parse(JSON.stringify(reporte));
+    copia.estado = 'devuelto';
+    copia.comentario = String(comentario).trim();
+    return { ok: true, reporte: copia };
+}
+function asientoReembolso(reporte, plan, cuentaBanco) {
+    if (!reporte || !(totalReporte(reporte.lineas) > 0)) return { ok: false, motivo: 'El reporte no tiene gastos' };
+    const lineas = [];
+    for (const l of reporte.lineas) {
+        const monto = Number(l.monto) || 0;
+        if (!(monto > 0)) continue;
+        lineas.push({ cuenta: l.cuenta || cuentaAuto(plan, 'gastos_gestion', '710-000'), debe: monto, haber: 0 });
+    }
+    lineas.push({ cuenta: cuentaBanco, debe: 0, haber: totalReporte(reporte.lineas) });
+    const err = validarLineasAsiento(plan, lineas);
+    if (err) return { ok: false, motivo: err };
+    return { ok: true, lineas };
+}
+function pintarReportesGastos() {
+    const lista = (rrhh.reportesGastos || []).slice().reverse();
+    $('rgTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('');
+    $('rgReporte').innerHTML = lista.map((r) => '<option value="' + r.id + '">' + esc(r.empleado || '') + ' · ' + esc(r.fecha || '') + ' · ' + esc(r.estado) + ' · $' + fmt(totalReporte(r.lineas)) + '</option>').join('') || '<option value="">— sin reportes —</option>';
+    const cuentasGasto = (conta.plan || []).filter((c) => c.admite && (c.grupo === 'gasto' || c.grupo === 'costo'));
+    $('rgCuentaGasto').innerHTML = cuentasGasto.map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.codigo + ' · ' + c.nombre.replace(/ \(rango [^)]+\)$/, '')) + '</option>').join('');
+    $('reportesGastos').innerHTML = lista.length ? lista.map((r) => {
+        const total = totalReporte(r.lineas);
+        const estadoTxt = r.estado === 'borrador' ? 'Borrador' : r.estado === 'enviado' ? 'Enviado a aprobar' : r.estado === 'aprobado' ? '<span class="ok">Aprobado' + (r.reembolsado ? ' y reembolsado' : '') + '</span>' : '<span class="rojo">Devuelto' + (r.comentario ? ': ' + esc(r.comentario) : '') + '</span>';
+        return '<h2 style="font-size:14px;margin-top:10px">' + esc(r.empleado || '') + ' · ' + esc(r.fecha || '') + ' · ' + estadoTxt + ' · Total $' + fmt(total) + '</h2>' +
+            '<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Cuenta</th><th class="num">Monto</th><th>Recibo</th></tr></thead><tbody>' +
+            (r.lineas || []).map((l) => '<tr><td>' + esc(l.fecha || '') + '</td><td>' + esc(l.concepto || '') + '</td><td>' + esc(l.cuenta || '') + '</td><td class="num">' + fmt(Number(l.monto) || 0) + '</td><td>' + (l.recibo ? '<a href="' + esc(l.recibo) + '" target="_blank">Ver</a>' : '—') + '</td></tr>').join('') + '</tbody></table>' +
+            '<div class="fila">' +
+            (r.estado === 'borrador' ? '<button type="button" class="chico" data-rg-enviar="' + r.id + '">Enviar a aprobar</button>' : '') +
+            (r.estado === 'enviado' ? '<button type="button" class="chico" data-rg-aprobar="' + r.id + '">Aprobar y reembolsar</button> <button type="button" class="chico secundario" data-rg-devolver="' + r.id + '">Devolver</button>' : '') +
+            '</div>';
+    }).join('') : '<p class="tenue">Sin reportes de gastos todavía.</p>';
+    $('reportesGastos').querySelectorAll('[data-rg-enviar]').forEach((b) => b.addEventListener('click', async () => {
+        const r = (rrhh.reportesGastos || []).find((x) => x.id === b.dataset.rgEnviar);
+        if (!r) return;
+        if (!(totalReporte(r.lineas) > 0)) { aviso('El reporte no tiene gastos', 'error'); return; }
+        r.estado = 'enviado';
+        await guardar(); pintarReportesGastos(); aviso('Reporte enviado a aprobar');
+    }));
+    $('reportesGastos').querySelectorAll('[data-rg-aprobar]').forEach((b) => b.addEventListener('click', async () => {
+        const r = (rrhh.reportesGastos || []).find((x) => x.id === b.dataset.rgAprobar);
+        if (!r) return;
+        const mes = String(r.fecha || hoyLocal()).slice(0, 7);
+        if (conta.candados && conta.candados[mes]) { aviso('El mes del reporte está cerrado: el reembolso no se puede asentar', 'error'); return; }
+        const cuenta = $('rgCuenta').value || 'chequera';
+        const banco = cuenta === 'caja' ? cuentaAuto(conta.plan, 'caja', '101-010') : cuenta === 'tarjeta_usd' ? cuentaAuto(conta.plan, 'banco_divisa', '110-020') : cuentaAuto(conta.plan, 'banco_cup', '110-010');
+        const rAs = asientoReembolso(r, conta.plan, banco);
+        if (!rAs.ok) { aviso(rAs.motivo, 'error'); return; }
+        const hoy = hoyLocal();
+        const total = totalReporte(r.lineas);
+        for (const l of r.lineas) {
+            movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha: hoy, concepto: 'Reembolso reporte de gastos · ' + (r.empleado || '') + ' · ' + (l.concepto || ''), tipo: 'gasto', clasificacion: 'operacional', cuenta, monto: Number(l.monto) || 0, origen: 'reporte_gastos' });
+        }
+        conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+        conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoy, concepto: 'Reembolso reporte de gastos · ' + (r.empleado || ''), origen: 'reporte_gastos', estado: 'confirmado', lineas: rAs.lineas });
+        r.estado = 'aprobado'; r.reembolsado = true; r.asientoNumero = conta.seqAsiento;
+        try { await guardarMultiple([{ slot: 'mov', valor: movs }, { slot: 'conta', valor: conta }, { slot: 'rrhh', valor: rrhh }]); pintarReportesGastos(); aviso('Reporte aprobado: $' + fmt(total) + ' reembolsados desde «' + cuenta + '». Asiento nº ' + conta.seqAsiento + '.'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+    $('reportesGastos').querySelectorAll('[data-rg-devolver]').forEach((b) => b.addEventListener('click', async () => {
+        const r = (rrhh.reportesGastos || []).find((x) => x.id === b.dataset.rgDevolver);
+        if (!r) return;
+        const comentario = prompt('¿Por qué se devuelve el reporte?');
+        if (comentario === null) return;
+        const res = devolverReporte(r, comentario);
+        if (!res.ok) { aviso(res.motivo, 'error'); return; }
+        Object.assign(r, res.reporte);
+        await guardar(); pintarReportesGastos(); aviso('Reporte devuelto');
+    }));
+}
+async function registrarAdelanto() {
+    const wid = $('adTrab').value;
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    const importe = Number($('adImporte').value) || 0;
+    const fecha = $('adFecha').value;
+    if (!t || importe <= 0 || !fecha) { aviso('El adelanto necesita trabajador, fecha e importe', 'error'); return; }
+    if (conta.candados && conta.candados[String(fecha).slice(0, 7)]) { aviso('El mes de esa fecha está cerrado', 'error'); return; }
+    const salida = $('adSalida').value;
+    const ctaSalida = salida === 'caja' ? cuentaAuto(conta.plan, 'caja', '101-010') : salida === 'tarjeta_usd' ? cuentaAuto(conta.plan, 'banco_divisa', '110-020') : cuentaAuto(conta.plan, 'banco_cup', '110-010');
+    const ctaAdel = cuentaAuto(conta.plan, 'adelantos_trab', '139-000');
+    const concepto = $('adConcepto').value.trim() || 'Adelanto de salario';
+    const lineas = [{ cuenta: ctaAdel, debe: importe, haber: 0 }, { cuenta: ctaSalida, debe: 0, haber: importe }];
+    const errLin = validarLineasAsiento(conta.plan, lineas);
+    if (errLin) { aviso(errLin, 'error'); return; }
+    const id = 'ad' + Date.now().toString(36);
+    rrhh.adelantos = rrhh.adelantos || [];
+    rrhh.adelantos.push({ id, trabajadorId: wid, nombre: t.nombre, fecha, concepto, importe, cuentaSalida: salida });
+    conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+    conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: 'Adelanto a trabajador · ' + t.nombre + ' · ' + concepto, origen: 'manual', estado: 'confirmado', lineas });
+    await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'rrhh', valor: rrhh }]);
+    $('adImporte').value = $('adConcepto').value = '';
+    pintarAdelantos();
+    aviso('Adelanto registrado con su asiento nº ' + conta.seqAsiento + ' (139-000)');
+}
+/* Fase 12, bloque 4: puestos de trabajo, parámetros fiscales de la
+ * nómina y evaluación anual del desempeño (Ley 189/2026,
+ * arts. 71-74). */
+function paramsNomina(rrhh) {
+    const p = (rrhh && rrhh.params) || {};
+    return { ss: p.ss != null ? Number(p.ss) : 14, iuft: p.iuft != null ? Number(p.iuft) : 5, provVac: p.provVac != null ? Number(p.provVac) : 9.09 };
+}
+function plantillaPuestos(puestos, trabajadores) {
+    return (puestos || []).map((pu) => {
+        const ocupadas = (trabajadores || []).filter((t) => !t.fechaBaja && String(t.cargo || '').trim().toLowerCase() === String(pu.nombre || '').trim().toLowerCase()).length;
+        return { id: pu.id, nombre: pu.nombre, plazas: Number(pu.plazas) || 0, ocupadas, sobreplantilla: ocupadas > (Number(pu.plazas) || 0) };
+    });
+}
+function pintarPuestos() {
+    $('puestosList').innerHTML = (rrhh.puestos || []).map((p) => '<option value="' + esc(p.nombre) + '">').join('');
+    const pl = plantillaPuestos(rrhh.puestos, rrhh.trabajadores);
+    $('puestos').innerHTML = pl.map((p) =>
+        '<div class="fila"><b>' + esc(p.nombre) + '</b><span class="tenue">' + p.ocupadas + ' ocupada(s) de ' + p.plazas + ' plaza(s)' + (p.sobreplantilla ? ' · <b>⚠ SOBREPLANTILLA (' + (p.ocupadas - p.plazas) + ' de más)</b>' : '') + '</span>' +
+        '<button type="button" class="chico secundario" data-delpuesto="' + p.id + '">Quitar</button></div>').join('') || '<p class="tenue">Sin puestos todavía.</p>';
+    $('puestos').querySelectorAll('[data-delpuesto]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Quitar este puesto? Los trabajadores que lo tengan conservan su cargo escrito.')) return;
+        rrhh.puestos = rrhh.puestos.filter((p) => p.id !== b.dataset.delpuesto);
+        await guardar(); pintarPuestos();
+    }));
+}
+function pintarParams() {
+    const p = paramsNomina(rrhh);
+    $('prSs').value = p.ss; $('prIuft').value = p.iuft; $('prProv').value = p.provVac;
+}
+function pintarEvaluaciones() {
+    $('evTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('');
+    const evs = rrhh.evaluaciones || {};
+    const filas = [];
+    for (const wid of Object.keys(evs)) {
+        const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+        for (const anio of Object.keys(evs[wid] || {}).sort()) {
+            const e = evs[wid][anio];
+            filas.push('<tr><td>' + esc(t ? t.nombre : wid) + '</td><td>' + esc(anio) + '</td><td>' + esc(e.nota) + '</td><td>' + esc(e.texto || '') + '</td><td>' + esc(e.fecha || '') + '</td></tr>');
+        }
+    }
+    $('evaluaciones').innerHTML = filas.length ? '<table><thead><tr><th>Trabajador</th><th>Año</th><th>Resultado</th><th>Valoración</th><th>Fecha</th></tr></thead><tbody>' + filas.join('') + '</tbody></table>' : '<p class="tenue">Sin evaluaciones todavía.</p>';
+}
+/* Fase 12, bloque 5: expediente de retiro / jubilación (INASS),
+ * copiado de Finanzas (retEdadInfo, retCalc, retBaseAuto,
+ * retSituacion). La cuantía oficial la fija siempre el INASS: la
+ * app solo estima con las reglas de la Ley 105/2008. */
+function retNacDeCI(ci) {
+    const d = String(ci || '').replace(/\D/g, '');
+    if (d.length < 6) return '';
+    const yy = +d.slice(0, 2), mm = +d.slice(2, 4), dd = +d.slice(4, 6);
+    if (!(mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31)) return '';
+    const aa = new Date().getFullYear() % 100;
+    const anio = (yy > aa ? 1900 + yy : 2000 + yy);
+    return anio + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+}
+function retEdadInfo(t) {
+    const nac = retNacDeCI(t && t.ci);
+    if (!nac) return null;
+    const req = (String(t.sexo || '').toUpperCase() === 'F') ? 60 : 65;
+    const hoyS = hoyLocal();
+    const [hy, hm, hd] = hoyS.split('-').map(Number);
+    const [ny, nm, nd] = nac.split('-').map(Number);
+    let edad = hy - ny;
+    if (hm < nm || (hm === nm && hd < nd)) edad--;
+    const cumple = (ny + req) + '-' + String(nm).padStart(2, '0') + '-' + String(nd).padStart(2, '0');
+    let meses = (+cumple.slice(0, 4) - hy) * 12 + (+cumple.slice(5, 7) - hm);
+    if (+cumple.slice(8, 10) < hd) meses--;
+    return { nac, edad, req, cumple, mesesPara: meses };
+}
+function retDe(rrhh, wid) {
+    const r = ((rrhh.retiros || {})[String(wid)]) || {};
+    return {
+        tipo: r.tipo || 'edad', estado: r.estado || 'preparacion',
+        aniosPrevios: Number(r.aniosPrevios) || 0, baseManual: (r.baseManual == null || r.baseManual === '') ? null : Number(r.baseManual),
+        pasos: Object.assign({ solicitud: '', certificacion: '', presentacion: '', resolucion: '', resolucionNum: '', baja: '' }, r.pasos || {}),
+        peritaje: Object.assign({ remision: '', dictamen: '', clase: 'total', origen: 'comun', fase: 'provisional', salarioNuevo: null, granInvalido: false, reexamen: '' }, r.peritaje || {}),
+        reincorporacion: Object.assign({ fecha: '', puesto: '' }, r.reincorporacion || {}),
+        notas: r.notas || '',
+    };
+}
+function retAnios(rrhh, t, rec) {
+    let totDias = 0;
+    const anios = [];
+    const anioHoy = new Date().getFullYear();
+    for (let a = anioHoy - 40; a <= anioHoy; a++) {
+        const x = tarjetaAnio(rrhh, t, a);
+        if (x.totDias > 0 || x.totSal > 0) { totDias += x.totDias; anios.push(a); }
+    }
+    const deTarjeta = totDias / 365;
+    return { dias: totDias, deTarjeta, previos: rec ? rec.aniosPrevios : 0, total: deTarjeta + (rec ? rec.aniosPrevios : 0) };
+}
+function retFilasAnio(rrhh, t) {
+    const filas = [];
+    const anioHoy = new Date().getFullYear();
+    for (let a = anioHoy - 40; a <= anioHoy; a++) {
+        const x = tarjetaAnio(rrhh, t, a);
+        if (x.totSal > 0 || x.totDias > 0) filas.push({ anio: a, totDias: x.totDias, totSal: x.totSal });
+    }
+    return filas;
+}
+function retBaseAuto(rrhh, t) {
+    const filas = retFilasAnio(rrhh, t);
+    const anioActual = new Date().getFullYear();
+    const ult15 = filas.filter((f) => f.anio >= anioActual - 14 && f.totSal > 0);
+    const mejores = ult15.slice().sort((a, b) => b.totSal - a.totSal).slice(0, 5);
+    const suma = mejores.reduce((a, f) => a + f.totSal, 0);
+    let ultimo = null;
+    filas.forEach((f) => { if (f.totSal > 0 && (!ultimo || f.anio > ultimo.anio)) ultimo = f; });
+    return {
+        base: mejores.length ? Math.round(suma / 60 * 100) / 100 : 0, usados: mejores.map((f) => f.anio).sort(), completa: mejores.length >= 5,
+        promUltimoAnio: ultimo ? Math.round(ultimo.totSal / 12 * 100) / 100 : 0, ultimoAnio: ultimo ? ultimo.anio : null,
+    };
+}
+function retCalc(rrhh, t, rec) {
+    const A = retAnios(rrhh, t, rec);
+    const Aent = Math.floor(A.total);
+    const bA = retBaseAuto(rrhh, t);
+    const base = (rec.baseManual != null && rec.baseManual > 0) ? rec.baseManual : bA.base;
+    const L = []; let monto = null, titulo = '';
+    L.push('Años acreditados: ' + A.total.toFixed(1) + ' (tarjeta SC-4-08: ' + A.deTarjeta.toFixed(1) + (rec.aniosPrevios ? ' + fuera de la app: ' + rec.aniosPrevios : '') + ').');
+    if (rec.tipo === 'edad') {
+        titulo = 'Pensión por edad';
+        L.push('Base: promedio de los 5 mejores años de los últimos 15 = ' + fmt(base) + (rec.baseManual != null && rec.baseManual > 0 ? ' (manual)' : ' (años usados: ' + (bA.usados.join(', ') || 'sin datos') + (bA.completa ? '' : ' — faltan años en la tarjeta') + ')') + '.');
+        if (Aent >= 30) { const pct = Math.min(90, 60 + 2 * (Aent - 30)); monto = Math.round(base * pct / 100 * 100) / 100; L.push('Ordinaria: 60 % + 2 % por cada año sobre 30 → ' + pct + ' % (tope 90 %).'); }
+        else if (Aent >= 20) { const pct = 40 + 2 * (Aent - 20); monto = Math.round(base * pct / 100 * 100) / 100; L.push('Extraordinaria: 40 % + 2 % por cada año sobre 20 → ' + pct + ' %.'); }
+        else L.push('Todavía no alcanza los 20 años mínimos de la pensión extraordinaria.');
+    } else if (rec.peritaje.clase === 'parcial') {
+        titulo = 'Pensión por invalidez parcial';
+        const prom = bA.promUltimoAnio;
+        if (rec.peritaje.fase === 'provisional') {
+            const pct = rec.peritaje.origen === 'laboral' ? 80 : 60;
+            monto = prom ? Math.round(prom * pct / 100 * 100) / 100 : null;
+            L.push('Provisional: ' + pct + ' % del salario promedio del último año (' + fmt(prom) + (bA.ultimoAnio ? ', ' + bA.ultimoAnio : '') + ').');
+        } else {
+            const pct = rec.peritaje.origen === 'laboral' ? 60 : 50;
+            const nuevo = Number(rec.peritaje.salarioNuevo) || 0;
+            const dif = Math.max(0, prom - nuevo);
+            monto = prom ? Math.round(dif * pct / 100 * 100) / 100 : null;
+            L.push('Definitiva: ' + pct + ' % de la diferencia entre el salario anterior (' + fmt(prom) + ') y el nuevo (' + fmt(nuevo) + ') = ' + fmt(dif) + '.');
+        }
+        L.push('⚠ Verifica el tiempo mínimo de servicios exigido según la edad (tabla del Reglamento de la Ley 105/2008): la app no lo calcula.');
+    } else {
+        titulo = 'Pensión por invalidez total';
+        L.push('Base: la misma de la pensión por edad = ' + fmt(base) + (rec.baseManual != null && rec.baseManual > 0 ? ' (manual)' : ' (años usados: ' + (bA.usados.join(', ') || 'sin datos') + ')') + '.');
+        let pct;
+        if (rec.peritaje.origen === 'laboral') { pct = Aent <= 30 ? 60 : 60 + 2 * (Aent - 30); }
+        else { pct = Aent <= 20 ? 50 : (Aent <= 30 ? 50 + (Aent - 20) : 60 + 2 * (Aent - 30)); }
+        monto = Math.round(base * pct / 100 * 100) / 100;
+        L.push((rec.peritaje.origen === 'laboral' ? 'Accidente de trabajo / enfermedad profesional' : 'Enfermedad común') + ': ' + pct + ' % según los años de servicio.');
+        if (rec.peritaje.origen === 'laboral') { monto = Math.round(monto * 1.10 * 100) / 100; L.push('Incremento del 10 % por su origen laboral.'); }
+        if (rec.peritaje.granInvalido) { monto = Math.round(monto * 1.20 * 100) / 100; L.push('Gran inválido: incremento del 20 % (requiere asistencia constante de otra persona).'); }
+        L.push('⚠ Verifica el tiempo mínimo de servicios exigido según la edad (tabla del Reglamento de la Ley 105/2008): la app no lo calcula.');
+    }
+    return { titulo, base, monto, lineas: L, anios: A };
+}
+function retSituacion(rrhh, t, rec) {
+    if (rec.estado === 'presentado') return 'En trámite · presentado ' + (rec.pasos.presentacion || '');
+    if (rec.estado === 'concedida') return 'Pensión concedida';
+    if (rec.estado === 'denegada') return 'Denegada';
+    if (rec.estado === 'cerrado') return 'Baja por retiro';
+    if (t.fechaBaja) return 'De baja';
+    const info = retEdadInfo(t);
+    if (!info) return 'Sin CI válido en su ficha';
+    const A = retAnios(rrhh, t, rec);
+    const Aent = Math.floor(A.total);
+    if (info.edad >= info.req && Aent >= 30) return 'Puede jubilarse (ordinaria)';
+    if (info.edad >= info.req && Aent >= 20) return 'Puede jubilarse (extraordinaria)';
+    if (info.edad >= info.req) return 'Edad cumplida; años insuficientes (' + Aent + '/20)';
+    if (info.mesesPara <= 12) return 'Cumple los ' + info.req + ' en ' + info.mesesPara + ' meses';
+    return '—';
+}
+function pintarRetiro() {
+    const trabs = (rrhh.trabajadores || []).slice();
+    trabs.sort((a, b) => { const ia = retEdadInfo(a), ib = retEdadInfo(b); const ma = ia ? ia.mesesPara : 9999, mb = ib ? ib.mesesPara : 9999; return ma - mb; });
+    if (!trabs.length) { $('retVigilancia').innerHTML = '<p class="tenue">Sin trabajadores en la ficha todavía.</p>'; return; }
+    $('retVigilancia').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Edad</th><th>Cumple la edad</th><th class="num">Años de servicio</th><th>Situación</th><th></th></tr></thead><tbody>' +
+        trabs.map((t) => {
+            const rec = retDe(rrhh, t.id);
+            const info = retEdadInfo(t);
+            const A = retAnios(rrhh, t, rec);
+            return '<tr><td>' + esc(t.nombre) + '</td><td class="num">' + (info ? info.edad : '—') + '</td><td>' + (info ? info.cumple + ' (' + info.req + ' años)' : '—') + '</td><td class="num">' + A.total.toFixed(1) + '</td><td>' + esc(retSituacion(rrhh, t, rec)) + '</td><td><button type="button" class="chico secundario" data-retexp="' + t.id + '">Expediente</button></td></tr>';
+        }).join('') + '</tbody></table>';
+    $('retVigilancia').querySelectorAll('[data-retexp]').forEach((b) => b.addEventListener('click', () => retAbrir(b.dataset.retexp)));
+}
+function retAbrir(wid) {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    const rec = retDe(rrhh, wid);
+    $('retTrabId').value = wid;
+    $('retTipo').value = rec.tipo;
+    $('retEstado').value = rec.estado;
+    $('retAniosPrevios').value = rec.aniosPrevios || '';
+    $('retBaseManual').value = rec.baseManual != null ? rec.baseManual : '';
+    $('retSolicitud').value = rec.pasos.solicitud;
+    $('retCertificacion').value = rec.pasos.certificacion;
+    $('retPresentacion').value = rec.pasos.presentacion;
+    $('retResolucion').value = rec.pasos.resolucion;
+    $('retResolucionNum').value = rec.pasos.resolucionNum;
+    $('retBaja').value = rec.pasos.baja;
+    $('retRemision').value = rec.peritaje.remision;
+    $('retDictamen').value = rec.peritaje.dictamen;
+    $('retClase').value = rec.peritaje.clase;
+    $('retOrigen').value = rec.peritaje.origen;
+    $('retFase').value = rec.peritaje.fase;
+    $('retSalarioNuevo').value = rec.peritaje.salarioNuevo != null ? rec.peritaje.salarioNuevo : '';
+    $('retGran').checked = !!rec.peritaje.granInvalido;
+    $('retReexamen').value = rec.peritaje.reexamen;
+    $('retReincFecha').value = rec.reincorporacion.fecha;
+    $('retReincPuesto').value = rec.reincorporacion.puesto;
+    $('retNotas').value = rec.notas;
+    retPintarCalc();
+    $('retDetalle').style.display = '';
+    $('retDetalle').dataset.abierta = '1';
+    document.querySelectorAll('.tarjeta').forEach((x) => { if (x.id !== 'retDetalle') x.style.display = 'none'; });
+    document.querySelectorAll('.pest-bar button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === 'retiro'));
+    $('retDetalle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function retLeer() {
+    return {
+        tipo: $('retTipo').value, estado: $('retEstado').value,
+        aniosPrevios: Number($('retAniosPrevios').value) || 0,
+        baseManual: $('retBaseManual').value === '' ? null : Number($('retBaseManual').value),
+        pasos: { solicitud: $('retSolicitud').value, certificacion: $('retCertificacion').value, presentacion: $('retPresentacion').value, resolucion: $('retResolucion').value, resolucionNum: $('retResolucionNum').value.trim(), baja: $('retBaja').value },
+        peritaje: { remision: $('retRemision').value, dictamen: $('retDictamen').value, clase: $('retClase').value, origen: $('retOrigen').value, fase: $('retFase').value, salarioNuevo: $('retSalarioNuevo').value === '' ? null : Number($('retSalarioNuevo').value), granInvalido: !!$('retGran').checked, reexamen: $('retReexamen').value },
+        reincorporacion: { fecha: $('retReincFecha').value, puesto: $('retReincPuesto').value.trim() },
+        notas: $('retNotas').value.trim(),
+    };
+}
+function retPintarCalc() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('retTrabId').value);
+    if (!t) return;
+    const rec = retLeer();
+    const c = retCalc(rrhh, t, rec);
+    $('retPeritajeBox').style.display = rec.tipo === 'invalidez' ? '' : 'none';
+    $('retCalcBox').innerHTML = '<b>' + esc(c.titulo) + '</b> — ' + esc(t.nombre) + '<br>' + c.lineas.map((l) => esc(l)).join('<br>') + (c.monto != null ? '<br><b>Pensión estimada: ' + fmt(c.monto) + ' / mes</b> (la cuantía oficial la fija el INASS).' : '');
+}
+async function retGuardar() {
+    const wid = $('retTrabId').value;
+    if (!wid) return;
+    rrhh.retiros = rrhh.retiros || {};
+    rrhh.retiros[wid] = retLeer();
+    await guardar(); retPintarCalc(); pintarRetiro(); aviso('Trámite de retiro guardado');
+}
+function retCertImprimir() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('retTrabId').value);
+    if (!t) return;
+    const filas = retFilasAnio(rrhh, t);
+    const totDias = filas.reduce((s, f) => s + f.totDias, 0);
+    const totSal = r2(filas.reduce((s, f) => s + f.totSal, 0));
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    const razon = perfil ? (perfil.nombreComercial || perfil.razon || '') : '';
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>Certificación SNC-4-09 ' + esc(t.nombre) + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' +
+        '<h2 style="text-align:center">CERTIFICACIÓN DE AÑOS Y SALARIOS · SNC-4-09</h2><p><b>' + esc(razon) + '</b><br>Trabajador: <b>' + esc(t.nombre) + '</b> · CI ' + esc(t.ci || '') + '<br>Se certifica que el trabajador prestó servicios y devengó los salarios siguientes, según su tarjeta SC-4-08:</p>' +
+        '<table><thead><tr><th>Año</th><th>Días</th><th>Salario devengado</th></tr></thead><tbody>' +
+        filas.map((f) => '<tr><td>' + f.anio + '</td><td>' + f.totDias + '</td><td>' + fmt(f.totSal) + '</td></tr>').join('') +
+        '<tr><td><b>Total</b></td><td><b>' + totDias + '</b></td><td><b>' + fmt(totSal) + '</b></td></tr></tbody></table>' +
+        '<p>En ' + esc((perfil && perfil.municipio) || '') + ', a ' + fechaLarga(hoyLocal()) + '.</p><p style="margin-top:40px">______________________<br><b>El empleador</b></p></body></html>');
+    w.document.close(); w.print();
+}
+function retResumenImprimir() {
+    const t = (rrhh.trabajadores || []).find((x) => x.id === $('retTrabId').value);
+    if (!t) return;
+    const rec = retLeer();
+    const c = retCalc(rrhh, t, rec);
+    const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || null;
+    const razon = perfil ? (perfil.nombreComercial || perfil.razon || '') : '';
+    const pasos = [['Solicitud del trabajador', rec.pasos.solicitud], ['Certificación SNC-4-09', rec.pasos.certificacion], ['Presentación en la filial', rec.pasos.presentacion], ['Resolución', rec.pasos.resolucion + (rec.pasos.resolucionNum ? ' (n.º ' + rec.pasos.resolucionNum + ')' : '')], ['Baja efectuada', rec.pasos.baja]];
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>Hoja resumen ' + esc(t.nombre) + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' +
+        '<h2 style="text-align:center">HOJA RESUMEN DEL EXPEDIENTE DE RETIRO</h2><p><b>' + esc(razon) + '</b><br>Trabajador: <b>' + esc(t.nombre) + '</b> · CI ' + esc(t.ci || '') + ' · Tipo: ' + (rec.tipo === 'edad' ? 'Pensión por edad' : 'Pensión por invalidez') + ' · Estado: ' + esc(rec.estado) + '</p>' +
+        '<h3>Cálculo estimado</h3><p>' + c.lineas.map((l) => esc(l)).join('<br>') + (c.monto != null ? '<br><b>Pensión estimada: ' + fmt(c.monto) + ' / mes</b> (la cuantía oficial la fija el INASS).' : '') + '</p>' +
+        '<h3>Pasos del trámite</h3><table><tbody>' + pasos.map(([k, v]) => '<tr><td>' + k + '</td><td>' + esc(v || '—') + '</td></tr>').join('') + '</tbody></table>' +
+        (rec.tipo === 'invalidez' ? '<h3>Peritaje médico</h3><p>Clase: ' + esc(rec.peritaje.clase) + ' · Origen: ' + esc(rec.peritaje.origen) + ' · Fase: ' + esc(rec.peritaje.fase) + ' · Remisión: ' + esc(rec.peritaje.remision || '—') + ' · Dictamen: ' + esc(rec.peritaje.dictamen || '—') + (rec.peritaje.granInvalido ? ' · Gran inválido' : '') + '</p>' : '') +
+        (rec.reincorporacion.fecha ? '<h3>Reincorporación</h3><p>' + esc(rec.reincorporacion.fecha) + ' · ' + esc(rec.reincorporacion.puesto) + '</p>' : '') +
+        (rec.notas ? '<p>Notas: ' + esc(rec.notas) + '</p>' : '') + '</body></html>');
+    w.document.close(); w.print();
+}
+async function retDarBaja() {
+    const wid = $('retTrabId').value;
+    const t = (rrhh.trabajadores || []).find((x) => x.id === wid);
+    if (!t) return;
+    if (!confirm('¿Dar la baja por retiro a ' + t.nombre + '? El trabajador dejará de entrar en las nóminas nuevas.')) return;
+    const rec = retLeer();
+    rec.estado = 'cerrado';
+    rrhh.retiros = rrhh.retiros || {};
+    rrhh.retiros[wid] = rec;
+    t.fechaBaja = rec.pasos.baja || hoyLocal();
+    await guardar(); pintarTrabajadores(); pintarRetiro(); pintarPuestos();
+    $('retDetalle').style.display = 'none'; $('retDetalle').dataset.abierta = '';
+    aviso('Baja por retiro hecha el ' + t.fechaBaja);
+}
+/* Fase 12, bloque 3: el cálculo del asiento de la nómina es una
+ * función pura (para poder verificarlo en Node): devuelve los
+ * totales, las líneas y el error de validación, y anota en cada
+ * línea descAplicado y descAdelanto. */
+function nominaAsientoCalc(rrhh, conta, nom, mes) {
+    const pr = paramsNomina(rrhh);
+    const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0) + (Number(t.complemento) || 0), 0));
+    const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
+    const ss = r2(bruto * pr.ss / 100), iuft = r2(bruto * pr.iuft / 100);
+    let descTotal = 0, descAdelTotal = 0;
+    nom.trabajadores.forEach((t) => {
+        const ap = Math.min((Number(t.bruto) || 0) + (Number(t.complemento) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0);
+        t.descAplicado = r2(ap); descTotal = r2(descTotal + ap); rrhh.descuentos[t.id] = r2((Number(t.descuento) || 0) - ap);
+        const netoAhora = r2((Number(t.bruto) || 0) + (Number(t.complemento) || 0) - (Number(t.impPersonal) || 0) - ap);
+        const da = descAdelantoMes(rrhh, t.id, mes, netoAhora);
+        t.descAdelanto = r2(da.descuento); descAdelTotal = r2(descAdelTotal + da.descuento);
+    });
+    const liquido = r2(bruto - imp - descTotal - descAdelTotal);
+    const prov = r2(bruto * pr.provVac / 100);
+    if (bruto <= 0) return { ok: false, motivo: 'La nómina está en cero' };
+    const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
+    const lineas = [L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), bruto), L(cuentaAuto(conta.plan, 'gasto_seguridad_social', '615-000'), r2(ss + iuft)), L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, liquido), L(cuentaAuto(conta.plan, 'ss_por_pagar', '333-000'), 0, ss), L(cuentaAuto(conta.plan, 'fuerza_trabajo_por_pagar', '334-000'), 0, iuft)];
+    if (imp > 0) lineas.push(L(cuentaAuto(conta.plan, 'ingresos_personales_por_pagar', '345-000'), 0, imp));
+    if (descTotal > 0) lineas.push(L(cuentaAuto(conta.plan, 'retenciones_por_pagar', '332-000'), 0, descTotal));
+    if (descAdelTotal > 0) lineas.push(L(cuentaAuto(conta.plan, 'adelantos_trab', '139-000'), 0, descAdelTotal));
+    if (prov > 0) { lineas.push(L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), prov)); lineas.push(L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, prov)); }
+    const errLin = validarLineasAsiento(conta.plan, lineas);
+    if (errLin) return { ok: false, motivo: errLin };
+    return { ok: true, bruto, imp, ss, iuft, descTotal, descAdelTotal, liquido, prov, lineas };
 }
 function nominaDelMes() {
     const mes = $('nMes').value;
@@ -112,35 +1275,41 @@ function pintarNomina() {
     const nom = nominaDelMes();
     const nota = $('notaAportes');
     if (nota) {
+        const pr = paramsNomina(rrhh);
         const cSal = cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), cApor = cuentaAuto(conta.plan, 'gasto_seguridad_social', '615-000');
         const cSS = cuentaAuto(conta.plan, 'ss_por_pagar', '333-000'), cIUFT = cuentaAuto(conta.plan, 'fuerza_trabajo_por_pagar', '334-000');
-        nota.textContent = 'El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social 14 % e IUFT 5 % sobre el bruto; en el asiento, el bruto va a la ' + (cSal || '—') + ' y los aportes a la ' + (cApor || '—') + ' como aportes patronales, y quedan por pagar en la ' + (cSS || '—') + ' y la ' + (cIUFT || '—') + '.' +
+        nota.textContent = 'El bruto de cada trabajador es editable: si faltó días, se prorratea a mano (salario × días trabajados ÷ 30); las horas extra van a (salario ÷ 240) × 1,5. El impuesto sobre ingresos personales se escribe por trabajador según su escala. Aportes del empleador: Seguridad Social ' + pr.ss + ' % e IUFT ' + pr.iuft + ' % sobre el bruto; en el asiento, el bruto va a la ' + (cSal || '—') + ' y los aportes a la ' + (cApor || '—') + ' como aportes patronales, y quedan por pagar en la ' + (cSS || '—') + ' y la ' + (cIUFT || '—') + '.' +
             ((conta.planOrigen === 'oficial') ? ' Con el plan oficial (Res. 494/2016) no hay cuenta propia de salarios: el bruto y los aportes se asientan juntos en 826-000 Gastos de Operación.' : '');
     }
     if (!nom) { $('nomina').innerHTML = '<p class="tenue">No hay nómina guardada de ' + mes + '. Pulsa «Preparar» para crearla desde los trabajadores.</p>'; return; }
     const filas = nom.trabajadores.map((t, i) => {
-        const bruto = Number(t.bruto) || 0, imp = Number(t.impPersonal) || 0, desc = Math.min(bruto - imp, Number(t.descuento) || 0);
+        const bruto = Number(t.bruto) || 0, comp = Number(t.complemento) || 0, imp = Number(t.impPersonal) || 0, desc = Math.min(bruto + comp - imp, Number(t.descuento) || 0);
         return '<tr><td>' + esc(t.nombre) + '</td>' +
         '<td class="num"><input class="monto" data-dias="' + i + '" type="number" step="1" min="0" max="31" value="' + (t.dias == null ? 30 : t.dias) + '" title="Días trabajados en el mes"></td>' +
         '<td class="num"><input class="monto" data-bruto="' + i + '" type="number" step="0.01" min="0" value="' + t.bruto + '"></td>' +
+        '<td class="num"><input class="monto" data-comp="' + i + '" type="number" step="0.01" min="0" value="' + (t.complemento || 0) + '" title="Complemento del mes (se suma al bruto)"></td>' +
         '<td class="num"><input class="monto" data-imp="' + i + '" type="number" step="0.01" min="0" value="' + (t.impPersonal || 0) + '"></td>' +
-        '<td class="num"><input class="monto" data-desc="' + i + '" type="number" step="0.01" min="0" value="' + (t.descuento || 0) + '" title="Descuento del mes (embargos, cuotas…): si no alcanza el líquido, el resto queda pendiente para el mes siguiente"></td>' +
-        '<td class="num">' + fmt(bruto - imp - desc) + '</td></tr>';
+        '<td class="num"><input class="monto" data-desc="' + i + '" type="number" step="0.01" min="0" value="' + (t.descuento || 0) + '" title="Ajuste / descuento del mes (embargos, cuotas…): si no alcanza el líquido, el resto queda pendiente para el mes siguiente"></td>' +
+        '<td class="num">' + fmt(bruto + comp - imp - desc) + '</td></tr>';
     }).join('');
-    const bruto = r2(nom.trabajadores.reduce((x, t) => x + (Number(t.bruto) || 0), 0));
+    const bruto = r2(nom.trabajadores.reduce((x, t) => x + (Number(t.bruto) || 0) + (Number(t.complemento) || 0), 0));
     const imp = r2(nom.trabajadores.reduce((x, t) => x + (Number(t.impPersonal) || 0), 0));
-    const desc = r2(nom.trabajadores.reduce((x, t) => x + Math.min((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0), 0));
-    const prov = r2(bruto * 0.0909);
-    $('nomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días</th><th class="num">Bruto</th><th class="num">Imp. personal</th><th class="num">Descuento</th><th class="num">Líquido</th></tr></thead><tbody>' + filas +
-        '<tr class="totales"><td>TOTALES</td><td></td><td class="num">' + fmt(bruto) + '</td><td class="num">' + fmt(imp) + '</td><td class="num">' + fmt(desc) + '</td><td class="num">' + fmt(bruto - imp - desc) + '</td></tr></tbody></table>' +
-        '<p class="tenue">Aportes del empleador sobre el bruto: Seguridad Social 14 % = ' + fmt(r2(bruto * 0.14)) + ' · IUFT 5 % = ' + fmt(r2(bruto * 0.05)) +
-        '. Provisión de vacaciones (9,09 %): ' + fmt(prov) + '. Costo total de la nómina: ' + fmt(r2(bruto * 1.19 + prov)) + '.' + (nom.asientoId ? ' Asiento ya generado (nº ' + nom.asientoNumero + ').' : '') + '</p>';
-    $('nomina').querySelectorAll('input[data-bruto], input[data-imp], input[data-dias], input[data-desc]').forEach((inp) => inp.addEventListener('change', () => {
+    const desc = r2(nom.trabajadores.reduce((x, t) => x + Math.min((Number(t.bruto) || 0) + (Number(t.complemento) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0), 0));
+    const pr = paramsNomina(rrhh);
+    const prov = r2(bruto * pr.provVac / 100);
+    const adelMes = r2(nom.trabajadores.reduce((x, t) => x + (nom.asientoId ? (Number(t.descAdelanto) || 0) : descAdelantoMes(rrhh, t.id, mes, liquidoPreAdelanto(t)).descuento), 0));
+    $('nomina').innerHTML = '<table><thead><tr><th>Trabajador</th><th class="num">Días</th><th class="num">Bruto</th><th class="num">Complemento</th><th class="num">Imp. personal</th><th class="num">Ajuste / descuento</th><th class="num">Líquido</th></tr></thead><tbody>' + filas +
+        '<tr class="totales"><td>TOTALES</td><td></td><td class="num">' + fmt(bruto) + '</td><td></td><td class="num">' + fmt(imp) + '</td><td class="num">' + fmt(desc) + '</td><td class="num">' + fmt(bruto - imp - desc) + '</td></tr></tbody></table>' +
+        '<p class="tenue">Aportes del empleador sobre el bruto: Seguridad Social ' + pr.ss + ' % = ' + fmt(r2(bruto * pr.ss / 100)) + ' · IUFT ' + pr.iuft + ' % = ' + fmt(r2(bruto * pr.iuft / 100)) +
+        '. Provisión de vacaciones (' + pr.provVac + ' %): ' + fmt(prov) + '. Costo total de la nómina: ' + fmt(r2(bruto * (1 + (pr.ss + pr.iuft) / 100) + prov)) + '.' +
+        (adelMes > 0 ? ' Descuento de adelantos este mes: ' + fmt(adelMes) + ' (se resta del líquido al generar el asiento).' : '') + (nom.asientoId ? ' Asiento ya generado (nº ' + nom.asientoNumero + ').' : '') + '</p>';
+    $('nomina').querySelectorAll('input[data-bruto], input[data-imp], input[data-dias], input[data-desc], input[data-comp]').forEach((inp) => inp.addEventListener('change', () => {
         const ds = inp.dataset;
-        const i = Number(ds.bruto !== undefined ? ds.bruto : ds.imp !== undefined ? ds.imp : ds.dias !== undefined ? ds.dias : ds.desc);
+        const i = Number(ds.bruto !== undefined ? ds.bruto : ds.imp !== undefined ? ds.imp : ds.dias !== undefined ? ds.dias : ds.comp !== undefined ? ds.comp : ds.desc);
         if (ds.bruto !== undefined) nom.trabajadores[i].bruto = Number(inp.value) || 0;
         else if (ds.imp !== undefined) nom.trabajadores[i].impPersonal = Number(inp.value) || 0;
         else if (ds.dias !== undefined) nom.trabajadores[i].dias = Number(inp.value) || 0;
+        else if (ds.comp !== undefined) nom.trabajadores[i].complemento = Number(inp.value) || 0;
         else nom.trabajadores[i].descuento = Number(inp.value) || 0;
         pintarNomina();
     }));
@@ -166,17 +1335,80 @@ function pintarVacaciones() {
         rrhh.nominas = rrhh.nominas || {};
         rrhh.vacaciones = rrhh.vacaciones || {};
         rrhh.descuentos = rrhh.descuentos || {};
+        rrhh.tarjetas = rrhh.tarjetas || {};
+        rrhh.expedientes = rrhh.expedientes || {};
+        rrhh.contratoDefaults = rrhh.contratoDefaults || {};
+        rrhh.prenominas = rrhh.prenominas || {};
+        rrhh.adelantos = rrhh.adelantos || [];
+        rrhh.asistencia = rrhh.asistencia || {};
+        rrhh.puestos = rrhh.puestos || [];
+        rrhh.params = rrhh.params || {};
+        rrhh.evaluaciones = rrhh.evaluaciones || {};
+        rrhh.retiros = rrhh.retiros || {};
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
         $('tAdd').addEventListener('click', async () => {
             const nombre = $('tNombre').value.trim();
             const salario = Number($('tSalario').value) || 0;
             if (!nombre || salario <= 0) { aviso('El trabajador necesita nombre y salario', 'error'); return; }
-            rrhh.trabajadores.push({ id: 't' + Date.now().toString(36), nombre, ci: $('tCi').value.trim(), cargo: $('tCargo').value.trim(), salario });
-            await guardar(); $('tNombre').value = $('tCi').value = $('tCargo').value = $('tSalario').value = '';
+            rrhh.trabajadores.push({ id: 't' + Date.now().toString(36), nombre, ci: $('tCi').value.trim(), sexo: $('tSexo').value || '', cargo: $('tCargo').value.trim(), salario, fechaAlta: $('tAlta').value || '', direccion: $('tDireccion').value.trim() });
+            await guardar(); $('tNombre').value = $('tCi').value = $('tCargo').value = $('tSalario').value = $('tAlta').value = $('tDireccion').value = ''; $('tSexo').value = '';
             pintarTrabajadores(); aviso('Trabajador añadido');
         });
         $('nMes').value = mesLocal();
-        $('nMes').addEventListener('change', pintarNomina);
+        $('nMes').addEventListener('change', () => { pintarNomina(); pintarPrenomina(); });
+        /* Fase 12, bloque 2: botones de la pre-nómina. */
+        $('pmGenerar').addEventListener('click', async () => {
+            const res = prenominaGenerar(rrhh, $('nMes').value, hoyLocal());
+            if (!res.ok) { aviso(res.motivo, 'error'); return; }
+            await guardar(); pintarPrenomina(); aviso('Pre-nómina generada: revísala y apruébala');
+        });
+        $('pmAprobar').addEventListener('click', async () => {
+            const res = prenominaAprobar(rrhh, $('nMes').value, hoyLocal());
+            if (!res.ok) { aviso(res.motivo, 'error'); return; }
+            if (res.ya) { aviso('La pre-nómina ya estaba aprobada', 'error'); return; }
+            await guardar(); pintarNomina(); pintarPrenomina(); aviso('Pre-nómina aprobada: la nómina del mes ya lleva sus días');
+        });
+        $('pmImprimir').addEventListener('click', prenominaImprimir);
+        /* Fase 12, bloque 3: botón de registrar adelanto. */
+        /* Fase 12, bloque 4: puestos, parámetros y evaluación anual. */
+        /* Fase 12, bloque 5: botones del expediente de retiro. */
+        $('retTipo').addEventListener('change', retPintarCalc);
+        $('retClase').addEventListener('change', retPintarCalc);
+        $('retOrigen').addEventListener('change', retPintarCalc);
+        $('retFase').addEventListener('change', retPintarCalc);
+        $('retGran').addEventListener('change', retPintarCalc);
+        $('retGuardar').addEventListener('click', retGuardar);
+        $('retCertImprimir').addEventListener('click', retCertImprimir);
+        $('retResumenImprimir').addEventListener('click', retResumenImprimir);
+        $('retDarBaja').addEventListener('click', retDarBaja);
+        $('retCerrar').addEventListener('click', () => { $('retDetalle').style.display = 'none'; $('retDetalle').dataset.abierta = ''; const b = document.querySelector('.pest-bar [data-pest="retiro"]'); if (b) b.click(); });
+        $('puAdd').addEventListener('click', async () => {
+            const nombre = $('puNombre').value.trim();
+            const plazas = Math.max(1, Number($('puPlazas').value) || 1);
+            if (!nombre) { aviso('El puesto necesita nombre', 'error'); return; }
+            if ((rrhh.puestos || []).some((p) => String(p.nombre).toLowerCase() === nombre.toLowerCase())) { aviso('Ese puesto ya existe', 'error'); return; }
+            rrhh.puestos.push({ id: 'p' + Date.now().toString(36), nombre, plazas });
+            await guardar(); $('puNombre').value = ''; pintarPuestos(); aviso('Puesto añadido');
+        });
+        $('prGuardar').addEventListener('click', async () => {
+            const ss = Number($('prSs').value), iuft = Number($('prIuft').value), prov = Number($('prProv').value);
+            if (!(ss > 0) || !(iuft >= 0) || !(prov >= 0)) { aviso('Revisa los porcentajes', 'error'); return; }
+            rrhh.params = { ss, iuft, provVac: prov };
+            await guardar(); pintarNomina(); aviso('Parámetros guardados: se usan desde la próxima nómina');
+        });
+        $('evAnio').value = new Date().getFullYear();
+        $('evFecha').value = hoyLocal();
+        $('evGuardar').addEventListener('click', async () => {
+            const wid = $('evTrab').value;
+            const anio = $('evAnio').value.trim();
+            if (!wid || !anio) { aviso('Elige el trabajador y el año', 'error'); return; }
+            rrhh.evaluaciones[wid] = rrhh.evaluaciones[wid] || {};
+            rrhh.evaluaciones[wid][anio] = { nota: $('evNota').value, texto: $('evTexto').value.trim(), fecha: $('evFecha').value || '' };
+            await guardar(); $('evTexto').value = ''; pintarEvaluaciones(); aviso('Evaluación guardada');
+        });
+        $('adFecha').value = hoyLocal();
+        $('adAdd').addEventListener('click', registrarAdelanto);
         $('nPreparar').addEventListener('click', async () => {
             const mes = $('nMes').value;
             if (!rrhh.trabajadores.length) { aviso('Primero añade los trabajadores', 'error'); return; }
@@ -194,26 +1426,14 @@ function pintarVacaciones() {
             if (!nom) { aviso('Primero prepara y guarda la nómina del mes', 'error'); return; }
             if (nom.asientoId) { aviso('Esta nómina ya tiene su asiento (nº ' + nom.asientoNumero + ')', 'error'); return; }
             if (conta.candados && conta.candados[mes]) { aviso('El mes ' + mes + ' está cerrado: no se puede asentar la nómina en un período cerrado', 'error'); return; }
-            const bruto = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0));
-            const imp = r2(nom.trabajadores.reduce((s, t) => s + (Number(t.impPersonal) || 0), 0));
-            const ss = r2(bruto * 0.14), iuft = r2(bruto * 0.05);
-            let descTotal = 0;
-            nom.trabajadores.forEach((t) => { const ap = Math.min((Number(t.bruto) || 0) - (Number(t.impPersonal) || 0), Number(t.descuento) || 0); t.descAplicado = r2(ap); descTotal = r2(descTotal + ap); rrhh.descuentos[t.id] = r2((Number(t.descuento) || 0) - ap); });
-            const liquido = r2(bruto - imp - descTotal);
-            const prov = r2(bruto * 0.0909);
-            if (bruto <= 0) { aviso('La nómina está en cero', 'error'); return; }
-            const L = (cuenta, debe, haber) => ({ cuenta, debe: debe || 0, haber: haber || 0 });
-            const lineas = [L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), bruto), L(cuentaAuto(conta.plan, 'gasto_seguridad_social', '615-000'), r2(ss + iuft)), L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, liquido), L(cuentaAuto(conta.plan, 'ss_por_pagar', '333-000'), 0, ss), L(cuentaAuto(conta.plan, 'fuerza_trabajo_por_pagar', '334-000'), 0, iuft)];
-            if (imp > 0) lineas.push(L(cuentaAuto(conta.plan, 'ingresos_personales_por_pagar', '345-000'), 0, imp));
-            if (descTotal > 0) lineas.push(L(cuentaAuto(conta.plan, 'retenciones_por_pagar', '332-000'), 0, descTotal));
-            if (prov > 0) { lineas.push(L(cuentaAuto(conta.plan, 'gasto_salarios', '614-000'), prov)); lineas.push(L(cuentaAuto(conta.plan, 'nomina_por_pagar', '331-000'), 0, prov)); }
-            const errLin = validarLineasAsiento(conta.plan, lineas);
-            if (errLin) { aviso(errLin, 'error'); return; }
+            const calc = nominaAsientoCalc(rrhh, conta, nom, mes);
+            if (!calc.ok) { aviso(calc.motivo, 'error'); return; }
+            const { lineas } = calc;
             conta.seqAsiento = (conta.seqAsiento || 0) + 1;
             const id = 'a' + Date.now().toString(36);
             conta.asientos.push({ id, numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Nómina de ' + mes, origen: 'manual', estado: 'confirmado', lineas });
             nom.asientoId = id; nom.asientoNumero = conta.seqAsiento;
-            nom.trabajadores.forEach((t) => { const v = rrhh.vacaciones[t.id] || (rrhh.vacaciones[t.id] = { dias: 0, dinero: 0, disfrutes: [] }); v.dias = r2(v.dias + (Number(t.dias == null ? 30 : t.dias) || 0) / 11); v.dinero = r2(v.dinero + (Number(t.bruto) || 0) * 0.0909); });
+            nom.trabajadores.forEach((t) => { const v = rrhh.vacaciones[t.id] || (rrhh.vacaciones[t.id] = { dias: 0, dinero: 0, disfrutes: [] }); v.dias = r2(v.dias + (Number(t.dias == null ? 30 : t.dias) || 0) / 11); v.dinero = r2(v.dinero + ((Number(t.bruto) || 0) + (Number(t.complemento) || 0)) * paramsNomina(rrhh).provVac / 100); });
             /* M-1: asiento (conta) + descuentos consumidos y vacaciones
              * acumuladas (rrhh) en UNA transacción. */
             await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'rrhh', valor: rrhh }]);
@@ -224,8 +1444,8 @@ function pintarVacaciones() {
         $('nDias').addEventListener('click', async () => {
             const nom = nominaDelMes();
             if (!nom) { aviso('Primero prepara la nómina del mes', 'error'); return; }
-            nom.trabajadores.forEach((t) => { const base = (rrhh.trabajadores || []).find((x) => x.id === t.id); if (base) t.bruto = r2((Number(base.salario) || 0) * (Number(t.dias == null ? 30 : t.dias) || 0) / 30); });
-            await guardar(); pintarNomina(); aviso('Brutos calculados: salario × días ÷ 30 (siguen siendo editables)');
+            nom.trabajadores.forEach((t) => { const base = (rrhh.trabajadores || []).find((x) => x.id === t.id); if (base) t.bruto = prenominaBruto(Number(base.salario) || 0, Number(t.dias == null ? 30 : t.dias) || 0, Number((t.comp && t.comp.heHoras) || 0)); });
+            await guardar(); pintarNomina(); aviso('Brutos calculados: salario × días ÷ 30 + horas extra a (salario ÷ 240) × 1,5 (siguen siendo editables)');
         });
         $('vacPagar').addEventListener('click', async () => {
             const idT = $('vacTrab').value; const diasD = Number($('vacDias').value) || 0;
@@ -254,19 +1474,112 @@ function pintarVacaciones() {
             pintarVacaciones();
             aviso('Vacaciones registradas: ' + diasD + ' días por ' + fmt(pago) + (pago > 0 ? ' (asiento nº ' + conta.seqAsiento + ')' : ''));
         });
+        /* Fase 12, bloque 1: botones de los documentos de nómina. */
+        $('ctGenerar').addEventListener('click', contratoGenerar);
+        $('ctCerrar').addEventListener('click', () => { $('ctrabCard').style.display = 'none'; $('ctrabCard').dataset.abierta = ''; const b = document.querySelector('.pest-bar [data-pest="plantilla"]'); if (b) b.click(); });
+        $('tarjAnioSel').addEventListener('change', tarjetaPintar);
+        $('tarjGuardar').addEventListener('click', tarjetaGuardar);
+        $('tarjImprimir').addEventListener('click', tarjetaImprimir);
+        $('tarjCerrar').addEventListener('click', () => { $('tarjCard').style.display = 'none'; $('tarjCard').dataset.abierta = ''; const b = document.querySelector('.pest-bar [data-pest="plantilla"]'); if (b) b.click(); });
+        $('expdGuardar').addEventListener('click', expdGuardar);
+        $('expdImprimir').addEventListener('click', expdImprimir);
+        $('expdCerrar').addEventListener('click', () => { $('expdCard').style.display = 'none'; $('expdCard').dataset.abierta = ''; const b = document.querySelector('.pest-bar [data-pest="plantilla"]'); if (b) b.click(); });
+        $('modalContratoCopiar').addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText($('modalContratoTxt').innerText); aviso('Contrato copiado'); }
+            catch (e) { aviso('No se pudo copiar automáticamente', 'error'); }
+        });
+        $('modalContratoImprimir').addEventListener('click', () => {
+            const w = window.open('', '_blank');
+            if (!w) { aviso('El navegador bloqueó la ventana de impresión', 'error'); return; }
+            w.document.write('<html><head><meta charset="utf-8"><title>Contrato de trabajo</title></head><body>' + $('modalContratoTxt').innerHTML + '</body></html>');
+            w.document.close(); w.print();
+        });
+        $('modalContratoCerrar').addEventListener('click', () => { $('modalContrato').style.display = 'none'; });
         (function pestNomina() {
-            const grupos = [['plantilla', 'Plantilla'], ['nomina', 'Nómina'], ['vacaciones', 'Vacaciones']];
-            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Trabajadores') === 0) return 'plantilla'; if (x.indexOf('Vacaciones') === 0) return 'vacaciones'; return 'nomina'; };
+            const grupos = [['plantilla', 'Plantilla'], ['nomina', 'Nómina'], ['prenomina', 'Pre-nómina'], ['documentos', 'Documentos'], ['vacaciones', 'Vacaciones'], ['retiro', 'Retiro']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Trabajadores') === 0 || x.indexOf('Puestos de trabajo') === 0) return 'plantilla'; if (x.indexOf('Vacaciones') === 0) return 'vacaciones'; if (x.indexOf('Pre-nómina') === 0 || x.indexOf('Registro de asistencia') === 0 || x.indexOf('Adelantos') === 0 || x.indexOf('Reportes de gastos') === 0) return 'prenomina'; if (x.indexOf('Expediente de retiro') === 0) return 'retiro'; if (x.indexOf('Contrato de trabajo') === 0 || x.indexOf('Tarjeta de salario') === 0 || x.indexOf('Expediente laboral') === 0 || x.indexOf('Evaluación anual') === 0) return 'documentos'; return 'nomina'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
             const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
-            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); if (g === 'vacaciones') pintarVacaciones(); };
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { const esDoc = (t.id === 'ctrabCard' || t.id === 'tarjCard' || t.id === 'expdCard' || t.id === 'retDetalle'); t.style.display = (de(t) === g && (!esDoc || t.dataset.abierta === '1')) ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); if (g === 'vacaciones') pintarVacaciones(); };
             bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
             ir('nomina');
         })();
+        /* Fase 21, bloque 2: registro de asistencia. */
+        $('asMes').value = ($('nMes') && $('nMes').value) || hoyLocal().slice(0, 7);
+        const refrescarAsTrab = () => {
+            const val = $('asTrab').value;
+            $('asTrab').innerHTML = (rrhh.trabajadores || []).map((t) => '<option value="' + t.id + '">' + esc(t.nombre) + '</option>').join('') || '<option value="">— sin trabajadores —</option>';
+            if (val) $('asTrab').value = val;
+        };
+        refrescarAsTrab();
+        $('asTrab').addEventListener('change', pintarAsistencia);
+        $('asMes').addEventListener('change', pintarAsistencia);
+        $('asGuardar').addEventListener('click', async () => {
+            const wid = $('asTrab').value, mes = $('asMes').value;
+            if (!wid || !mes) { aviso('Elige un trabajador y un mes', 'error'); return; }
+            rrhh.asistencia[wid] = rrhh.asistencia[wid] || {};
+            let n = 0;
+            $('asTabla').querySelectorAll('[data-as-e]').forEach((el) => {
+                const f = el.dataset.asE;
+                const entrada = el.value, salida = ($('asTabla').querySelector('[data-as-s="' + f + '"]') || {}).value || '', nota = ($('asTabla').querySelector('[data-as-n="' + f + '"]') || {}).value || '';
+                if (!entrada && !salida && !nota) { delete rrhh.asistencia[wid][f]; return; }
+                rrhh.asistencia[wid][f] = { entrada, salida, nota };
+                n++;
+            });
+            try { await guardar(); pintarAsistencia(); aviso('Asistencia guardada: ' + n + ' día(s) con registro en ' + mes); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        $('asAPrenomina').addEventListener('click', async () => {
+            const mes = $('asMes').value;
+            const doc = (rrhh.prenominas || {})[mes];
+            if (!doc) { aviso('Primero genera la pre-nómina de ' + mes + ' (botón «Generar desde los trabajadores»)', 'error'); return; }
+            if (doc.estado === 'aprobada') { aviso('La pre-nómina de ' + mes + ' ya está aprobada: no se toca', 'error'); return; }
+            const dias = diasTrabDesdeAsistencia(rrhh.asistencia, mes);
+            let n = 0;
+            for (const wid of Object.keys(dias)) {
+                if (doc.filas[wid]) { doc.filas[wid].diasTrab = dias[wid]; n++; }
+            }
+            if (!n) { aviso('Nadie tiene días registrados en ' + mes + ': la pre-nómina queda como estaba', 'error'); return; }
+            try { await guardar(); pintarPrenomina(); aviso('Pre-nómina actualizada con la asistencia: ' + n + ' trabajador(es)'); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        rrhh.reportesGastos = rrhh.reportesGastos || [];
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        $('rgFecha').value = hoyLocal();
+        $('rgFechaLin').value = hoyLocal();
+        $('rgCrear').addEventListener('click', async () => {
+            const t = (rrhh.trabajadores || []).find((x) => x.id === $('rgTrab').value);
+            if (!t) { aviso('Elige un trabajador', 'error'); return; }
+            rrhh.reportesGastos.push({ id: 'rg' + Date.now().toString(36), empleadoId: t.id, empleado: t.nombre, fecha: $('rgFecha').value || hoyLocal(), estado: 'borrador', lineas: [] });
+            await guardar(); pintarReportesGastos(); aviso('Reporte creado para ' + t.nombre);
+        });
+        $('rgAddLin').addEventListener('click', async () => {
+            const r = (rrhh.reportesGastos || []).find((x) => x.id === $('rgReporte').value);
+            if (!r) { aviso('Primero crea un reporte', 'error'); return; }
+            if (r.estado !== 'borrador') { aviso('El reporte ya no es un borrador: no se le pueden añadir gastos', 'error'); return; }
+            const concepto = $('rgConcepto').value.trim(), monto = Number($('rgMonto').value) || 0;
+            if (!concepto || !(monto > 0)) { aviso('El gasto necesita concepto y monto', 'error'); return; }
+            let recibo = '';
+            const f = $('rgRecibo').files && $('rgRecibo').files[0];
+            if (f) { try { recibo = await adjuntoLeer(f); } catch (e) { aviso(String((e && e.message) || e), 'error'); return; } }
+            r.lineas = r.lineas || [];
+            r.lineas.push({ id: 'rgl' + Date.now().toString(36), fecha: $('rgFechaLin').value || hoyLocal(), concepto, monto, cuenta: $('rgCuentaGasto').value || '', recibo });
+            await guardar();
+            $('rgConcepto').value = ''; $('rgMonto').value = ''; $('rgRecibo').value = '';
+            pintarReportesGastos(); aviso('Gasto añadido al reporte');
+        });
         pintarTrabajadores();
+        pintarPuestos();
+        pintarParams();
+        pintarEvaluaciones();
+        pintarRetiro();
         pintarNomina();
+        pintarPrenomina();
+        pintarAdelantos();
+        pintarReportesGastos();
         pintarVacaciones();
+        pintarAsistencia();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

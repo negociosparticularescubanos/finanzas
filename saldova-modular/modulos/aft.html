@@ -46,6 +46,7 @@
             <option value="muebles">Muebles y enseres</option>
         </select>
         <input id="aCosto" class="monto" type="number" step="0.01" min="0" placeholder="Costo">
+        <input id="aArea" placeholder="Área / lugar (ej. Tienda, Oficina)" style="min-width:150px">
         <label>En servicio desde <input id="aFecha" type="date"></label>
         <label>Tasa anual % <input id="aTasa" type="number" step="0.1" min="0" value="10" style="width:70px"></label>
         <label>Se pagó con <select id="aPago"><option value="banco">Banco</option><option value="caja">Caja</option><option value="credito">A crédito (por pagar)</option></select></label>
@@ -68,6 +69,70 @@
     <div id="bajas"><p class="tenue">Cargando…</p></div>
 </div>
 
+<!-- Fase 24, bloque 1: traslados entre áreas. El activo tiene un
+     lugar (área) y si cambia de lugar queda registrado con su
+     documento y su historial, como la baja. -->
+<div class="tarjeta">
+    <h2>Traslados entre áreas</h2>
+    <p class="tenue">Mover un activo de un lugar a otro no cambia su valor ni su depreciación: solo cambia su área, y queda el historial en su tarjeta.</p>
+    <div class="fila">
+        <label>Activo <select id="tActivo" style="min-width:200px"></select></label>
+        <span id="tDe" class="tenue"></span>
+        <label>Nueva área <input id="tArea" placeholder="Ej. Taller, Almacén" style="min-width:150px"></label>
+        <label>Motivo <input id="tMotivo" placeholder="Ej. Se muda la oficina" style="min-width:180px"></label>
+        <label>Fecha <input id="tFecha" type="date"></label>
+        <button type="button" id="tMover">Mover el activo</button>
+    </div>
+    <div id="traslados"><p class="tenue">Sin traslados todavía.</p></div>
+</div>
+
+<!-- Fase 24, bloque 2: modificaciones con documento. Cambiar la
+     tasa, el valor o el nombre de un activo queda registrado con su
+     documento y se puede revertir. Si cambia el valor y el activo
+     está en los libros, el cambio lleva su asiento. -->
+<div class="tarjeta">
+    <h2>Modificaciones con documento</h2>
+    <p class="tenue">La tasa y el valor de un activo no se cambian a escondidas: cada cambio queda con su fecha, su motivo y su valor de antes y de después, y se puede revertir. El cambio de valor aplica desde ahora: la depreciación ya asentada no se toca.</p>
+    <div class="fila">
+        <label>Activo <select id="mActivo" style="min-width:200px"></select></label>
+        <label>Campo <select id="mCampo"><option value="tasa">Tasa anual %</option><option value="costo">Costo (valor)</option><option value="nombre">Nombre</option></select></label>
+        <label>Nuevo valor <input id="mValor" style="min-width:150px"></label>
+        <label>Motivo <input id="mMotivo" placeholder="Ej. Tasación nueva" style="min-width:180px"></label>
+        <label>Fecha <input id="mFecha" type="date"></label>
+        <button type="button" id="mAplicar">Aplicar la modificación</button>
+    </div>
+    <div id="modificaciones"><p class="tenue">Sin modificaciones todavía.</p></div>
+</div>
+
+<!-- Fase 24, bloque 3: inventario físico de AFT. El mismo patrón
+     que el conteo físico de Inventarios, aplicado a los activos:
+     se cuenta lo que hay, se ven las diferencias y el faltante se
+     da de baja con su asiento. -->
+<div class="tarjeta">
+    <h2>Inventario físico</h2>
+    <p class="tenue">Contar los activos que hay de verdad y compararlos con el registro. Lo que no aparece es un faltante: se puede dar de baja con su motivo de pérdida y su asiento.</p>
+    <div class="fila">
+        <label>Fecha <input id="ifFecha" type="date"></label>
+        <button type="button" id="ifIniciar">Iniciar conteo</button>
+        <button type="button" id="ifGuardar" class="secundario chico" disabled>Guardar conteo</button>
+        <button type="button" id="ifBajas" class="secundario chico" disabled>Dar de baja los faltantes</button>
+    </div>
+    <div id="conteoFisico"><p class="tenue">Inicia un conteo para ver la lista de activos.</p></div>
+    <div id="conteos"></div>
+</div>
+
+<!-- Fase 24, bloque 4: modelos oficiales SC 1-07 y SC-5-03. -->
+<div class="tarjeta">
+    <h2>Modelos oficiales</h2>
+    <p class="tenue">El SC 1-07 (Control de Activos Fijos) lista los activos con su submayor —su historial— y el SC-5-03 (Análisis de Gastos), los gastos del mes por centro y por cuenta. Se imprimen con los datos de la base.</p>
+    <div class="fila">
+        <label>Área <select id="scArea"></select></label>
+        <button type="button" id="sc107">Imprimir SC 1-07</button>
+        <label>Mes <input id="scMes" type="month"></label>
+        <button type="button" id="sc503">Imprimir SC-5-03</button>
+    </div>
+</div>
+
 <div class="tarjeta" id="tarjetaActivo" style="display:none">
     <h2>Tarjeta del activo</h2>
     <div id="tarjetaCuerpo"></div>
@@ -82,6 +147,18 @@
     <div id="depreciacion"><p class="tenue">Elige el mes.</p></div>
     <p class="tenue">Sin la depreciación del mes registrada, el cierre del período queda bloqueado (así lo exige el procedimiento: primero depreciar, después cerrar).</p>
     <p class="tenue" id="notaOficialDep"></p>
+</div>
+
+<!-- Fase 23, bloque 2: conciliación AFT ↔ Contabilidad. Lo que dice
+     el módulo de activos tiene que ser lo mismo que dicen los
+     libros, cuenta por cuenta: el valor de los activos y su
+     depreciación acumulada. Si no cuadra, la tarjeta dice cuánto
+     y por qué puede ser. -->
+<div class="tarjeta">
+    <h2>Conciliación con Contabilidad</h2>
+    <p class="tenue">Lo que dice este módulo tiene que ser lo mismo que dicen los libros, cuenta por cuenta. Si un activo se añadió marcando «Ya está en los libros», su valor no está en los libros y sale como diferencia: es normal, no es un error.</p>
+    <div class="fila"><label>Mes <input type="month" id="ccMes"></label><button type="button" id="ccVer" class="secundario chico">Ver</button></div>
+    <div id="conciliacion"><p class="tenue">Elige el mes.</p></div>
 </div>
 
 <script type="module">
@@ -103,7 +180,66 @@ const cuentaACUM = (cat) => cuentaAuto(conta.plan, ACUM_CONCEPTO[cat] || 'dep_ac
 const cuentaACT = (cat) => cuentaAuto(conta.plan, ACT_CONCEPTO[cat] || 'aft_maquinaria', ACT_DEF[cat] || '243-000');
 const MOTIVO_NOMBRE = { venta: 'Venta', rotura: 'Rotura / fin de vida útil', perdida: 'Pérdida o robo', donacion: 'Donación' };
 const CAT_NOMBRE = { edificios: 'Edificios', transporte: 'Transporte', maquinaria: 'Maquinaria y equipos', computacion: 'Computación', muebles: 'Muebles y enseres' };
-let aft = null, conta = null;
+let aft = null, conta = null, fiscal = null;
+
+/* Fase 24, bloque 4: modelos oficiales SC 1-07 y SC-5-03. Son
+ * plantillas para imprimir con los datos de la base, no cálculos
+ * nuevos: el SC 1-07 lista los activos con su submayor (su
+ * historial) y el SC-5-03, los gastos del mes por centro y por
+ * cuenta. */
+function modeloSC107(activos, perfil, area, mes) {
+    const lista = (activos || []).filter((a) => (!area || (a.area || '') === area));
+    const razon = (perfil && perfil.razon) || '';
+    const nit = (perfil && perfil.nit) || '';
+    let tc = 0, ta = 0;
+    const filas = lista.map((a) => {
+        const acum = depAcumulada(a, mes);
+        tc = r2(tc + (Number(a.costo) || 0)); ta = r2(ta + acum);
+        const hist = (a.historial || []).map((h) => '<tr><td>' + esc(h.fecha || '') + '</td><td colspan="7">' + esc(h.texto || '') + '</td></tr>').join('');
+        return '<tr><td>' + esc(a.codigo || '') + '</td><td>' + esc(a.nombre) + (a.estado === 'baja' ? ' <b>(DE BAJA)</b>' : '') + '</td><td>' + esc(a.area || '—') + '</td><td>' + esc(CAT_NOMBRE[a.categoria] || a.categoria) + '</td><td style="text-align:right">' + fmt(a.costo) + '</td><td style="text-align:right">' + fmt(a.tasa) + ' %</td><td>' + (a.fechaServicio || '') + '</td><td style="text-align:right">' + fmt(acum) + '</td><td style="text-align:right">' + fmt((Number(a.costo) || 0) - acum) + '</td></tr>' + hist;
+    }).join('');
+    return '<h2>SC 1-07 — Control de Activos Fijos</h2>' +
+        '<p><b>' + esc(razon) + '</b>' + (nit ? ' · NIT ' + esc(nit) : '') + '</p>' +
+        '<p>Área: ' + esc(area || 'Todas') + ' · Mes: ' + esc(mes) + '</p>' +
+        '<table><thead><tr><th>Cód.</th><th>Activo</th><th>Área</th><th>Categoría</th><th>Costo</th><th>Tasa</th><th>En servicio</th><th>Dep. acumulada</th><th>Valor en libros</th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="9">Sin activos.</td></tr>') +
+        '<tr><td colspan="4"><b>TOTALES</b></td><td style="text-align:right"><b>' + fmt(tc) + '</b></td><td></td><td></td><td style="text-align:right"><b>' + fmt(ta) + '</b></td><td style="text-align:right"><b>' + fmt(tc - ta) + '</b></td></tr></tbody></table>';
+}
+function analisisGastos(asientos, plan, mes) {
+    const filas = {};
+    for (const a of (asientos || [])) {
+        if (String(a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of (a.lineas || [])) {
+            const c = (plan || []).find((x) => x.codigo === l.cuenta);
+            if (!c || c.grupo !== 'gasto') continue;
+            const centro = String(l.centro || '').trim() || 'Sin centro';
+            const k = centro + '|' + l.cuenta;
+            filas[k] = filas[k] || { centro, cuenta: l.cuenta, nombre: c.nombre, importe: 0 };
+            filas[k].importe = r2(filas[k].importe + (Number(l.debe) || 0) - (Number(l.haber) || 0));
+        }
+    }
+    const lista = Object.values(filas).filter((f) => f.importe !== 0).sort((a, b) => (a.centro + a.cuenta).localeCompare(b.centro + b.cuenta));
+    return { filas: lista, total: r2(lista.reduce((s, f) => s + f.importe, 0)) };
+}
+function modeloSC503(datos, perfil, mes) {
+    const razon = (perfil && perfil.razon) || '';
+    const nit = (perfil && perfil.nit) || '';
+    const filas = datos.filas.map((f) => '<tr><td>' + esc(f.centro) + '</td><td>' + esc(f.cuenta) + '</td><td>' + esc(f.nombre) + '</td><td style="text-align:right">' + fmt(f.importe) + '</td></tr>').join('');
+    return '<h2>SC-5-03 — Análisis de Gastos</h2>' +
+        '<p><b>' + esc(razon) + '</b>' + (nit ? ' · NIT ' + esc(nit) : '') + '</p>' +
+        '<p>Mes: ' + esc(mes) + '</p>' +
+        '<table><thead><tr><th>Centro de coste</th><th>Cuenta</th><th>Elemento de gasto</th><th>Importe</th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="4">Sin gastos en el mes.</td></tr>') +
+        '<tr><td colspan="3"><b>TOTAL</b></td><td style="text-align:right"><b>' + fmt(datos.total) + '</b></td></tr></tbody></table>';
+}
+function imprimirModelo(html, titulo) {
+    const w = window.open('', '_blank');
+    if (!w) { aviso('El navegador no dejó abrir la ventana de impresión', 'error'); return; }
+    w.document.write('<html><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>body{font-family:Georgia,serif;font-size:13px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 7px;text-align:left}th{background:#eee}</style></head><body>' + html + '</body></html>');
+    w.document.close();
+    w.focus();
+    w.print();
+}
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -128,6 +264,176 @@ function depMensual(a) { return r2((Number(a.costo) || 0) * (Number(a.tasa) || 0
 function depAcumulada(a, hastaMes) {
     return Math.min(Number(a.costo) || 0, r2(depMensual(a) * mesesEnServicio(a, hastaMes)));
 }
+/* Fase 23, bloque 2: conciliación AFT ↔ Contabilidad. Compara, por
+ * cuenta, el valor de los activos y su depreciación acumulada según
+ * este módulo con lo que dicen los libros. `cuentas` trae por
+ * categoría su cuenta de activo y su cuenta de acumulada; `libros`
+ * trae por cuenta su saldo (debe−haber para el activo, haber−debe
+ * para la acumulada). */
+function conciliarAFT(activos, cuentas, libros, mes, ultimaDep) {
+    /* Las cuentas de valor son una por categoría; las de acumulada
+     * se comparten entre categorías (computación y muebles van a
+     * 253-000), así que se agrupan por CUENTA, no por categoría. */
+    const porCuenta = {}, porAcum = {};
+    let depSinAsentar = 0;
+    for (const c of cuentas) {
+        porCuenta[c.cuenta] = porCuenta[c.cuenta] || { cuenta: c.cuenta, valorAFT: 0 };
+        porAcum[c.acum] = porAcum[c.acum] || { cuenta: c.acum, valorAFT: 0 };
+    }
+    for (const a of (activos || []).filter((x) => x.estado !== 'baja')) {
+        const c = cuentas.find((x) => x.categoria === a.categoria);
+        if (!c) continue;
+        porCuenta[c.cuenta].valorAFT = r2(porCuenta[c.cuenta].valorAFT + (Number(a.costo) || 0));
+        porAcum[c.acum].valorAFT = r2(porAcum[c.acum].valorAFT + depAcumulada(a, mes));
+    }
+    const filas = [];
+    for (const v of Object.values(porCuenta)) {
+        const vl = r2(Number((libros[v.cuenta] || {}).saldo) || 0);
+        filas.push({ tipo: 'valor', cuenta: v.cuenta, valorAFT: v.valorAFT, valorLibros: vl, diferencia: r2(v.valorAFT - vl), cuadrado: Math.abs(v.valorAFT - vl) < 0.005 });
+    }
+    for (const v of Object.values(porAcum)) {
+        const vl = r2(Number((libros[v.cuenta] || {}).saldo) || 0);
+        filas.push({ tipo: 'acumulada', cuenta: v.cuenta, valorAFT: v.valorAFT, valorLibros: vl, diferencia: r2(v.valorAFT - vl), cuadrado: Math.abs(v.valorAFT - vl) < 0.005 });
+    }
+    if (ultimaDep && ultimaDep < mes) {
+        for (const a of (activos || []).filter((x) => x.estado !== 'baja')) {
+            depSinAsentar = r2(depSinAsentar + Math.max(0, r2(depAcumulada(a, mes) - depAcumulada(a, ultimaDep))));
+        }
+    }
+    return { filas, cuadrado: filas.every((f) => f.cuadrado), depSinAsentar };
+}
+function pintarConciliacion() {
+    const mes = $('ccMes').value;
+    if (!mes) { $('conciliacion').innerHTML = '<p class="tenue">Elige el mes.</p>'; return; }
+    const cats = [...new Set((aft.activos || []).map((a) => a.categoria))];
+    const cuentas = cats.map((c) => ({ categoria: c, cuenta: cuentaACT(c), acum: cuentaACUM(c) }));
+    const libros = {};
+    const finMes = mes + '-31';
+    for (const a of (conta.asientos || [])) {
+        if ((a.fecha || '') > finMes) continue;
+        for (const l of (a.lineas || [])) {
+            libros[l.cuenta] = libros[l.cuenta] || { debe: 0, haber: 0 };
+            libros[l.cuenta].debe = r2(libros[l.cuenta].debe + (Number(l.debe) || 0));
+            libros[l.cuenta].haber = r2(libros[l.cuenta].haber + (Number(l.haber) || 0));
+        }
+    }
+    for (const cod of Object.keys(libros)) libros[cod].saldo = r2(libros[cod].debe - libros[cod].haber);
+    /* La acumulada es cuenta acreedora: su saldo en los libros es
+     * haber−debe, no debe−haber. */
+    for (const c of cuentas) if (libros[c.acum]) libros[c.acum].saldo = r2(libros[c.acum].haber - libros[c.acum].debe);
+    const nombreCuenta = (cod) => { const c = (conta.plan || []).find((x) => x.codigo === cod); return c ? c.nombre : cod; };
+    const r = conciliarAFT(aft.activos, cuentas, libros, mes, aft.ultimaDepreciacion || '');
+    $('conciliacion').innerHTML = (r.filas.length ? '<table><thead><tr><th>Cuenta</th><th></th><th class="num">Según AFT</th><th class="num">Según los libros</th><th class="num">Diferencia</th><th>Estado</th></tr></thead><tbody>' +
+        r.filas.map((f) => '<tr><td>' + esc(f.cuenta) + '</td><td>' + esc(nombreCuenta(f.cuenta)) + (f.tipo === 'acumulada' ? ' (acumulada)' : '') + '</td><td class="num">' + fmt(f.valorAFT) + '</td><td class="num">' + fmt(f.valorLibros) + '</td><td class="num">' + fmt(f.diferencia) + '</td><td>' + (f.cuadrado ? '<span class="ok">Cuadra</span>' : '<span class="mal">No cuadra</span>') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin activos todavía.</p>') +
+        '<p><b>' + (r.cuadrado ? 'Todo cuadra: los activos y su depreciación son los mismos en el módulo y en los libros.' : 'Hay diferencias: revisa las filas en rojo.') + '</b></p>' +
+        (r.depSinAsentar > 0 ? '<p>Depreciación sin asentar hasta ' + mes + ': <b>$' + fmt(r.depSinAsentar) + '</b> (la última depreciación registrada es ' + (aft.ultimaDepreciacion || 'ninguna') + '): si la diferencia de la acumulada es esa, genera el asiento del mes en «Depreciación del mes».</p>' : '');
+}
+/* Fase 24, bloque 1: traslados entre áreas. El traslado no toca
+ * el valor ni la depreciación: solo cambia el lugar del activo y
+ * deja el rastro en su historial. */
+function trasladarActivo(a, nuevaArea, fecha, motivo) {
+    const de = String(a.area || '').trim();
+    const hacia = String(nuevaArea || '').trim();
+    if (!hacia) return { ok: false, motivo: 'Escribe la nueva área' };
+    if (hacia === de) return { ok: false, motivo: 'El activo ya está en «' + hacia + '»' };
+    const copia = JSON.parse(JSON.stringify(a));
+    copia.area = hacia;
+    copia.historial = copia.historial || [];
+    copia.historial.push({ fecha, tipo: 'traslado', texto: 'Traslado de «' + (de || 'sin área') + '» a «' + hacia + '»' + (motivo ? ' (' + motivo + ')' : '') });
+    const traslado = { id: 'tr' + Date.now().toString(36), fecha, activoId: a.id, codigo: a.codigo || '', nombre: a.nombre, de, a: hacia, motivo: motivo || '' };
+    return { ok: true, activo: copia, traslado };
+}
+/* Fase 24, bloque 2: modificaciones con documento. El cambio queda
+ * registrado con su valor de antes y de después, y se puede
+ * revertir. `nuevoValor` viene como texto del formulario. */
+function modificarActivo(a, campo, nuevoValor, fecha, motivo) {
+    const antes = campo === 'tasa' ? (Number(a.tasa) || 0) : campo === 'costo' ? (Number(a.costo) || 0) : (a.nombre || '');
+    let despues;
+    if (campo === 'tasa') {
+        despues = Number(nuevoValor);
+        if (!(despues > 0) || despues > 100) return { ok: false, motivo: 'La tasa tiene que estar entre 0 y 100' };
+    } else if (campo === 'costo') {
+        despues = Number(nuevoValor);
+        if (!(despues > 0)) return { ok: false, motivo: 'El costo tiene que ser mayor que 0' };
+    } else if (campo === 'nombre') {
+        despues = String(nuevoValor || '').trim();
+        if (!despues) return { ok: false, motivo: 'El nombre no puede quedar vacío' };
+    } else return { ok: false, motivo: 'No se puede modificar «' + campo + '»' };
+    if (despues === antes) return { ok: false, motivo: 'El valor nuevo es el mismo que el de antes' };
+    const copia = JSON.parse(JSON.stringify(a));
+    if (campo === 'tasa') copia.tasa = despues;
+    if (campo === 'costo') copia.costo = despues;
+    if (campo === 'nombre') copia.nombre = despues;
+    copia.historial = copia.historial || [];
+    copia.historial.push({ fecha, tipo: 'modificacion', texto: 'Modificación de ' + campo + ': de «' + antes + '» a «' + despues + '»' + (motivo ? ' (' + motivo + ')' : '') });
+    const modificacion = { id: 'md' + Date.now().toString(36), fecha, activoId: a.id, codigo: a.codigo || '', nombre: a.nombre, campo, antes, despues, motivo: motivo || '', revertido: false };
+    return { ok: true, activo: copia, modificacion };
+}
+/* Fase 24, bloque 3: inventario físico de AFT. `respuestas` es
+ * {activoId: {encontrado, nota}}: lo que se contó en el local. */
+function conteoAFT(activos, respuestas) {
+    const lista = (activos || []).filter((a) => a.estado !== 'baja');
+    const faltantes = [];
+    let encontrados = 0;
+    for (const a of lista) {
+        const r = (respuestas || {})[a.id];
+        if (r && r.encontrado) encontrados++;
+        else faltantes.push({ activoId: a.id, codigo: a.codigo || '', nombre: a.nombre, nota: (r && r.nota) || '' });
+    }
+    return { total: lista.length, encontrados, faltantes };
+}
+function pintarConteos() {
+    const lista = [...(aft.conteos || [])].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    $('conteos').innerHTML = lista.length ? '<h3 style="margin:10px 0 4px">Conteos anteriores</h3><table><thead><tr><th>Fecha</th><th>Activos</th><th>Encontrados</th><th>Faltantes</th></tr></thead><tbody>' +
+        lista.map((c) => '<tr><td>' + esc(c.fecha || '') + '</td><td class="num">' + (c.lineas || []).length + '</td><td class="num">' + (c.lineas || []).filter((l) => l.encontrado).length + '</td><td>' + (c.faltantes || []).map((f) => esc(f.nombre)).join(', ') + '</td></tr>').join('') + '</tbody></table>' : '';
+}
+function pintarModificaciones() {
+    const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
+    $('mActivo').innerHTML = activos.map((a) => '<option value="' + a.id + '">' + esc(a.codigo || '') + ' · ' + esc(a.nombre) + ' · tasa ' + fmt(a.tasa) + ' % · costo ' + fmt(a.costo) + '</option>').join('') || '<option value="">Sin activos en explotación</option>';
+    const lista = [...(aft.modificaciones || [])].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    $('modificaciones').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>Activo</th><th>Campo</th><th>Antes</th><th>Después</th><th>Motivo</th><th></th></tr></thead><tbody>' +
+        lista.map((m) => '<tr' + (m.revertido ? ' style="opacity:.6"' : '') + '><td>' + esc(m.fecha || '') + '</td><td>' + esc(m.nombre) + '</td><td>' + esc(m.campo) + '</td><td>' + esc(String(m.antes)) + '</td><td>' + esc(String(m.despues)) + '</td><td>' + esc(m.motivo || '—') + (m.revertido ? ' <b>(revertida)</b>' : '') + '</td><td>' + (m.revertido ? '' : '<button type="button" class="chico secundario" data-md-revertir="' + m.id + '">Revertir</button>') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin modificaciones todavía.</p>';
+    $('modificaciones').querySelectorAll('[data-md-revertir]').forEach((b) => b.addEventListener('click', async () => {
+        const m = (aft.modificaciones || []).find((x) => x.id === b.dataset.mdRevertir);
+        const a = (aft.activos || []).find((x) => x.id === (m && m.activoId));
+        if (!m || !a || m.revertido) return;
+        if (m.campo === 'costo' && a.enLibros !== false && (conta.candados && conta.candados[hoyLocal().slice(0, 7)])) { aviso('Este mes está cerrado: no se puede revertir el cambio de valor', 'error'); return; }
+        const r = modificarActivo(a, m.campo, m.antes, hoyLocal(), 'Reversión de la modificación del ' + (m.fecha || ''));
+        if (!r.ok) { aviso(r.motivo, 'error'); return; }
+        r.modificacion.motivo = 'Reversión de la modificación del ' + (m.fecha || '');
+        m.revertido = true;
+        const idx = aft.activos.findIndex((x) => x.id === a.id);
+        aft.activos[idx] = r.activo;
+        aft.modificaciones.push(r.modificacion);
+        let numAsiento = 0;
+        if (m.campo === 'costo' && a.enLibros !== false) {
+            const dif = r2(Number(m.despues) - Number(m.antes));
+            const lineas = dif > 0
+                ? [{ cuenta: cuentaAuto(conta.plan, 'perdida_baja', '720-000'), debe: dif, haber: 0 }, { cuenta: cuentaACT(a.categoria), debe: 0, haber: dif }]
+                : [{ cuenta: cuentaACT(a.categoria), debe: -dif, haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'otros_ingresos', '810-000'), debe: 0, haber: -dif }];
+            const errLin = validarLineasAsiento(conta.plan, lineas);
+            if (errLin) { aviso(errLin, 'error'); return; }
+            conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+            numAsiento = conta.seqAsiento;
+            conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: numAsiento, fecha: hoyLocal(), concepto: 'Reversión del cambio de valor de ' + a.nombre, origen: 'manual', estado: 'confirmado', lineas });
+            try { await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); return; }
+        } else {
+            try { await guardar(); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); return; }
+        }
+        pintarTodo(); aviso('Modificación revertida' + (numAsiento ? ' con el asiento nº ' + numAsiento : ''));
+    }));
+}
+function pintarTraslados() {
+    const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
+    $('tActivo').innerHTML = activos.map((a) => '<option value="' + a.id + '">' + esc(a.codigo || '') + ' · ' + esc(a.nombre) + ' · ' + esc(a.area || 'sin área') + '</option>').join('') || '<option value="">Sin activos en explotación</option>';
+    const sel = (aft.activos || []).find((x) => x.id === $('tActivo').value);
+    $('tDe').textContent = sel ? 'Está en: ' + (sel.area || 'sin área') : '';
+    const lista = [...(aft.traslados || [])].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    $('traslados').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>Activo</th><th>De</th><th>A</th><th>Motivo</th></tr></thead><tbody>' +
+        lista.map((t) => '<tr><td>' + esc(t.fecha || '') + '</td><td>' + esc(t.nombre) + '</td><td>' + esc(t.de || 'sin área') + '</td><td>' + esc(t.a) + '</td><td>' + esc(t.motivo || '—') + '</td></tr>').join('') + '</tbody></table>' : '<p class="tenue">Sin traslados todavía.</p>';
+}
 function pintarActivos() {
     const mes = $('dMes').value || mesLocal();
     const lista = aft.activos || [];
@@ -136,15 +442,15 @@ function pintarActivos() {
         const acum = depAcumulada(a, mes);
         const esBaja = a.estado === 'baja';
         if (!esBaja) { tc += Number(a.costo) || 0; ta += acum; }
-        return '<tr' + (esBaja ? ' style="opacity:.65"' : '') + '><td>' + esc(a.codigo || '') + '</td><td>' + esc(a.nombre) + (esBaja ? ' <b>(de baja: ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ', ' + ((a.baja && a.baja.fecha) || '') + ')</b>' : '') + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td>' +
+        return '<tr' + (esBaja ? ' style="opacity:.65"' : '') + '><td>' + esc(a.codigo || '') + '</td><td>' + esc(a.nombre) + (esBaja ? ' <b>(de baja: ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ', ' + ((a.baja && a.baja.fecha) || '') + ')</b>' : '') + '</td><td>' + (CAT_NOMBRE[a.categoria] || a.categoria) + '</td><td>' + esc(a.area || '—') + '</td>' +
             '<td class="num">' + fmt(a.costo) + '</td><td class="num">' + fmt(a.tasa) + ' %</td><td>' + (a.fechaServicio || '') + '</td>' +
             '<td class="num">' + fmt(acum) + '</td><td class="num">' + fmt((Number(a.costo) || 0) - acum) + '</td>' +
             '<td>' + (esBaja ? '' : '<button type="button" class="chico secundario" data-del="' + a.id + '">Quitar</button> ') +
             '<button type="button" class="chico secundario" data-tarjeta="' + a.id + '">Tarjeta</button></td></tr>';
     }).join('');
-    $('activos').innerHTML = '<table><thead><tr><th>Cód.</th><th>Activo</th><th>Categoría</th><th class="num">Costo</th><th class="num">Tasa</th><th>En servicio</th><th class="num">Dep. acumulada</th><th class="num">Valor en libros</th><th></th></tr></thead><tbody>' +
-        (filas || '<tr><td colspan="9" class="tenue">Sin activos todavía.</td></tr>') +
-        '<tr class="totales"><td colspan="3">TOTALES</td><td class="num">' + fmt(tc) + '</td><td></td><td></td><td class="num">' + fmt(ta) + '</td><td class="num">' + fmt(tc - ta) + '</td><td></td></tr></tbody></table>';
+    $('activos').innerHTML = '<table><thead><tr><th>Cód.</th><th>Activo</th><th>Categoría</th><th>Área</th><th class="num">Costo</th><th class="num">Tasa</th><th>En servicio</th><th class="num">Dep. acumulada</th><th class="num">Valor en libros</th><th></th></tr></thead><tbody>' +
+        (filas || '<tr><td colspan="10" class="tenue">Sin activos todavía.</td></tr>') +
+        '<tr class="totales"><td colspan="4">TOTALES</td><td class="num">' + fmt(tc) + '</td><td></td><td></td><td class="num">' + fmt(ta) + '</td><td class="num">' + fmt(tc - ta) + '</td><td></td></tr></tbody></table>';
     $('activos').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
         aft.activos = aft.activos.filter((a) => a.id !== b.dataset.del);
         await guardar(); pintarTodo(); pintarBajas(); aviso('Activo quitado');
@@ -164,7 +470,9 @@ function verTarjeta(id) {
         '<tr><td><b>Tasa anual</b></td><td>' + fmt(a.tasa) + ' %</td><td><b>Cuenta / Acumulada</b></td><td>' + cuentaACT(a.categoria) + ' / ' + cuentaACUM(a.categoria) + '</td></tr>' +
         '<tr><td><b>Depreciación acumulada</b></td><td>' + fmt(acum) + '</td><td><b>Valor en libros hoy</b></td><td><b>' + fmt((Number(a.costo) || 0) - acum) + '</b></td></tr>' +
         '<tr><td><b>Estado</b></td><td colspan="3">' + (a.estado === 'baja' ? 'DE BAJA — ' + (MOTIVO_NOMBRE[a.baja && a.baja.motivo] || '') + ' el ' + ((a.baja && a.baja.fecha) || '') + (a.baja && a.baja.precio ? ' por ' + fmt(a.baja.precio) : '') : 'En explotación') + '</td></tr>' +
+        '<tr><td><b>Área</b></td><td colspan="3">' + esc(a.area || '—') + '</td></tr>' +
         '</tbody></table>' +
+        ((a.historial || []).length ? '<h3 style="margin:10px 0 4px">Historial del activo</h3><table><tbody>' + (a.historial || []).map((h) => '<tr><td>' + esc(h.fecha || '') + '</td><td>' + esc(h.texto || '') + '</td></tr>').join('') + '</tbody></table>' : '') +
         '<p class="tenue">Documento de control del activo: consérvalo con su factura de compra y, si se da de baja, con el acta del motivo.</p>';
     $('tarjetaActivo').style.display = '';
     $('tarjetaActivo').scrollIntoView({ behavior: 'smooth' });
@@ -193,7 +501,7 @@ function pintarDepreciacion() {
         '<p class="tenue">Última depreciación registrada: ' + (aft.ultimaDepreciacion || 'ninguna') + '.</p>';
 }
 function pintarTodo() {
-    pintarActivos(); pintarDepreciacion();
+    pintarActivos(); pintarDepreciacion(); pintarConciliacion(); pintarTraslados(); pintarModificaciones(); pintarConteos();
     const nota = $('notaOficialDep');
     if (nota) nota.textContent = (conta && conta.planOrigen === 'oficial')
         ? 'Con el plan oficial (Res. 494/2016) no hay cuenta propia de depreciación: el gasto se asienta en 826-000 Gastos de Operación, todos los activos en 240-000 y su depreciación acumulada en 375-000.'
@@ -207,6 +515,10 @@ function pintarTodo() {
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         aft = (await bd().docLeer(tokenSesion(), 'aft')) || {};
         aft.activos = aft.activos || [];
+        aft.traslados = aft.traslados || [];
+        aft.modificaciones = aft.modificaciones || [];
+        aft.conteos = aft.conteos || [];
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], seqAsiento: 0, plan: [] };
         $('aAdd').addEventListener('click', async () => {
             const nombre = $('aNombre').value.trim();
@@ -230,7 +542,7 @@ function pintarTodo() {
                 const errLin = validarLineasAsiento(conta.plan, lineas);
                 if (errLin) { aviso(errLin, 'error'); return; }
             }
-            aft.activos.push({ id: 'af' + Date.now().toString(36), codigo: $('aCodigo').value.trim(), nombre, categoria, costo, fechaServicio: $('aFecha').value, tasa: Number($('aTasa').value) || 0, estado: 'activo' });
+            aft.activos.push({ id: 'af' + Date.now().toString(36), codigo: $('aCodigo').value.trim(), nombre, categoria, costo, fechaServicio: $('aFecha').value, tasa: Number($('aTasa').value) || 0, estado: 'activo', area: $('aArea').value.trim(), enLibros: !sinAsiento, historial: [{ fecha: hoyF, tipo: 'alta', texto: 'Alta por $' + fmt(costo) + (sinAsiento ? ' (ya estaba en los libros)' : '') }] });
             if (lineas) {
                 conta.seqAsiento = (conta.seqAsiento || 0) + 1;
                 numAsiento = conta.seqAsiento;
@@ -249,6 +561,10 @@ function pintarTodo() {
         $('dMes').value = mesLocal();
         $('dMes').addEventListener('change', pintarTodo);
         $('dVer').addEventListener('click', pintarDepreciacion);
+        /* Fase 23, bloque 2: conciliación AFT ↔ Contabilidad. */
+        $('ccMes').value = mesLocal();
+        $('ccMes').addEventListener('change', pintarConciliacion);
+        $('ccVer').addEventListener('click', pintarConciliacion);
         $('dAsiento').addEventListener('click', async () => {
             const mes = $('dMes').value;
             if (aft.ultimaDepreciacion && aft.ultimaDepreciacion >= mes) { aviso('La depreciación de ' + mes + ' ya está registrada (' + aft.ultimaDepreciacion + ')', 'error'); return; }
@@ -277,6 +593,128 @@ function pintarTodo() {
             pintarTodo();
         });
         $('aFecha').value = hoyLocal();
+        $('tFecha').value = hoyLocal();
+        $('mFecha').value = hoyLocal();
+        $('ifFecha').value = hoyLocal();
+        $('scMes').value = mesLocal();
+        /* Fase 24, bloque 4: modelos oficiales. */
+        const areas = [...new Set((aft.activos || []).map((a) => a.area || '').filter(Boolean))];
+        $('scArea').innerHTML = '<option value="">Todas las áreas</option>' + areas.map((ar) => '<option value="' + esc(ar) + '">' + esc(ar) + '</option>').join('');
+        $('sc107').addEventListener('click', () => {
+            const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || fiscal.meta || {};
+            imprimirModelo(modeloSC107(aft.activos, perfil, $('scArea').value, $('dMes').value || mesLocal()), 'SC 1-07 Control de Activos Fijos');
+        });
+        $('sc503').addEventListener('click', () => {
+            const perfil = (fiscal && fiscal.meta && fiscal.meta.perfil) || fiscal.meta || {};
+            const mes = $('scMes').value;
+            imprimirModelo(modeloSC503(analisisGastos(conta.asientos, conta.plan, mes), perfil, mes), 'SC-5-03 Análisis de Gastos ' + mes);
+        });
+        let conteoActivo = null;
+        /* Fase 24, bloque 3: inventario físico de AFT. */
+        $('ifIniciar').addEventListener('click', () => {
+            const activos = (aft.activos || []).filter((a) => a.estado !== 'baja');
+            if (!activos.length) { aviso('No hay activos en explotación para contar', 'error'); return; }
+            conteoActivo = { fecha: $('ifFecha').value };
+            $('conteoFisico').innerHTML = '<table><thead><tr><th>Lo vi</th><th>Activo</th><th>Área</th><th>Nota</th></tr></thead><tbody>' +
+                activos.map((a) => '<tr><td><input type="checkbox" data-if-id="' + a.id + '"></td><td>' + esc(a.codigo || '') + ' · ' + esc(a.nombre) + '</td><td>' + esc(a.area || '—') + '</td><td><input data-if-nota="' + a.id + '" placeholder="Ej. En el taller" style="min-width:160px"></td></tr>').join('') + '</tbody></table>' +
+                '<p class="tenue">Marca lo que encontraste. Lo que no marques es un faltante.</p>';
+            $('ifGuardar').disabled = false;
+            $('ifBajas').disabled = true;
+        });
+        $('ifGuardar').addEventListener('click', async () => {
+            if (!conteoActivo) return;
+            const respuestas = {};
+            $('conteoFisico').querySelectorAll('[data-if-id]').forEach((cb) => {
+                respuestas[cb.dataset.ifId] = { encontrado: cb.checked, nota: ($('conteoFisico').querySelector('[data-if-nota="' + cb.dataset.ifId + '"]') || {}).value || '' };
+            });
+            const r = conteoAFT(aft.activos, respuestas);
+            const lineas = (aft.activos || []).filter((a) => a.estado !== 'baja').map((a) => ({ activoId: a.id, codigo: a.codigo || '', nombre: a.nombre, encontrado: !!(respuestas[a.id] && respuestas[a.id].encontrado), nota: (respuestas[a.id] && respuestas[a.id].nota) || '' }));
+            const conteo = { id: 'ct' + Date.now().toString(36), fecha: conteoActivo.fecha, lineas, faltantes: r.faltantes };
+            aft.conteos.push(conteo);
+            conteoActivo = conteo;
+            try {
+                await guardar();
+                $('conteoFisico').innerHTML = '<p><b>Conteo del ' + conteo.fecha + ':</b> ' + r.encontrados + ' de ' + r.total + ' encontrados.' + (r.faltantes.length ? ' <span class="mal">Faltantes: ' + r.faltantes.map((f) => esc(f.nombre)).join(', ') + '.</span>' : ' <span class="ok">Sin faltantes.</span>') + '</p>';
+                $('ifGuardar').disabled = true;
+                $('ifBajas').disabled = !r.faltantes.length;
+                pintarConteos();
+                aviso(r.faltantes.length ? 'Conteo guardado con ' + r.faltantes.length + ' faltante(s)' : 'Conteo guardado sin faltantes');
+            } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('ifBajas').addEventListener('click', async () => {
+            if (!conteoActivo || !(conteoActivo.faltantes || []).length) return;
+            if (!confirm('¿Dar de baja los ' + conteoActivo.faltantes.length + ' faltante(s) como pérdida?')) return;
+            const fecha = conteoActivo.fecha;
+            if (conta.candados && conta.candados[fecha.slice(0, 7)]) { aviso('El mes del conteo está cerrado: no se pueden crear los asientos de baja', 'error'); return; }
+            let n = 0;
+            for (const f of conteoActivo.faltantes) {
+                const a = (aft.activos || []).find((x) => x.id === f.activoId);
+                if (!a || a.estado === 'baja') continue;
+                const costo = Number(a.costo) || 0;
+                const acum = depAcumulada(a, fecha.slice(0, 7));
+                const libros = r2(costo - acum);
+                const lineas = [];
+                if (acum > 0) lineas.push({ cuenta: cuentaACUM(a.categoria), debe: acum, haber: 0 });
+                if (libros > 0) lineas.push({ cuenta: cuentaAuto(conta.plan, 'perdida_baja', '720-000'), debe: libros, haber: 0 });
+                lineas.push({ cuenta: cuentaACT(a.categoria), debe: 0, haber: costo });
+                const errLin = validarLineasAsiento(conta.plan, lineas);
+                if (errLin) { aviso(errLin, 'error'); return; }
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha, concepto: 'Baja del activo ' + a.nombre + ' (Pérdida o robo, conteo físico)', origen: 'manual', estado: 'confirmado', lineas });
+                a.estado = 'baja';
+                a.baja = { fecha, motivo: 'perdida', precio: 0, asientoId: '', asientoNumero: conta.seqAsiento };
+                n++;
+            }
+            try {
+                await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
+                conteoActivo.faltantes = [];
+                $('ifBajas').disabled = true;
+                pintarTodo(); aviso(n + ' faltante(s) dado(s) de baja con su asiento');
+            } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        $('tActivo').addEventListener('change', pintarTraslados);
+        /* Fase 24, bloque 2: modificaciones con documento. */
+        $('mAplicar').addEventListener('click', async () => {
+            const a = (aft.activos || []).find((x) => x.id === $('mActivo').value);
+            if (!a) { aviso('Elige el activo a modificar', 'error'); return; }
+            const campo = $('mCampo').value;
+            const r = modificarActivo(a, campo, $('mValor').value, $('mFecha').value, $('mMotivo').value.trim());
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            let numAsiento = 0, sinAsientoNota = '';
+            if (campo === 'costo' && a.enLibros !== false) {
+                if (conta.candados && conta.candados[$('mFecha').value.slice(0, 7)]) { aviso('El mes de la modificación está cerrado: no se puede crear su asiento', 'error'); return; }
+                const dif = r2(Number(r.modificacion.despues) - Number(r.modificacion.antes));
+                const lineas = dif > 0
+                    ? [{ cuenta: cuentaACT(a.categoria), debe: dif, haber: 0 }, { cuenta: cuentaAuto(conta.plan, 'otros_ingresos', '810-000'), debe: 0, haber: dif }]
+                    : [{ cuenta: cuentaAuto(conta.plan, 'perdida_baja', '720-000'), debe: -dif, haber: 0 }, { cuenta: cuentaACT(a.categoria), debe: 0, haber: -dif }];
+                const errLin = validarLineasAsiento(conta.plan, lineas);
+                if (errLin) { aviso(errLin, 'error'); return; }
+                conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                numAsiento = conta.seqAsiento;
+                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: numAsiento, fecha: $('mFecha').value, concepto: 'Cambio de valor de ' + a.nombre + ' (' + fmt(r.modificacion.antes) + ' → ' + fmt(r.modificacion.despues) + ')', origen: 'manual', estado: 'confirmado', lineas });
+            } else if (campo === 'costo') sinAsientoNota = ' (sin asiento: no está en los libros)';
+            const idx = aft.activos.findIndex((x) => x.id === a.id);
+            aft.activos[idx] = r.activo;
+            aft.modificaciones.push(r.modificacion);
+            try {
+                if (numAsiento) await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'aft', valor: aft }]);
+                else await guardar();
+                $('mValor').value = ''; $('mMotivo').value = '';
+                pintarTodo(); aviso('Modificación aplicada' + (numAsiento ? ' con el asiento nº ' + numAsiento : '') + sinAsientoNota);
+            } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        /* Fase 24, bloque 1: traslados entre áreas. */
+        $('tMover').addEventListener('click', async () => {
+            const a = (aft.activos || []).find((x) => x.id === $('tActivo').value);
+            if (!a) { aviso('Elige el activo a mover', 'error'); return; }
+            const r = trasladarActivo(a, $('tArea').value, $('tFecha').value, $('tMotivo').value.trim());
+            if (!r.ok) { aviso(r.motivo, 'error'); return; }
+            const idx = aft.activos.findIndex((x) => x.id === a.id);
+            aft.activos[idx] = r.activo;
+            aft.traslados.push(r.traslado);
+            try { await guardar(); $('tArea').value = ''; $('tMotivo').value = ''; pintarTodo(); aviso('«' + a.nombre + '» se movió a «' + r.activo.area + '»'); }
+            catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
         $('bFecha').value = hoyLocal();
         $('tCerrar').addEventListener('click', () => { $('tarjetaActivo').style.display = 'none'; });
         $('tImprimir').addEventListener('click', () => window.print());
@@ -322,7 +760,7 @@ function pintarTodo() {
             estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}@media print{body>*:not(#tarjetaActivo){display:none!important}#tarjetaActivo{display:block!important;border:none}}';
             document.head.appendChild(estilo);
             const grupos = [['activos', 'Activos'], ['bajas', 'Bajas'], ['depreciacion', 'Depreciación']];
-            const de = (t) => { if (t.id === 'tarjetaActivo') return 'activos'; const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Bajas') === 0) return 'bajas'; if (x.indexOf('Depreciación') === 0) return 'depreciacion'; return 'activos'; };
+            const de = (t) => { if (t.id === 'tarjetaActivo') return 'activos'; const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Bajas') === 0) return 'bajas'; if (x.indexOf('Depreciación') === 0 || x.indexOf('Conciliación') === 0) return 'depreciacion'; return 'activos'; };
             const bar = document.createElement('div'); bar.className = 'pest-bar';
             bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
             const primera = document.querySelector('.tarjeta');

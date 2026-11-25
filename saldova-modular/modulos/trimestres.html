@@ -43,7 +43,7 @@
 <div class="tarjeta">
     <div class="fila"><label>Año <select id="tAnio"></select></label><button type="button" id="tVer" class="secundario chico">Ver</button></div>
     <p class="expl">Qué es: la utilidad del año partida en 4 trimestres, con su contingencia del 10 %, su impuesto del 35 % y lo que queda para los socios. Para quién: para ti, cuando toca repartir o pagar. Los datos salen de tus asientos confirmados, como en el Resumen.</p>
-    <p id="avisoActor" class="tenue" style="display:none">Este apartado de distribución trimestral de utilidades a socios está diseñado para MIPYME. El resumen ONAT permanece disponible como referencia de pagos registrados.</p>
+    <p id="avisoActor" class="tenue" style="display:none">Este apartado de distribución trimestral de utilidades a socios está diseñado para MIPYME y PDL. El resumen ONAT permanece disponible como referencia de pagos registrados.</p>
     <div class="kpis">
         <div class="kpi"><small>Utilidad del año</small><strong id="kpiUtilidad">$0,00</strong></div>
         <div class="kpi"><small>Contingencia 10 %</small><strong id="kpiContingencia">$0,00</strong></div>
@@ -72,10 +72,31 @@
     <div id="lista35"></div>
 </div>
 
+<div class="tarjeta" id="card35Acum">
+    <h2 style="margin-top:0">Impuesto 35 % acumulado del año</h2>
+    <p class="expl">El 35 % sobre la utilidad se ve crecer mes a mes, para que no se gaste lo que ya se debe. La utilidad acumulada es la suma de las utilidades de cada mes hasta el mes elegido; el 35 % es sobre esa suma (nunca negativo); lo pagado es lo registrado hasta ese mes, por la fecha del pago (un pago de junio no cuenta en abril).</p>
+    <div class="fila"><label>Hasta el mes <input type="month" id="acumMes"></label>
+    <span>Utilidad acumulada: <b id="acumUtilidad">$0,00</b></span><span>35 % acumulado: <b id="acumImpuesto">$0,00</b></span><span>Pagado: <b id="acumPagado">$0,00</b></span><span>Pendiente: <b id="acumPendiente">$0,00</b></span></div>
+    <div id="tablaAcum"></div>
+</div>
+
+<div class="tarjeta" id="cardCalendario">
+    <h2 style="margin-top:0">Calendario fiscal</h2>
+    <p class="expl">Cada obligación de la ONAT y su mes: el anticipo 5 % del TCP (cód. 0510122, 5 % de los ingresos del mes por encima de 3260), el 35 % de cada trimestre (cód. 0400722, al final del trimestre) y las declaraciones juradas (DJ-08 del TCP antes del 30 de abril; DJ de utilidades en el primer trimestre del año siguiente). El día exacto de cada pago lo fija la ONAT en tu Vector Fiscal (RC-04A); aquí ves el mes en que toca y el importe que calcula la app, no un día inventado.</p>
+    <p id="calProximo" class="tenue"></p>
+    <div id="calFiscal"></div>
+</div>
+
 <div class="tarjeta" id="cardSocios">
     <h2 style="margin-top:0">Pagos a socios del año</h2>
     <p class="expl">Lo retirado por los socios. El saldo que no se retira pasa al trimestre siguiente como arrastre.</p>
     <div id="listaSocios"></div>
+</div>
+
+<div class="tarjeta" id="cardRegistroRetiros">
+    <h2 style="margin-top:0">Registro de retiros a socios</h2>
+    <p class="expl">Cada pago a un socio, en orden, con lo que quedaba disponible después de pagarlo. El retiro es reparto de la utilidad, no salario: no descuenta de la nómina. Para pagar, usa «Pagar socios» en la tarjeta del trimestre.</p>
+    <div id="registroRetiros"></div>
 </div>
 
 <div class="tarjeta" id="cardOnat">
@@ -204,6 +225,40 @@ function datosAnio(anio) {
     const impuesto35 = r2(trimestres.reduce((a, q) => a + q.impuesto, 0));
     return { anio, meses, trimestres, utilidad, contingencia, retiroContingencia, contingenciaDisponible: r2(Math.max(0, contingencia - retiroContingencia)), utilidadSocios, retiroSocios, sociosDisponible: r2(Math.max(0, utilidadSocios - retiroSocios)), pagado35, impuesto35, pendiente35: r2(Math.max(0, impuesto35 - pagado35)) };
 }
+/* Fase 16, bloque 2: el 35 % acumulado del año. El impuesto de cada
+ * trimestre sale de su utilidad; aquí se ve crecer mes a mes: la
+ * utilidad acumulada hasta el mes elegido, su 35 % (nunca negativo),
+ * lo pagado hasta ese mes y lo que falta. Cada fila es un mes: su
+ * utilidad, la acumulada, el 35 % acumulado y el pendiente de ese
+ * momento. Lo pagado se cuenta por la FECHA del pago (un pago de
+ * junio no cuenta en abril), no por el trimestre al que se anotó. */
+function impuestoAcumulado(d, hastaMes, pagos35) {
+    const meses = (d.meses || []).filter((m) => m.mes <= hastaMes);
+    const pagos = pagos35 || d.pagos35 || [];
+    let acum = 0;
+    const filas = meses.map((m) => {
+        acum = r2(acum + (m.utilidad || 0));
+        const imp = r2(Math.max(0, acum) * 0.35);
+        const pag = r2(pagos.filter((p) => (p.fecha || '').slice(0, 7) <= m.mes).reduce((a, p) => a + (Number(p.monto) || 0), 0));
+        return { mes: m.mes, nombre: m.nombre, utilidadMes: m.utilidad, utilidadAcum: acum, impuestoAcum: imp, pagadoAcum: pag, pendiente: r2(Math.max(0, imp - pag)) };
+    });
+    const ultimo = filas[filas.length - 1] || { utilidadAcum: 0, impuestoAcum: 0, pagadoAcum: 0, pendiente: 0 };
+    return { hastaMes, meses: meses.length, utilidad: ultimo.utilidadAcum, impuesto: ultimo.impuestoAcum, pagado: ultimo.pagadoAcum, pendiente: ultimo.pendiente, filas };
+}
+function pintarAcumulado(d, anio) {
+    const hoy = hoyLocal().slice(0, 7);
+    const porDefecto = String(anio) === String(hoy.slice(0, 4)) ? hoy : anio + '-12';
+    if (!$('acumMes').value) $('acumMes').value = porDefecto;
+    const a = impuestoAcumulado(d, $('acumMes').value, tri.pagos35);
+    $('acumUtilidad').textContent = '$' + fmt(a.utilidad);
+    $('acumImpuesto').textContent = '$' + fmt(a.impuesto);
+    $('acumPagado').textContent = '$' + fmt(a.pagado);
+    $('acumPendiente').textContent = '$' + fmt(a.pendiente);
+    $('tablaAcum').innerHTML = a.filas.length
+        ? '<table><thead><tr><th>Mes</th><th class="num">Utilidad del mes</th><th class="num">Utilidad acumulada</th><th class="num">35 % acumulado</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>' +
+            a.filas.map((f) => '<tr><td>' + f.nombre + '</td><td class="num' + (f.utilidadMes < 0 ? ' neg' : '') + '">$' + fmt(f.utilidadMes) + '</td><td class="num' + (f.utilidadAcum < 0 ? ' neg' : '') + '">$' + fmt(f.utilidadAcum) + '</td><td class="num">$' + fmt(f.impuestoAcum) + '</td><td class="num">$' + fmt(f.pagadoAcum) + '</td><td class="num">$' + fmt(f.pendiente) + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Todavía no hay meses con datos en este año.</p>';
+}
 
 /* Sub-bloque 2: extraer la contingencia. Saca TODO lo disponible:
  * registra la extracción en el apartado 'trimestres' y anota la
@@ -224,7 +279,7 @@ async function extraerContingencia() {
     tri.extracciones.push({ fecha: hoy, monto: r2(d.contingenciaDisponible) });
     movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha: hoy, concepto: 'Extracción fondo de contingencia · ' + anio, tipo: 'gasto', clasificacion: 'Extracción fondo de contingencia', monto: r2(d.contingenciaDisponible), cuenta, clase: 'contingencia' });
     try {
-        await guardarMultiple({ mov: movs, trimestres: tri });
+        await guardarMultiple([{ slot: 'mov', valor: movs }, { slot: 'trimestres', valor: tri }]);
         bus.postMessage({ tipo: 'datos', slot: 'mov' });
         aviso('Contingencia extraída: $' + fmt(d.contingenciaDisponible));
         pintar();
@@ -245,7 +300,7 @@ async function registrar35(key) {
     tri.pagos35 = tri.pagos35 || [];
     tri.pagos35.push({ fecha: hoy, trimestre: key, monto });
     try {
-        await guardarMultiple({ trimestres: tri });
+        await guardarMultiple([{ slot: 'trimestres', valor: tri }]);
         aviso('Pago del 35 % registrado: $' + fmt(monto) + ' (' + key + ')');
         pintar();
     } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
@@ -274,7 +329,7 @@ async function pagarSocios(key) {
     tri.pagosSocios = tri.pagosSocios || [];
     tri.pagosSocios.push({ fecha: hoy, trimestre: key, monto, socio });
     try {
-        await guardarMultiple({ trimestres: tri });
+        await guardarMultiple([{ slot: 'trimestres', valor: tri }]);
         aviso('Pago a socios registrado: $' + fmt(monto) + ' a ' + socio + ' (' + key + ')');
         pintar();
     } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
@@ -368,8 +423,92 @@ function pintar() {
     $('impPen').textContent = '$' + fmt(d.pendiente35);
     const pagos = (tri.pagos35 || []).filter((p) => Number((p.fecha || '').slice(0, 4)) === anio).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
     $('lista35').innerHTML = pagos.length ? pagos.map((p) => '<div class="fila"><span>' + p.fecha + '</span><span>' + p.trimestre + '</span><b>$' + fmt(p.monto) + '</b></div>').join('') : '<p class="tenue">Todavía no hay pagos del 35 % registrados este año.</p>';
+    pintarAcumulado(d, anio);
+    pintarCalendario(d, anio);
+/* Fase 10 del plan, bloque 3: registro de retiros a socios. Se
+ * apoya en la fase 3: lee los pagos del apartado 'trimestres' y el
+ * disponible del año de datosAnio. El saldo después de cada pago
+ * es la utilidad para socios del año menos lo retirado hasta ese
+ * pago (en orden de fecha); nunca baja de cero. Sin descuentos de
+ * nómina: el retiro es reparto, no salario. */
+function registroRetiros(d, anio) {
+    const pagos = (tri.pagosSocios || []).filter((p) => Number((p.fecha || '').slice(0, 4)) === anio)
+        .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+    let acumulado = 0;
+    const filas = pagos.map((p) => {
+        acumulado = r2(acumulado + (Number(p.monto) || 0));
+        return { fecha: p.fecha || '', trimestre: p.trimestre || '', socio: p.socio || '', monto: r2(Number(p.monto) || 0), disponibleDespues: r2(Math.max(0, d.utilidadSocios - acumulado)) };
+    });
+    const porSocioMap = new Map();
+    for (const p of pagos) {
+        const s = p.socio || 'Sin nombre';
+        porSocioMap.set(s, r2((porSocioMap.get(s) || 0) + (Number(p.monto) || 0)));
+    }
+    const porSocio = [...porSocioMap.entries()].map(([socio, total]) => ({ socio, total })).sort((a, b) => b.total - a.total);
+    return { filas, porSocio, total: r2(acumulado), disponible: r2(Math.max(0, d.utilidadSocios - acumulado)) };
+}
+/* Fase 16, bloque 3: calendario fiscal cubano. Las obligaciones
+ * salen de los datos de la app: el anticipo 5 % del TCP de cada mes
+ * (cód. 0510122, 5 % de los ingresos del mes por encima de 3260, como
+ * en Ideas), el 35 % de cada trimestre (cód. 0400722, al final del
+ * trimestre) y las dos declaraciones juradas que Finanzas documenta:
+ * la DJ-08 del TCP antes del 30 de abril y la DJ de utilidades en el
+ * trimestre siguiente al cierre del año. El día exacto de cada pago
+ * lo fija la ONAT (Vector Fiscal RC-04A); aquí se muestra el mes en
+ * que toca y el importe que la app calcula, no un día inventado.
+ * `mesesAnticipo` son los meses con un pago 0510122 registrado
+ * (en el mes del anticipo o en el siguiente). */
+function mesSiguiente(mes) {
+    const a = Number(String(mes).slice(0, 4)), m = Number(String(mes).slice(5, 7));
+    return m === 12 ? (a + 1) + '-01' : String(a) + '-' + String(m + 1).padStart(2, '0');
+}
+function calendarioFiscal(anio, tipoActor, meses, trimestres, pagos35, mesesAnticipo, hoyMes) {
+    const filas = [];
+    const pagado35 = (key) => (pagos35 || []).some((p) => p.trimestre === key);
+    if (tipoActor === 'tcp') {
+        for (const m of meses || []) {
+            const imp = r2(0.05 * Math.max(0, (m.ingresos || 0) - 3260));
+            if (!(imp > 0)) continue;
+            const pagado = (mesesAnticipo || []).includes(m.mes) || (mesesAnticipo || []).includes(mesSiguiente(m.mes));
+            filas.push({ mes: m.mes, nombre: m.nombre, titulo: 'Anticipo 5 % del Impuesto sobre Ingresos Personales', codigo: '0510122', importe: imp, vencimiento: 'En el mes siguiente', estado: pagado ? 'pagado' : (mesSiguiente(m.mes) < hoyMes ? 'vencido' : 'pendiente') });
+        }
+        filas.push({ mes: anio + '-04', nombre: 'Abril', titulo: 'Declaración Jurada DJ-08 (ingresos personales)', codigo: '', importe: null, vencimiento: 'Antes del 30 de abril', estado: 'recordatorio' });
+    } else {
+        for (const q of trimestres || []) {
+            if (!(q.impuesto > 0)) continue;
+            const ultimoMes = q.meses[q.meses.length - 1].mes;
+            filas.push({ mes: ultimoMes, nombre: q.meses[q.meses.length - 1].nombre, titulo: 'Impuesto sobre utilidades 35 % — ' + q.label, codigo: '0400722', importe: q.impuesto, vencimiento: 'Al final del trimestre (' + q.rango.hasta + ')', estado: pagado35(q.key) ? 'pagado' : (ultimoMes < hoyMes ? 'vencido' : 'pendiente') });
+        }
+        filas.push({ mes: anio + '-03', nombre: 'Marzo', titulo: 'Declaración Jurada de utilidades (año anterior)', codigo: '', importe: null, vencimiento: 'En el primer trimestre del año', estado: 'recordatorio' });
+    }
+    filas.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
+    return filas;
+}
+function pintarCalendario(d, anio) {
+    const hoyMes = hoyLocal().slice(0, 7);
+    const mesesAnticipo = [...new Set(movs.filter((m) => esOnat(m) && codigoOnat(m) === '0510122').map((m) => (m.fecha || '').slice(0, 7)))];
+    const filas = calendarioFiscal(anio, tipoActor, d.meses, d.trimestres, tri.pagos35, mesesAnticipo, hoyMes);
+    const EST = { pagado: 'Pagado', pendiente: 'Pendiente', vencido: 'Vencido', recordatorio: 'Recordatorio' };
+    const proximo = filas.find((f) => f.estado !== 'pagado' && f.estado !== 'recordatorio' && f.mes >= hoyMes) || filas.find((f) => f.estado === 'vencido');
+    $('calProximo').textContent = proximo ? 'Próximo vencimiento: ' + proximo.nombre + ' — ' + proximo.titulo + ' ($' + fmt(proximo.importe || 0) + ', ' + proximo.vencimiento.toLowerCase() + ').' : 'Sin obligaciones pendientes este año.';
+    $('calFiscal').innerHTML = filas.length
+        ? '<table><thead><tr><th>Mes</th><th>Obligación</th><th>Código</th><th class="num">Importe</th><th>Vence</th><th>Estado</th></tr></thead><tbody>' +
+            filas.map((f) => '<tr><td>' + f.nombre + '</td><td>' + esc(f.titulo) + '</td><td>' + (f.codigo || '—') + '</td><td class="num">' + (f.importe == null ? '—' : '$' + fmt(f.importe)) + '</td><td>' + esc(f.vencimiento) + '</td><td>' + EST[f.estado] + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Todavía no hay obligaciones calculadas este año.</p>';
+}
+function pintarRegistroRetiros(d, anio) {
+    const box = $('registroRetiros'); if (!box) return;
+    const rr = registroRetiros(d, anio);
+    if (!rr.filas.length) { box.innerHTML = '<p class="tenue">Todavía no hay retiros a socios este año.</p>'; return; }
+    box.innerHTML = '<table><thead><tr><th>Fecha</th><th>Trimestre</th><th>Socio</th><th class="num">Monto</th><th class="num">Disponible después</th></tr></thead><tbody>' +
+        rr.filas.map((f) => '<tr><td>' + f.fecha + '</td><td>' + esc(f.trimestre) + '</td><td>' + esc(f.socio) + '</td><td class="num">$' + fmt(f.monto) + '</td><td class="num">$' + fmt(f.disponibleDespues) + '</td></tr>').join('') +
+        '<tr class="total"><td colspan="3">Total retirado en el año</td><td class="num">$' + fmt(rr.total) + '</td><td class="num">$' + fmt(rr.disponible) + '</td></tr></tbody></table>' +
+        '<p class="tenue" style="margin:8px 0 0">Por socio: ' + rr.porSocio.map((s) => esc(s.socio) + ' <b>$' + fmt(s.total) + '</b>').join(' · ') + '</p>';
+}
+
     const ps = (tri.pagosSocios || []).filter((p) => Number((p.fecha || '').slice(0, 4)) === anio).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
     $('listaSocios').innerHTML = ps.length ? ps.map((p) => '<div class="fila"><span>' + p.fecha + '</span><span>' + p.trimestre + '</span><span>' + esc(p.socio || '') + '</span><b>$' + fmt(p.monto) + '</b></div>').join('') : '<p class="tenue">Todavía no hay pagos a socios este año.</p>';
+    pintarRegistroRetiros(d, anio);
     const mx = matrizOnat(anio);
     $('matrizOnat').innerHTML = mx.codes.length ? '<table><thead><tr><th>Mes</th>' + mx.codes.map((c) => '<th class="num" title="' + esc(NOMBRES_ONAT[c] || (c === 'Sin código' ? 'Pago anotado a mano, sin código de tributo' : 'Aporte ONAT')) + '">' + esc(c) + '</th>').join('') + '<th class="num">Total mes</th></tr></thead><tbody>' +
         mx.filas.map((f) => '<tr><td>' + f.nombre + '</td>' + mx.codes.map((c) => '<td class="num">$' + fmt(f.porCodigo[c] || 0) + '</td>').join('') + '<td class="num"><b>$' + fmt(f.total) + '</b></td></tr>').join('') +
@@ -412,6 +551,12 @@ function pintar() {
         const lista = [...anios].sort((a, b) => b - a);
         $('tAnio').innerHTML = lista.map((y) => '<option value="' + y + '"' + (y === new Date().getFullYear() ? ' selected' : '') + '>' + y + '</option>').join('');
         $('tVer').addEventListener('click', pintar);
+        /* Fase 16, bloque 2: cambiar el mes del acumulado repinta
+         * solo esa tarjeta. */
+        $('acumMes').addEventListener('change', () => {
+            const anio = Number($('tAnio').value) || new Date().getFullYear();
+            pintarAcumulado(datosAnio(anio), anio);
+        });
         $('btnExtraer').addEventListener('click', extraerContingencia);
         pintar();
     } catch (e) {

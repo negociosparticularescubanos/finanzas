@@ -37,14 +37,82 @@
     <div id="tvResultado"><p class="tenue">Escribe la nueva tasa y calcula: verás la diferencia antes de asentar nada.</p></div>
 </div>
 
+<!-- Fase 28, bloque 1: diferencia cambiaria automática. La
+     revalorización manual de arriba usa el saldo declarado; esta
+     toma el saldo real en USD de los movimientos de la tarjeta USD
+     y la tasa formal de hoy del servicio de tasas, calcula sola la
+     diferencia y la asienta con un clic. -->
+<div class="tarjeta">
+    <h2>Diferencia cambiaria automática</h2>
+    <p class="tenue">Cuando cambia la tasa, el valor en CUP de tus dólares cambia con ella. Esta tarjeta calcula sola la ganancia o la pérdida: toma el saldo en USD de los movimientos de la tarjeta USD y la tasa formal de hoy, y la asienta con un clic. La de arriba sigue ahí para cuando quieras revalorizar con un saldo declarado a mano.</p>
+    <div class="fila">
+        <button type="button" id="tvConsultar" class="secundario chico">Consultar la tasa formal de hoy</button>
+    </div>
+    <div id="tvAuto"><p class="tenue">Consulta la tasa de hoy para ver la diferencia.</p></div>
+</div>
+
+<div class="tarjeta">
+    <h2>Tasas del BCC por mes</h2>
+    <p class="tenue">Consulta la tasa formal del Banco Central de Cuba (la trae el servicio de tasas de FactiCuba) y guárdala como la tasa del mes. Cada mes usa la tasa que tenía al cerrarse; sin tasa del mes, vale la vigente. Sin internet, la consulta usa la última tasa guardada. El servicio trae la tasa formal general de hoy (USD y EUR): el segmento es el que tú elijas para guardarla, y para otra moneda o una fecha pasada escríbela a mano.</p>
+    <div class="fila">
+        <label>Fecha <input type="date" id="tbFecha"></label>
+        <label>Moneda <select id="tbMoneda"><option>USD</option><option>EUR</option></select></label>
+        <label>Segmento <select id="tbSegmento"><option value="III">III</option><option value="II">II</option><option value="I">I</option></select></label>
+        <button type="button" id="tbConsultar" class="secundario chico">Consultar tasa</button>
+    </div>
+    <div id="tbResultado"><p class="tenue">Elige la fecha y consulta: verás la tasa formal del BCC con su fecha y la informal de referencia.</p></div>
+    <div class="fila">
+        <label>Mes <input type="month" id="tbMes"></label>
+        <label>Tasa (CUP por 1 USD) <input id="tbTasa" type="number" step="0.01" min="0" style="width:110px"></label>
+        <button type="button" id="tbGuardar" class="secundario chico">Guardar tasa del mes</button>
+    </div>
+    <div id="tbLista"></div>
+</div>
+
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, tasaDelMes } from 'nucleo';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(11);
 const $ = (id) => document.getElementById(id);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const fmt = (n) => (Number(n) || 0).toLocaleString('es-CU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-let fx = null, conta = null, diferencia = 0;
+let fx = null, conta = null, diferencia = 0, ultimaConsulta = null;
+let movsUsd = [];
+/* Fase 28, bloque 1: diferencia cambiaria automática. */
+function diferenciaCambio(saldoUsd, tasaVieja, tasaNueva) { return r2((Number(saldoUsd) || 0) * ((Number(tasaNueva) || 0) - (Number(tasaVieja) || 0))); }
+function saldoUsdMovs(movs) {
+    let s = 0;
+    for (const m of (movs || [])) {
+        if (m.cuenta !== 'tarjeta_usd') continue;
+        s = r2(s + (m.tipo === 'ingreso' ? 1 : -1) * Math.abs(Number(m.monto) || 0));
+    }
+    return s;
+}
+function guardarFx() { return bd().docGuardar(tokenSesion(), 'fx', fx); }
+/* Fase 14, bloque 1: tasas del BCC por mes. */
+function pintarTasasMes() {
+    fx.tasasMes = fx.tasasMes || {};
+    const meses = Object.keys(fx.tasasMes).sort();
+    $('tbLista').innerHTML = meses.length ? meses.map((m) => {
+        const e = fx.tasasMes[m];
+        return '<span style="display:inline-block;border:1px solid #8FA8C8;border-radius:12px;padding:3px 8px;margin:2px;font-size:13px">' + esc(m) + ' · <b>' + fmt(Number(e.tasa)) + '</b> CUP' + (e.fuente ? ' · ' + esc(e.fuente) : '') + (e.segmento ? ' · seg. ' + esc(e.segmento) : '') +
+            ' <button type="button" class="chico secundario" data-tb-editar="' + esc(m) + '">Editar</button> <button type="button" class="chico secundario" data-tb-borrar="' + esc(m) + '">×</button></span>';
+    }).join('') : '<p class="tenue">Sin tasas por mes: cada mes usa la tasa vigente.</p>';
+    document.querySelectorAll('[data-tb-editar]').forEach((b) => { b.onclick = () => { const e = fx.tasasMes[b.dataset.tbEditar]; $('tbMes').value = b.dataset.tbEditar; $('tbTasa').value = e.tasa; $('tbTasa').focus(); }; });
+    document.querySelectorAll('[data-tb-borrar]').forEach((b) => { b.onclick = async () => {
+        if (!confirm('¿Quitar la tasa guardada de ' + b.dataset.tbBorrar + '? Ese mes volverá a usar la vigente.')) return;
+        delete fx.tasasMes[b.dataset.tbBorrar];
+        try { await guardarFx(); pintarTasasMes(); aviso('Tasa del mes quitada'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }; });
+}
+async function guardarTasaMes(mes, tasa, fuente, segmento) {
+    if (!mes || !(Number(tasa) > 0)) { aviso('Faltan el mes o una tasa válida', 'error'); return false; }
+    fx.tasasMes = fx.tasasMes || {};
+    fx.tasasMes[mes] = { tasa: Number(tasa), fuente: fuente || '', segmento: segmento || '', fecha: hoyLocal() };
+    if (mes === hoyLocal().slice(0, 7)) fx.tasa = Number(tasa);
+    try { await guardarFx(); pintarTasasMes(); return true; }
+    catch (e) { aviso(String((e && e.message) || e), 'error'); return false; }
+}
 function pintar() {
     const valorCup = r2((Number(fx.saldoUsd) || 0) * (Number(fx.tasa) || 0));
     $('estado').innerHTML =
@@ -69,7 +137,50 @@ function pintar() {
         fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
         if (typeof fx.multimoneda !== 'boolean') fx = { multimoneda: false, tasa: 0, saldoUsd: 0 };
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [], candados: {} };
+        movsUsd = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        if (!Array.isArray(movsUsd)) movsUsd = [];
         pintar();
+        /* Fase 28, bloque 1: diferencia cambiaria automática. */
+        $('tvConsultar').addEventListener('click', async () => {
+            $('tvAuto').innerHTML = '<p class="tenue">Consultando la tasa formal de hoy…</p>';
+            try {
+                const ctl = new AbortController();
+                const to = setTimeout(() => ctl.abort(), 12000);
+                const r = await fetch('https://facticuba-tasas.magisequipo5.workers.dev/tasas', { signal: ctl.signal });
+                clearTimeout(to);
+                const j = await r.json();
+                const formal = Number((j.formal && j.formal.USD) || 0);
+                if (!formal) throw new Error('El servicio no devolvió la tasa formal del USD');
+                const saldo = saldoUsdMovs(movsUsd);
+                const dif = diferenciaCambio(saldo, fx.tasa, formal);
+                $('tvAuto').innerHTML = '<p>Saldo en USD según la tarjeta USD: <strong>' + fmt(saldo) + '</strong> · tasa vigente ' + fmt(fx.tasa) + ' → tasa formal de hoy ' + fmt(formal) + ' · diferencia de cambio <strong>' + fmt(dif) + ' CUP</strong> ' +
+                    (dif > 0 ? '(ganancia: Debe banco en divisa, Haber ingresos financieros)' : dif < 0 ? '(pérdida: Debe gastos financieros, Haber banco en divisa)' : '(sin diferencia: la tasa no cambió o no hay dólares)') + '.</p>' +
+                    (dif !== 0 ? '<button type="button" id="tvAsentarAuto">Asentar la diferencia</button>' : '');
+                const b = $('tvAsentarAuto');
+                if (b) b.addEventListener('click', async () => {
+                    if (!fx.multimoneda) { aviso('La multimoneda está apagada: enciéndela y guarda primero', 'error'); return; }
+                    const hoy = hoyLocal();
+                    if (conta.candados && conta.candados[hoy.slice(0, 7)]) { aviso('Este mes está cerrado: no se puede asentar la revalorización', 'error'); return; }
+                    const banco = cuentaAuto(conta.plan, 'banco_divisa', '110-020');
+                    const ctaIng = cuentaAuto(conta.plan, 'ingresos_financieros', '805-000');
+                    const ctaGas = cuentaAuto(conta.plan, 'gastos_financieros', '710-000');
+                    const lineas = dif > 0
+                        ? [{ cuenta: banco, debe: dif, haber: 0 }, { cuenta: ctaIng, debe: 0, haber: dif }]
+                        : [{ cuenta: ctaGas, debe: -dif, haber: 0 }, { cuenta: banco, debe: 0, haber: -dif }];
+                    const errLin = validarLineasAsiento(conta.plan, lineas);
+                    if (errLin) { aviso(errLin, 'error'); return; }
+                    conta.seqAsiento = (conta.seqAsiento || 0) + 1;
+                    conta.asientos = conta.asientos || [];
+                    conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: hoy, concepto: 'Revalorización automática de la divisa (tasa ' + fmt(fx.tasa) + ' → ' + fmt(formal) + ')', origen: 'tasas', estado: 'confirmado', lineas });
+                    fx.tasa = formal;
+                    try {
+                        await bd().docGuardarMultiple(tokenSesion(), [{ slot: 'conta', valor: conta }, { slot: 'fx', valor: fx }]);
+                        aviso('Asiento nº ' + conta.seqAsiento + ' creado y tasa actualizada a ' + fmt(formal));
+                        $('tvAuto').innerHTML = '<p class="tenue">Revalorización asentada.</p>'; pintar();
+                    } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+                });
+            } catch (e) { $('tvAuto').innerHTML = '<p class="rojo">No se pudo consultar la tasa: ' + esc(String((e && e.message) || e)) + '</p>'; }
+        });
         $('tvCalcular').addEventListener('click', () => {
             const nueva = Number($('tvNueva').value) || 0;
             if (!nueva) { aviso('Escribe la nueva tasa', 'error'); return; }
@@ -101,6 +212,43 @@ function pintar() {
                     diferencia = 0; $('tvNueva').value = ''; $('tvResultado').innerHTML = '<p class="tenue">Revalorización asentada.</p>'; pintar();
                 } catch (e) { aviso(String((e && e.message) || e), 'error'); }
             });
+        });
+        /* Fase 14, bloque 1: consultar el BCC y guardar la tasa del mes. */
+        $('tbFecha').value = hoyLocal();
+        $('tbMes').value = hoyLocal().slice(0, 7);
+        pintarTasasMes();
+        $('tbConsultar').addEventListener('click', async () => {
+            const moneda = $('tbMoneda').value, segmento = $('tbSegmento').value, fecha = $('tbFecha').value || hoyLocal();
+            $('tbResultado').innerHTML = '<p class="tenue">Consultando…</p>';
+            try {
+                const ctl = new AbortController();
+                const to = setTimeout(() => ctl.abort(), 12000);
+                const r = await fetch('https://facticuba-tasas.magisequipo5.workers.dev/tasas', { signal: ctl.signal });
+                clearTimeout(to);
+                const j = await r.json();
+                if (!j || !j.ok || !(j.formal && Number(j.formal[moneda]) > 0)) throw new Error('sin tasas');
+                ultimaConsulta = { moneda, tasa: Number(j.formal[moneda]), fechaBCC: String(j.fechaBCC || '').slice(0, 10), informal: (j.informal && Number(j.informal[moneda])) || 0 };
+                $('tbResultado').innerHTML = '<p>1 ' + esc(moneda) + ' = <strong>' + fmt(ultimaConsulta.tasa) + ' CUP</strong> (Banco Central de Cuba' + (ultimaConsulta.fechaBCC ? ', ' + esc(ultimaConsulta.fechaBCC) : '') + ')' +
+                    (ultimaConsulta.informal ? ' · Informal (elTOQUE): ' + fmt(ultimaConsulta.informal) + ' CUP.' : '.') +
+                    ' El servicio trae la tasa formal general de hoy: no distingue segmentos ni fechas pasadas.</p>' +
+                    '<button type="button" id="tbUsar">Usar como tasa del mes</button>';
+                $('tbUsar').addEventListener('click', async () => {
+                    const mes = $('tbMes').value || fecha.slice(0, 7);
+                    if (await guardarTasaMes(mes, ultimaConsulta.tasa, 'BCC' + (ultimaConsulta.fechaBCC ? ' · ' + ultimaConsulta.fechaBCC : ''), segmento)) {
+                        aviso('Tasa del BCC (' + fmt(ultimaConsulta.tasa) + ') guardada como tasa de ' + mes + '. Los movimientos en USD de ese mes la usan desde ahora.');
+                        pintar();
+                    }
+                });
+            } catch (e) {
+                const mes = fecha.slice(0, 7);
+                const guardada = tasaDelMes(fx, mes);
+                $('tbResultado').innerHTML = '<p class="mal">No se pudo consultar el BCC (ahora sin conexión).</p>' +
+                    (guardada > 0 ? '<p>Última tasa guardada para ' + esc(mes) + ': <strong>' + fmt(guardada) + ' CUP</strong>. Escríbela arriba si quieres cambiarla.</p>' : '<p>No hay tasa guardada para ' + esc(mes) + ': escribe la tasa a mano abajo.</p>');
+            }
+        });
+        $('tbGuardar').addEventListener('click', async () => {
+            const mes = $('tbMes').value, tasa = Number($('tbTasa').value) || 0;
+            if (await guardarTasaMes(mes, tasa, 'Manual', $('tbSegmento').value)) aviso('Tasa de ' + mes + ' guardada: ' + fmt(tasa) + ' CUP.');
         });
     } catch (e) {
         $('estado').innerHTML = '<p class="mal">' + esc((e && e.message) || e) + '</p>';

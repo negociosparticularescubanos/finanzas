@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Registro de Control</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 14px 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input, select { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    .expl { color: #3D5A76; font-size: 13px; margin: 2px 0 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+    th, td { padding: 5px 6px; border-bottom: 1px solid #D5E2F0; text-align: left; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.total td { font-weight: 700; border-top: 2px solid #8FA8C8; }
+    .neg { color: #D23B2E; }
+    .ok { color: #0b5e3a; }
+    .barra { background: #DCE6F2; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 6px; }
+    .barra > div { background: linear-gradient(180deg, #3A87D4, #2B5B84); height: 100%; }
+    @media print { .no-imprimir { display: none !important; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<h1>Registro de Control de Ingresos y Gastos</h1>
+<p class="expl">El libro diario del TCP con ingresos de hasta 500 000 CUP al año (Res. 272/2024). Se arma solo desde tus movimientos; lo que pasa fuera del banco se anota a mano.</p>
+<saldova-indicador id="indicador"></saldova-indicador>
+<p id="sesionTxt" class="tenue"></p>
+<div class="tarjeta">
+    <div class="fila">
+        <label>Año <select id="rAnio"></select></label>
+        <button type="button" id="rImprimir" class="secundario chico no-imprimir">Imprimir</button>
+    </div>
+    <div id="indicadorBox"></div>
+</div>
+<div class="tarjeta no-imprimir" id="cardManual">
+    <h2 style="margin-top:0">Anotación manual (operaciones fuera de los estados de cuenta)</h2>
+    <div class="fila">
+        <label>Fecha <input id="regManFecha" type="date"></label>
+        <label>Concepto <input id="regManConcepto" placeholder="Ej.: venta en efectivo, compra de insumos…" style="width:260px"></label>
+        <label>Tipo <select id="regManTipo"><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option></select></label>
+        <label>Monto (CUP) <input id="regManMonto" type="number" min="0" step="0.01" style="width:110px"></label>
+        <button type="button" id="btnRegManAdd">Anotar</button>
+    </div>
+    <div id="regManualesBox"></div>
+</div>
+<div class="tarjeta">
+    <h2 style="margin-top:0">Anotaciones por día</h2>
+    <div id="regTabla"></div>
+    <div id="regTotales"></div>
+    <p class="tenue">El diseño y formato oficiales de este Registro los fija el Jefe de la ONAT (Res. 272/2024, Disposición Final Primera); esta salida sigue la letra de la norma: anotación diaria, en español y en CUP, con los documentos justificantes conservados. Las transferencias entre tus propias cuentas no son ingresos ni gastos y no se anotan.</p>
+</div>
+<div class="tarjeta" id="cardExpediente">
+    <h2 style="margin-top:0">Expediente digital de fiscalización</h2>
+    <p class="expl">Qué es: los documentos del período reunidos para una fiscalización. Toca un documento para marcarlo presente o faltante.</p>
+    <div id="expedienteBox"></div>
+</div>
+<script type="module">
+import { esc, bd, aviso, sesionActual, tokenSesion, bus, hoyLocal, esOnat, guardarMultiple } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(1);
+
+const $ = (id) => document.getElementById(id);
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+let token = null, sesion = null;
+let movs = [], fx = {}, reg = { manuales: [] }, conta = {}, fiscal = {};
+
+/* Fase 6 del plan, bloque 1: el libro del TCP. Misma idea que
+ * Finanzas renderRegistro: el libro se arma solo desde los
+ * movimientos del año, agrupados por día (Fecha, Detalle,
+ * Ingresos, Gastos, Tributos, Saldo), y lo que pasa fuera del
+ * banco se anota a mano. Los montos van en CUP (la USD se
+ * convierte con la tasa vigente; sin tasa, ese movimiento no
+ * entra en el libro y se avisa). Las transferencias entre las
+ * cuentas propias no son ingresos ni gastos y no se anotan. La
+ * ONAT va en su columna de Tributos (esOnat). El indicador del
+ * límite es Finanzas mjRegistroControl: 500 000 CUP al año. */
+function montoCup(m) {
+    const v = Number(m.monto) || 0;
+    if ((m.cuenta || 'chequera') === 'tarjeta_usd') return Number(fx.tasa) > 0 ? r2(v * Number(fx.tasa)) : null;
+    return v;
+}
+function diasAnio(anio) {
+    const dias = {};
+    const addDia = (fecha, campo, monto, detalle) => {
+        if (!fecha) return;
+        const d = dias[fecha] || (dias[fecha] = { fecha, ingresos: 0, gastos: 0, tributos: 0, detalles: [] });
+        d[campo] = r2(d[campo] + (Number(monto) || 0));
+        if (detalle) d.detalles.push(detalle);
+    };
+    let usdSinTasa = false;
+    for (const m of movs) {
+        if (String(m.fecha || '').slice(0, 4) !== String(anio)) continue;
+        if (String(m.clasificacion || '') === 'transferencia') continue;
+        const cup = montoCup(m);
+        if (cup === null) { usdSinTasa = true; continue; }
+        if (m.tipo === 'ingreso') addDia(m.fecha, 'ingresos', cup, m.concepto);
+        else if (esOnat(m)) addDia(m.fecha, 'tributos', cup, m.concepto);
+        else addDia(m.fecha, 'gastos', cup, m.concepto);
+    }
+    for (const x of (reg.manuales || [])) {
+        if (String(x.fecha || '').slice(0, 4) !== String(anio)) continue;
+        addDia(x.fecha, x.tipo === 'gasto' ? 'gastos' : 'ingresos', x.monto, (x.concepto || 'Anotación manual') + ' (manual)');
+    }
+    const filas = Object.values(dias).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    return { filas, usdSinTasa };
+}
+function indicadorAnio(anio) {
+    const { filas } = diasAnio(anio);
+    const ingresos = r2(filas.reduce((s, d) => s + d.ingresos, 0));
+    const u = 500000;
+    const pct = r2(ingresos / u * 100);
+    return { anio: String(anio), ingresos, umbral: u, pct, alerta80: pct >= 80, supera: ingresos > u,
+        modo: ingresos > u ? 'contabilidad completa (NCIF)' : 'Registro Control de Ingresos y Gastos' };
+}
+function pintar() {
+    const anio = $('rAnio').value;
+    if (!anio) return;
+    const ind = indicadorAnio(anio);
+    $('indicadorBox').innerHTML = '<div class="fila"><strong>Ingresos del año frente al límite del Registro</strong>' +
+        (ind.supera ? '<span class="neg"><b>Superó 500 000: corresponde contabilidad NCIF</b></span>'
+            : ind.alerta80 ? '<span><b>Cerca del límite (80 %)</b></span>'
+            : '<span class="ok"><b>Dentro del Registro</b></span>') + '</div>' +
+        '<div class="fila"><span>Ingresos ' + esc(anio) + ': $' + fmt(ind.ingresos) + ' de $' + fmt(ind.umbral) + '</span><b>' + fmt(ind.pct) + ' %</b></div>' +
+        '<div class="barra"><div style="width:' + Math.min(100, ind.pct) + '%"></div></div>' +
+        '<p class="tenue">Modo: ' + esc(ind.modo) + '.</p>';
+    const sinDist = sesion && sesion.role === 'consultor';
+    const lista = (reg.manuales || []).filter((x) => String(x.fecha || '').slice(0, 4) === String(anio));
+    $('regManualesBox').innerHTML = lista.length
+        ? '<p class="tenue">Anotaciones manuales de ' + esc(anio) + '</p>' + lista.map((x) =>
+            '<div class="fila"><span>' + esc(String(x.fecha).split('-').reverse().join('/')) + ' · ' + esc(x.concepto || '') + ' · ' + (x.tipo === 'gasto' ? 'Gasto' : 'Ingreso') + ' · <b>$' + fmt(x.monto) + '</b></span>' +
+            (sinDist ? '' : '<button type="button" class="secundario chico" data-reg-del="' + esc(x.id) + '">Eliminar</button>') + '</div>').join('')
+        : '';
+    document.querySelectorAll('[data-reg-del]').forEach((b) => b.addEventListener('click', async () => {
+        reg.manuales = (reg.manuales || []).filter((x) => String(x.id) !== String(b.dataset.regDel));
+        try { await guardarMultiple([{ slot: 'registro', valor: reg }]); bus.postMessage({ tipo: 'datos', slot: 'registro' }); pintar(); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+    const { filas, usdSinTasa } = diasAnio(anio);
+    let saldo = 0, tI = 0, tG = 0, tT = 0;
+    let html = '<table><thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Tributos</th><th class="num">Saldo</th></tr></thead><tbody>';
+    for (const d of filas) {
+        saldo = r2(saldo + d.ingresos - d.gastos - d.tributos);
+        tI = r2(tI + d.ingresos); tG = r2(tG + d.gastos); tT = r2(tT + d.tributos);
+        html += '<tr><td style="white-space:nowrap">' + esc(String(d.fecha).split('-').reverse().join('/')) + '</td>' +
+            '<td class="tenue">' + esc(d.detalles.slice(0, 4).join(' · ')) + (d.detalles.length > 4 ? ' · …' : '') + '</td>' +
+            '<td class="num">' + (d.ingresos ? fmt(d.ingresos) : '—') + '</td>' +
+            '<td class="num">' + (d.gastos ? fmt(d.gastos) : '—') + '</td>' +
+            '<td class="num">' + (d.tributos ? fmt(d.tributos) : '—') + '</td>' +
+            '<td class="num"><b>' + fmt(saldo) + '</b></td></tr>';
+    }
+    html += '</tbody></table>';
+    if (!filas.length) html += '<p class="tenue">📭 Sin operaciones en el año seleccionado.<br>Importa tus estados de cuenta y este registro se llena solo, o anota la primera operación a mano.</p>';
+    if (usdSinTasa) html += '<p class="tenue">Hay movimientos en USD sin tasa vigente: no entran en el libro.</p>';
+    $('regTabla').innerHTML = html;
+    $('regTotales').innerHTML = filas.length
+        ? '<p>Total de ingresos del año: <b>$' + fmt(tI) + '</b></p><p>Total de gastos del año: <b>$' + fmt(tG) + '</b></p><p>Total de tributos pagados: <b>$' + fmt(tT) + '</b></p><p><b>Saldo del Registro (ingresos − gastos − tributos): $' + fmt(r2(tI - tG - tT)) + '</b></p>'
+        : '';
+    pintarExpediente(anio);
+}
+
+/* Fase 6 del plan, bloque 2: expediente digital de
+ * fiscalización. Misma idea que Finanzas
+ * mjExpedienteFiscalizacion: la lista de documentos depende del
+ * actor (fiscal.meta.tipo); el TCP con ingresos del año por
+ * encima de 500 000 CUP lleva la lista completa (NCIF) y si no
+ * la del Registro. Cada documento se marca presente o faltante
+ * con un toque; el estado vive en conta.gestion.expediente
+ * (la Gestión vive dentro del slot 'conta'). */
+const EXPEDIENTE_TITULOS = { mipyme: 'MIPYME', tcp_registro: 'TCP · nivel Registro (hasta 500 000 CUP)', tcp_ncif: 'TCP · contabilidad completa (NCIF)', pdl: 'Proyecto de Desarrollo Local' };
+const EXPEDIENTE_DEF = [['escritura', 'Escritura de constitución / documento de creación'], ['registro_mercantil', 'Inscripción en el Registro Mercantil'], ['estatutos', 'Estatutos sociales'], ['libro_socios', 'Libro de registro de socios'], ['actas', 'Actas de los órganos de dirección y administración'], ['control_interno', 'Manual de control interno'], ['cert_cuentas', 'Certificación de cuentas bancarias'], ['carne_onat', 'Carné de la ONAT y Vector Fiscal (RC-04A)'], ['contratos', 'Contratos con clientes y proveedores'], ['facturas', 'Facturas emitidas y recibidas'], ['nominas', 'Nóminas y contratos de trabajo'], ['aportes', 'Comprobantes de aportes al Presupuesto'], ['eeff', 'Estados financieros del período'], ['submayores', 'Submayores de ingresos, gastos y obligaciones'], ['reserva_sm', 'Submayor de la Reserva para Pérdidas y Contingencias'], ['cert_sistema', 'Certificado del sistema contable utilizado']];
+const EXPEDIENTE_TCP_REGISTRO = [['aprobacion_tcp', 'Certificación de aprobación de la actividad (licencia de TCP)'], ['cuenta_fiscal', 'Certificación de la cuenta bancaria fiscal'], ['carne_onat', 'Carné de contribuyente (ONAT) y Vector Fiscal vigente'], ['registro_control', 'Registro de Control de Ingresos y Gastos y sus justificantes'], ['facturas', 'Documentos primarios de ingresos y gastos'], ['dj08', 'Declaración Jurada DJ-08 presentada y sus comprobantes'], ['aportes', 'Comprobantes de pago de los tributos del período'], ['ss_titular', 'Afiliación a la Seguridad Social del titular'], ['contratos', 'Contratos con clientes y proveedores'], ['nominas', 'Contratos y nóminas de trabajadores contratados (si los tiene)']];
+const EXPEDIENTE_TCP_NCIF_EXTRA = [['libros', 'Libro Diario y Libro Mayor (contabilidad NCIF)'], ['submayores', 'Submayores de ingresos, gastos y obligaciones'], ['eeff', 'Estados financieros del período']];
+const EXPEDIENTE_PDL = [['acuerdo_pdl', 'Acuerdo de aprobación del CAM / gobernador'], ['expediente_pdl', 'Expediente del proyecto (Decreto 174/2026, art. 26.2)'], ['carne_onat', 'Inscripción en el Registro de Contribuyentes y carné (contribuyente propio)'], ['evaluaciones_pdl', 'Evaluaciones semestrales del CAM'], ['contab_pdl', 'Contabilidad propia del proyecto (NCIF): libros y estados financieros'], ['cert_cuentas', 'Certificación de la cuenta bancaria CUP del proyecto'], ['fuentes_pdl', 'Documentos de las fuentes de financiamiento y su ejecución'], ['aportes', 'Comprobantes de pago de sus tributos (Res. 202/2026)'], ['nominas', 'Nóminas, contratos de trabajo y retenciones'], ['reserva_sm', 'Reserva para Pérdidas y Contingencias: dotación y control'], ['facturas', 'Documentos primarios de ingresos y gastos']];
+function expedienteClave(anio) {
+    const tipo = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
+    if (tipo === 'pdl') return 'pdl';
+    if (tipo === 'mipyme') return 'mipyme';
+    if (tipo === 'tcp') return indicadorAnio(anio).supera ? 'tcp_ncif' : 'tcp_registro';
+    return 'mipyme';
+}
+function expedienteLista(clave) {
+    if (clave === 'pdl') return EXPEDIENTE_PDL;
+    if (clave === 'tcp_registro') return EXPEDIENTE_TCP_REGISTRO;
+    if (clave === 'tcp_ncif') return EXPEDIENTE_TCP_REGISTRO.concat(EXPEDIENTE_TCP_NCIF_EXTRA);
+    return EXPEDIENTE_DEF;
+}
+function expedienteDatos(anio) {
+    const clave = expedienteClave(anio);
+    const docs = ((conta.gestion || {}).expediente) || {};
+    const filas = expedienteLista(clave).map((d) => ({ clave: d[0], nombre: d[1], presente: !!docs[d[0]] }));
+    const faltantes = filas.filter((f) => !f.presente);
+    return { filas, faltantes, total: filas.length, presentes: filas.length - faltantes.length,
+        pct: r2((filas.length - faltantes.length) / filas.length * 100), completo: faltantes.length === 0,
+        actorClave: clave, actorTitulo: EXPEDIENTE_TITULOS[clave] || '' };
+}
+function pintarExpediente(anio) {
+    const ex = expedienteDatos(anio);
+    const sinDist = sesion && sesion.role === 'consultor';
+    $('expedienteBox').innerHTML = '<b>Expediente digital de fiscalización · ' + esc(ex.actorTitulo) + '</b> <span class="tenue">(cada actor presenta su propia documentación)</span><br>' +
+        ex.presentes + '/' + ex.total + ' documentos (' + fmt(ex.pct) + ' %) ' +
+        (ex.completo ? '<span class="ok"><b>completo</b></span>' : '<span class="neg"><b>faltan ' + ex.faltantes.length + '</b></span>') +
+        '<div style="margin-top:8px">' + ex.filas.map((f) =>
+            (sinDist
+                ? '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border:1px solid #8FA8C8;border-radius:6px;font-size:13px">' + (f.presente ? '✔ ' : '✘ ') + esc(f.nombre) + '</span>'
+                : '<button type="button" class="secundario chico" data-exp="' + esc(f.clave) + '" style="margin:0 6px 6px 0">' + (f.presente ? '✔ ' : '✘ ') + esc(f.nombre) + '</button>')).join('') + '</div>' +
+        '<p class="tenue">Toca un documento para marcarlo presente o faltante.</p>';
+    if (!sinDist) document.querySelectorAll('#expedienteBox [data-exp]').forEach((b) => b.addEventListener('click', async () => {
+        conta.gestion = conta.gestion || {};
+        conta.gestion.expediente = conta.gestion.expediente || {};
+        if (conta.gestion.expediente[b.dataset.exp]) delete conta.gestion.expediente[b.dataset.exp];
+        else conta.gestion.expediente[b.dataset.exp] = { vence: '' };
+        try { await guardarMultiple([{ slot: 'conta', valor: conta }]); bus.postMessage({ tipo: 'datos', slot: 'conta' }); pintarExpediente($('rAnio').value); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+async function agregarManual() {
+    const fecha = $('regManFecha').value, concepto = $('regManConcepto').value.trim(), tipo = $('regManTipo').value, monto = parseFloat($('regManMonto').value) || 0;
+    if (!fecha || !concepto || !(monto > 0)) { aviso('Completa la fecha, el concepto y un monto mayor que cero.', 'error'); return; }
+    if (!Array.isArray(reg.manuales)) reg.manuales = [];
+    reg.manuales.push({ id: 'rm' + Date.now().toString(36), fecha, concepto, tipo: tipo === 'gasto' ? 'gasto' : 'ingreso', monto: r2(monto) });
+    try {
+        await guardarMultiple([{ slot: 'registro', valor: reg }]);
+        bus.postMessage({ tipo: 'datos', slot: 'registro' });
+        $('regManConcepto').value = ''; $('regManMonto').value = '';
+        $('rAnio').value = fecha.slice(0, 4);
+        pintar();
+    } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+}
+
+(async () => {
+    try {
+        pintarIndicador();
+        sesion = await sesionActual();
+        token = tokenSesion();
+        if (!sesion || !token) {
+            $('sesionTxt').textContent = 'Sin sesión: entra primero con tu usuario en la ventana principal.';
+            return;
+        }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        movs = (await bd().docLeer(token, 'mov')) || [];
+        fx = (await bd().docLeer(token, 'fx')) || {};
+        reg = (await bd().docLeer(token, 'registro')) || { manuales: [] };
+        conta = (await bd().docLeer(token, 'conta')) || {};
+        fiscal = (await bd().docLeer(token, 'fiscal')) || {};
+        if (!Array.isArray(movs)) movs = [];
+        if (!Array.isArray(reg.manuales)) reg.manuales = [];
+        const anios = [...new Set([...movs, ...(reg.manuales || [])].map((m) => String(m.fecha || '').slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))].sort().reverse();
+        const actual = String(new Date().getFullYear());
+        if (!anios.includes(actual)) anios.unshift(actual);
+        $('rAnio').innerHTML = anios.map((y) => '<option value="' + y + '"' + (y === actual ? ' selected' : '') + '>' + y + '</option>').join('');
+        $('rAnio').addEventListener('change', pintar);
+        $('regManFecha').value = hoyLocal();
+        if (sesion.role === 'consultor') $('cardManual').style.display = 'none';
+        else $('btnRegManAdd').addEventListener('click', agregarManual);
+        $('rImprimir').addEventListener('click', () => window.print());
+        pintar();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

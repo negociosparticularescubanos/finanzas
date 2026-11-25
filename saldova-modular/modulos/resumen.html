@@ -24,6 +24,29 @@
     .pest-bar { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 12px; }
     .pest-bar button { background: linear-gradient(180deg, #DCE8F5, #C6D9EE); border: 1px solid #7E9CC0; color: #14324F; font-weight: 400; border-radius: 7px 7px 0 0; padding: 7px 15px; }
     .pest-bar button.activa { background: linear-gradient(180deg, #3A87D4, #2B5B84); color: #fff; font-weight: 700; }
+    .aviso { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 10px; border-radius: 7px; margin-bottom: 8px; font-size: 13.5px; line-height: 1.45; }
+    .aviso span { flex: 1; min-width: 200px; }
+    .aviso-danger { background: #FDECEA; border: 1px solid #D23B2E; }
+    .aviso-warning { background: #FFF6DE; border: 1px solid #D99400; }
+    .aviso-ok { background: #EAF7EE; border: 1px solid #2FA84F; }
+    .cuentas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .cuenta-tarjeta { background: #fff; border: 1px solid #8FA8C8; border-radius: 8px; padding: 10px 12px; }
+    .cuenta-tarjeta h3 { margin: 0 0 6px; font-size: 14.5px; color: #1A3E5E; }
+    .cuenta-nums { font-size: 13.5px; display: flex; gap: 6px 14px; flex-wrap: wrap; }
+    .cuenta-saldo { font-size: 22px; font-weight: 700; color: #1A3E5E; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
+    .cuenta-saldo.negativo { color: #D23B2E; }
+    .areas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .area { background: #fff; border: 1px solid #8FA8C8; border-radius: 8px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: inherit; color: #14324F; }
+    .area.activa { background: linear-gradient(180deg, #3A87D4, #2B5B84); color: #fff; border-color: #2B5B84; }
+    .area.activa .tenue { color: #DCE8F5; }
+    .area-titulo { font-size: 13.5px; font-weight: 700; }
+    .area-grande { font-size: 19px; font-weight: 700; margin-top: 2px; }
+    .tabla-movs { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .tabla-movs th, .tabla-movs td { border-bottom: 1px solid #DCE6F2; padding: 5px 6px; text-align: left; vertical-align: top; }
+    .tabla-movs tr.fila-clic { cursor: pointer; }
+    .tabla-movs tr.fila-clic:hover { background: #F2F7FC; }
+    .tabla-movs .num { text-align: right; white-space: nowrap; }
+    .tabla-movs tr.totales td { font-weight: 700; border-top: 2px solid #8FA8C8; }
     /* La tarjeta del porciento del mes (fase 1 del plan): misma lógica
      * que la alerta financiera de Finanzas, con los números de Saldova. */
     .pct { border-radius: 10px; padding: 14px 16px; border: 2px solid #8FA8C8; background: #fff; }
@@ -45,6 +68,42 @@
 <p class="no-imprimir"><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
 
 <div class="pest-bar"><button type="button" class="activa" data-pest="resumen">Resumen</button></div>
+
+<div class="tarjeta" id="cardHoy">
+    <h2 style="margin-top:0">Qué toca hoy</h2>
+    <p class="expl">Qué es: tus pendientes reales, cada uno con un botón que lleva directo a resolverlo. Para quién: para ti, al entrar, antes de meterte en los módulos.</p>
+    <div id="avisosHoy"><p class="tenue">Revisando…</p></div>
+</div>
+
+<div class="tarjeta" id="cardCuentas">
+    <h2 style="margin-top:0">Tus cuentas</h2>
+    <p class="expl">Qué es: cada cuenta con sus ingresos, gastos y ONAT del mes y el saldo grande. Toca el saldo y se abre esa cuenta en la Chequera.</p>
+    <div id="tarjetasCuentas"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta" id="cardTesoreria">
+    <h2 style="margin-top:0">Tesorería por áreas</h2>
+    <p class="expl">Qué es: tus 6 áreas de tesorería del mes. Toca una y la tabla «Todos los movimientos» muestra solo esa área (la tabla llega en el bloque 4).</p>
+    <div id="areasTesoreria"><p class="tenue">Cargando…</p></div>
+</div>
+
+<div class="tarjeta" id="cardCuadre">
+    <h2 style="margin-top:0">Cuadre banco–contabilidad</h2>
+    <p class="expl">Qué es: el saldo del banco según tus movimientos contra el mayor contable de la cuenta del banco. Si no coincide, te dice la diferencia exacta.</p>
+    <div id="cuadreBanco"><p class="tenue">Revisando…</p></div>
+</div>
+
+<div class="tarjeta" id="cardMovimientos">
+    <h2 style="margin-top:0">Todos los movimientos</h2>
+    <p class="expl">Qué es: todos los movimientos del mes en las 3 cuentas. Toca una fila y se abre esa cuenta en la Chequera. Los totales son los de lo mostrado, en CUP.</p>
+    <div class="fila">
+        <label>Cuenta <select id="fCuenta"><option value="">Todas</option><option value="chequera">Chequera</option><option value="tarjeta_cup">Tarjeta CUP</option><option value="tarjeta_usd">Tarjeta USD</option></select></label>
+        <label>Tipo <select id="fTipo"><option value="">Todos</option><option value="ingreso">Cobros</option><option value="gasto">Pagos</option><option value="transferencia">Transferencias</option></select></label>
+        <button type="button" id="fLimpiar" class="secundario chico">Quitar filtro</button>
+    </div>
+    <p class="tenue" id="avisoFiltroTes" style="display:none"></p>
+    <div id="tablaMovimientos"><p class="tenue">Cargando…</p></div>
+</div>
 
 <div class="tarjeta">
     <div class="fila"><input type="month" id="rMes"><button type="button" id="rVer" class="secundario chico">Ver</button></div>
@@ -71,8 +130,73 @@
     <p class="tenue" id="txtObjetivoSoloLectura" style="display:none"></p>
 </div>
 
+<div class="tarjeta" id="cardRatios">
+    <h2 style="margin-top:0">Ratios del negocio</h2>
+    <p class="expl">Qué es: cuatro números que dicen si el negocio aguanta, si debe mucho y cuánto deja cada venta. Salen de tus asientos: el balance acumulado para la liquidez y el endeudamiento, y el mes para los márgenes.</p>
+    <div id="ratiosBox"><p class="tenue">Elige el mes.</p></div>
+</div>
+
+<div class="tarjeta" id="cardEquilibrio">
+    <h2 style="margin-top:0">Punto de equilibrio del mes</h2>
+    <p class="expl">Qué es: cuánto tienes que vender este mes para cubrir tus gastos. Se toma como fijo todo el gasto del mes salvo el costo de ventas; si dentro de esos gastos hay alguno variable, el punto sale más alto de lo real.</p>
+    <div id="equilibrioBox"><p class="tenue">Elige el mes.</p></div>
+</div>
+
+<div class="tarjeta" id="cardPresupuesto">
+    <h2 style="margin-top:0">Presupuesto por cuenta</h2>
+    <p class="expl">Qué es: la meta mensual de cada cuenta de gasto. Si el mes se pasa de la meta, te avisa con la diferencia. La meta se guarda en este Resumen y vale para todos los meses hasta que la cambies.</p>
+    <div class="fila" id="filaPresupuesto">
+        <label>Cuenta de gasto <select id="preCuenta"></select></label>
+        <label>Meta del mes $ <input id="preMeta" type="number" step="0.01" min="0" style="width:120px"></label>
+        <button type="button" id="preGuardar">Guardar meta</button>
+    </div>
+    <div id="presupuestoBox"><p class="tenue">Elige el mes.</p></div>
+</div>
+
+<!-- Fase 23, bloque 3: indicadores definidos por el usuario. El
+     dueño escribe su propio indicador con una fórmula sobre sus
+     cuentas: «ventas por trabajador», «gasto de luz entre ventas»…
+     Las cuentas de ventas, gastos y costos se toman del mes; las
+     de activo, pasivo y patrimonio, acumuladas hasta el mes. -->
+<div class="tarjeta" id="cardIndicadores">
+    <h2 style="margin-top:0">Indicadores míos</h2>
+    <p class="expl">Qué es: tus propios indicadores, con tus cuentas y tu fórmula. Escribe el nombre y la fórmula con códigos de cuenta (801-000), grupos (ingreso, gasto, costo, activo, pasivo, patrimonio) o «trabajadores», y las operaciones + − * / con paréntesis. Ejemplos: <b>801-000 / trabajadores</b> (ventas por trabajador), <b>613-000 / 801-000</b> (gasto de luz entre ventas).</p>
+    <div class="fila">
+        <input id="indNombre" placeholder="Nombre del indicador" style="min-width:180px">
+        <input id="indFormula" placeholder="Fórmula (ej. 801-000 / trabajadores)" style="flex:1;min-width:200px">
+        <button type="button" id="indAdd">Añadir indicador</button>
+    </div>
+    <div id="indicadoresBox"><p class="tenue">Sin indicadores todavía.</p></div>
+</div>
+
+<!-- Fase 33, bloque 1: preguntas con botones. El chat sin chat:
+     las preguntas de siempre, cada una con su respuesta calculada
+     con los datos de la base. -->
+<div class="tarjeta" id="cardPreguntas">
+    <h2 style="margin-top:0">Pregúntale al Resumen</h2>
+    <p class="expl">Las preguntas de siempre, con su respuesta calculada con los datos de la base. Toca una y te responde.</p>
+    <div class="fila">
+        <button type="button" class="secundario chico" data-pregunta="deben">¿Cuánto me deben?</button>
+        <button type="button" class="secundario chico" data-pregunta="debo">¿Cuánto debo?</button>
+        <button type="button" class="secundario chico" data-pregunta="mes">¿Cómo va el mes contra el anterior?</button>
+        <button type="button" class="secundario chico" data-pregunta="vence">¿Qué vence esta semana?</button>
+    </div>
+    <div id="preguntasBox"><p class="tenue">Toca una pregunta para ver su respuesta.</p></div>
+</div>
+
+<!-- Fase 33, bloque 2: el informe del mes se escribe solo. El
+     informe se redacta con los números del mes y se le pueden
+     añadir notas a mano, que quedan guardadas con el informe. -->
+<div class="tarjeta" id="cardInformeMes">
+    <h2 style="margin-top:0">Informe del mes</h2>
+    <p class="expl">El informe se escribe solo con los números del mes. Añade tus notas y guárdalas: quedan con el informe de ese mes.</p>
+    <div id="informeTexto"><p class="tenue">Cargando…</p></div>
+    <label>Mis notas del mes<br><textarea id="informeNota" rows="3" style="width:100%" placeholder="Ej. Este mes vendimos más por la feria de la Ciénaga."></textarea></label>
+    <div class="fila"><button type="button" id="informeGuardar" class="secundario chico">Guardar mis notas</button></div>
+</div>
+
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal, esOnat } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal, hoyLocal, esOnat, esc, tasaDelMes } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(15);
@@ -80,7 +204,8 @@ aplicarFondo(15);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null;
+let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null, rrhh = null, fx = {};
+let filtroTes = { cuenta: '', tipo: '' };
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -151,6 +276,400 @@ function analizar(r, meta, tol) {
         sugerencia: 'Para alcanzar el ' + fmt(meta) + ' %: aumenta ingresos en $' + fmt(r2(deficit / (1 - meta / 100))) + ' o reduce gastos en $' + fmt(deficit) + '.',
         detalle, porcentaje };
 }
+/* Fase 17, bloque 1: ratios del negocio. Las mismas fórmulas de
+ * Finanzas (mjIndicadores): liquidez = activo corriente / pasivo
+ * corriente; margen bruto = (ventas − costo) / ventas; margen neto =
+ * utilidad / ingresos. El endeudamiento es pasivo total / activo
+ * total. Los saldos salen del mayor acumulado (debe − haber por
+ * cuenta, como ctaMayor de Finanzas) con su misma reclasificación:
+ * un saldo deudor en una cuenta de pasivo se presenta en el activo y
+ * al revés; la depreciación acumulada (esContra) resta sola.
+ * Corriente: activo 1xx en los dos planes; pasivo 3xx en el plan del
+ * dueño (su cabecera «PASIVO CORRIENTE» es la 300) y 4xx en el
+ * oficial (sus 400 son a corto plazo y sus 500 a largo plazo). */
+function pasivoCorrientePrefijo(plan) {
+    const cab = (plan || []).find((c) => c.nivel === 1 && String(c.nombre || '').toUpperCase().includes('PASIVO CORRIENTE'));
+    if (cab) return String(cab.codigo || '3').charAt(0);
+    return '4';
+}
+function saldosMayor(asientos, mes) {
+    const m = {};
+    for (const a of asientos || []) {
+        if (mes && (a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of a.lineas || []) {
+            const e = m[l.cuenta] || (m[l.cuenta] = { debe: 0, haber: 0 });
+            e.debe += Number(l.debe) || 0; e.haber += Number(l.haber) || 0;
+        }
+    }
+    return m;
+}
+function ratios(conta, mes) {
+    const plan = conta.plan || [];
+    const mayor = saldosMayor(conta.asientos, null);
+    const pcPref = pasivoCorrientePrefijo(plan);
+    let ac = 0, pc = 0, act = 0, pas = 0, pat = 0, resPend = 0;
+    for (const c of plan) {
+        const e = mayor[c.codigo];
+        if (!e) continue;
+        const sf = r2(e.debe - e.haber);
+        if (sf === 0) continue;
+        if (c.grupo === 'activo') {
+            if (sf < 0 && !c.esContra) {
+                if (String(c.codigo).charAt(0) === '1') pc = r2(pc - sf);
+                else pas = r2(pas - sf);
+            } else {
+                act = r2(act + sf);
+                if (String(c.codigo).charAt(0) === '1') ac = r2(ac + sf);
+            }
+        } else if (c.grupo === 'pasivo') {
+            if (sf > 0) {
+                if (String(c.codigo).charAt(0) === pcPref) ac = r2(ac + sf);
+                else act = r2(act + sf);
+            } else {
+                pas = r2(pas - sf);
+                if (String(c.codigo).charAt(0) === pcPref) pc = r2(pc - sf);
+            }
+        } else if (c.grupo === 'patrimonio') pat = r2(pat - sf);
+        else if (c.grupo === 'ingreso' || c.grupo === 'gasto' || c.grupo === 'costo') resPend = r2(resPend - sf);
+    }
+    const patrimonio = r2(pat + resPend);
+    /* Márgenes del mes: ventas = las cuentas auto 'ventas' y
+     * 'ventas_servicios' (como Finanzas); costo = la cuenta auto
+     * 'costo_ventas'; utilidad e ingresos del resumenMes. */
+    const mayorMes = saldosMayor(conta.asientos, mes);
+    const saldoCta = (cod) => { const e = mayorMes[cod]; return e ? r2(e.haber - e.debe) : 0; };
+    const saldoCtaDebe = (cod) => { const e = mayorMes[cod]; return e ? r2(e.debe - e.haber) : 0; };
+    const ctaVentas = cuentaAuto(plan, 'ventas', '801-000');
+    const ctaVentasServ = cuentaAuto(plan, 'ventas_servicios', '802-000');
+    const ventas = r2(saldoCta(ctaVentas) + saldoCta(ctaVentasServ));
+    const costo = saldoCtaDebe(cuentaAuto(plan, 'costo_ventas', '695-000'));
+    const r = resumenMes(mes);
+    return {
+        activoCorriente: ac, pasivoCorriente: pc, activoTotal: act, pasivoTotal: pas, patrimonio,
+        cuadrado: Math.abs(act - r2(pas + patrimonio)) < 0.005,
+        liquidez: pc > 0 ? r2(ac / pc) : null,
+        endeudamientoPct: act > 0 ? r2(pas / act * 100) : null,
+        margenBrutoPct: ventas > 0 ? r2((ventas - costo) / ventas * 100) : null,
+        margenNetoPct: r.ingresos > 0 ? r2(r.utilidad / r.ingresos * 100) : null,
+        ventas, costo, ingresos: r.ingresos, utilidad: r.utilidad,
+    };
+}
+/* Fase 17, bloque 2: punto de equilibrio del mes, en CUP. De las
+ * cifras del mes (resumenMes): el margen de contribución es
+ * (ventas − costo) / ventas y el punto es gastos fijos / margen.
+ * Se toma como fijo todo el gasto del mes salvo el costo de ventas.
+ * Es distinto del equilibrio por unidades de Gestión (fase 10),
+ * que pide precio y costo por unidad: este sale solo de lo real. */
+function puntoEquilibrioMes(r) {
+    const ventas = r.ingresos || 0, costo = r.costo || 0, fijos = r.gastos || 0;
+    if (!(ventas > 0)) return { ok: false, motivo: 'Sin ventas en el mes: no hay punto de equilibrio que calcular.' };
+    if (costo >= ventas) return { ok: false, motivo: 'El costo de ventas es igual o mayor que las ventas: cada venta pierde dinero.' };
+    const mcPct = (ventas - costo) / ventas;
+    const pe = r2(fijos / mcPct);
+    return { ok: true, ventas: r2(ventas), costo: r2(costo), fijos: r2(fijos), mcPct: r2(mcPct * 100), pe,
+        margenSeguridadPct: r2((ventas - pe) / ventas * 100), cubre: ventas >= pe };
+}
+function pintarEquilibrio(mes) {
+    const r = resumenMes(mes);
+    const p = puntoEquilibrioMes(r);
+    if (!p.ok) { $('equilibrioBox').innerHTML = '<p class="tenue">' + p.motivo + '</p>'; return; }
+    $('equilibrioBox').innerHTML =
+        '<div class="pct-cabeza"><div class="pct-num">$' + fmt(p.pe) + '</div>' +
+        '<div class="pct-titulo">' + (p.cubre ? 'Este mes ya cubres tus gastos.' : 'Este mes todavía no cubres tus gastos.') + '</div></div>' +
+        '<div class="pct-cifras"><span>Ventas: <b>$' + fmt(p.ventas) + '</b></span>' +
+        '<span>Costo: <b>$' + fmt(p.costo) + '</b></span>' +
+        '<span>Gastos fijos: <b>$' + fmt(p.fijos) + '</b></span>' +
+        '<span>Margen de contribución: <b>' + p.mcPct.toFixed(1) + ' %</b></span>' +
+        '<span>Margen de seguridad: <b>' + p.margenSeguridadPct.toFixed(1) + ' %</b></span></div>' +
+        '<div class="pct-sugerencia">Tienes que vender <b>$' + fmt(p.pe) + '</b> en el mes para cubrir tus gastos. ' +
+        (p.cubre ? 'Vas $' + fmt(r2(p.ventas - p.pe)) + ' por encima.' : 'Te faltan $' + fmt(r2(p.pe - p.ventas)) + ' para llegar.') + '</div>';
+}
+/* Fase 17, bloque 3: presupuesto por cuenta. La meta mensual de
+ * cada cuenta de gasto vive en el documento 'resumen' (cfg.presupuesto
+ * = {codigo: monto}) y vale para todos los meses hasta que se cambie.
+ * Lo real del mes sale de los asientos confirmados (debe − haber de
+ * las cuentas de grupo 'gasto'). */
+function gastosPorCuenta(conta, mes) {
+    const reales = {};
+    for (const a of conta.asientos || []) {
+        if ((a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of a.lineas || []) {
+            const c = (conta.plan || []).find((x) => x.codigo === l.cuenta);
+            if (!c || c.grupo !== 'gasto') continue;
+            reales[l.cuenta] = r2((reales[l.cuenta] || 0) + (Number(l.debe) || 0) - (Number(l.haber) || 0));
+        }
+    }
+    return reales;
+}
+function presupuestoDesvio(presupuesto, reales, plan) {
+    const filas = [];
+    for (const [cod, meta] of Object.entries(presupuesto || {})) {
+        const c = (plan || []).find((x) => x.codigo === cod);
+        const real = r2(reales[cod] || 0);
+        filas.push({ codigo: cod, nombre: c ? c.nombre : cod, meta: r2(meta), real,
+            desvio: r2(real - meta), pct: meta > 0 ? r2(real / meta * 100) : null, excedido: real > meta });
+    }
+    filas.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+    return filas;
+}
+/* Fase 23, bloque 3: indicadores definidos por el usuario. La
+ * fórmula es una expresión con códigos de cuenta (801-000), grupos
+ * (ingreso, gasto, costo, activo, pasivo, patrimonio) o
+ * «trabajadores», y + − * / con paréntesis. No se ejecuta código:
+ * es un evaluador propio, token por token. */
+function evaluarIndicador(formula, resolver) {
+    const tokens = [];
+    const s = String(formula || '');
+    let i = 0;
+    while (i < s.length) {
+        const c = s[i];
+        if (c === ' ' || c === '\t') { i++; continue; }
+        if (c === '(' || c === ')' || c === '+' || c === '-' || c === '*' || c === '/') { tokens.push({ t: c }); i++; continue; }
+        /* El código de cuenta (801-000) va antes que el número:
+         * si no, 801-000 se leería como 801 menos 000. */
+        const mCod = s.slice(i).match(/^\d{3}-\d{3}/);
+        if (mCod) { tokens.push({ t: 'nombre', v: mCod[0] }); i += mCod[0].length; continue; }
+        if (/[0-9]/.test(c)) {
+            let j = i;
+            while (j < s.length && /[0-9.]/.test(s[j])) j++;
+            const num = Number(s.slice(i, j));
+            if (isNaN(num)) return { ok: false, motivo: 'el número «' + s.slice(i, j) + '» no vale' };
+            tokens.push({ t: 'num', v: num }); i = j; continue;
+        }
+        if (/[a-záéíóúñ_]/i.test(c)) {
+            let j = i;
+            while (j < s.length && /[a-záéíóúñ_]/i.test(s[j])) j++;
+            tokens.push({ t: 'nombre', v: s.slice(i, j).toLowerCase() }); i = j; continue;
+        }
+        return { ok: false, motivo: 'el carácter «' + c + '» no se puede usar' };
+    }
+    if (!tokens.length) return { ok: false, motivo: 'la fórmula está vacía' };
+    let pos = 0;
+    const mirar = () => tokens[pos];
+    function expr() {
+        let v = termino();
+        if (v === null) return null;
+        while (mirar() && (mirar().t === '+' || mirar().t === '-')) {
+            const op = mirar().t; pos++;
+            const d = termino();
+            if (d === null) return null;
+            v = op === '+' ? v + d : v - d;
+        }
+        return v;
+    }
+    function termino() {
+        let v = factor();
+        if (v === null) return null;
+        while (mirar() && (mirar().t === '*' || mirar().t === '/')) {
+            const op = mirar().t; pos++;
+            const d = factor();
+            if (d === null) return null;
+            if (op === '/' && d === 0) { errorDiv0 = true; return null; }
+            v = op === '*' ? v * d : v / d;
+        }
+        return v;
+    }
+    let errorDiv0 = false, errorMotivo = '';
+    function factor() {
+        const tk = mirar();
+        if (!tk) { errorMotivo = 'la fórmula termina a medias'; return null; }
+        if (tk.t === '(') {
+            pos++;
+            const v = expr();
+            if (v === null) return null;
+            if (!mirar() || mirar().t !== ')') { errorMotivo = 'falta cerrar un paréntesis'; return null; }
+            pos++;
+            return v;
+        }
+        if (tk.t === '-') { pos++; const v = factor(); return v === null ? null : -v; }
+        if (tk.t === 'num') { pos++; return tk.v; }
+        if (tk.t === 'nombre') {
+            pos++;
+            const r = resolver(tk.v);
+            if (!r.ok) { errorMotivo = r.motivo; return null; }
+            return r.valor;
+        }
+        errorMotivo = 'ahí no va «' + tk.t + '»';
+        return null;
+    }
+    const valor = expr();
+    if (errorDiv0) return { ok: false, motivo: 'división entre cero' };
+    if (valor === null) return { ok: false, motivo: errorMotivo || 'la fórmula no se entiende' };
+    if (pos < tokens.length) return { ok: false, motivo: 'sobra «' + (tokens[pos].v || tokens[pos].t) + '» al final' };
+    return { ok: true, valor: r2(valor) };
+}
+/* Fase 23, bloque 3: indicadores definidos por el usuario. El
+ * saldo natural de una cuenta es haber−debe para ingresos, pasivos
+ * y patrimonio, y debe−haber para el resto. Las cuentas de
+ * resultado (ingreso, gasto, costo) se toman del mes; las de
+ * balance (activo, pasivo, patrimonio), acumuladas hasta el mes. */
+function resolverIndicador(token, plan, mayorMes, mayorAcum, nTrabajadores) {
+    if (token === 'trabajadores') return { ok: true, valor: nTrabajadores };
+    const grupos = ['ingreso', 'gasto', 'costo', 'activo', 'pasivo', 'patrimonio'];
+    if (grupos.indexOf(token) >= 0) {
+        const deMes = token === 'ingreso' || token === 'gasto' || token === 'costo';
+        const mayor = deMes ? mayorMes : mayorAcum;
+        let total = 0;
+        for (const c of plan) {
+            if (c.grupo !== token) continue;
+            const e = mayor[c.codigo];
+            if (!e) continue;
+            total += (token === 'ingreso' || token === 'pasivo' || token === 'patrimonio') ? (Number(e.haber) || 0) - (Number(e.debe) || 0) : (Number(e.debe) || 0) - (Number(e.haber) || 0);
+        }
+        return { ok: true, valor: r2(total) };
+    }
+    if (/^\d{3}-\d{3}$/.test(token)) {
+        const c = plan.find((x) => x.codigo === token);
+        if (!c) return { ok: false, motivo: 'la cuenta ' + token + ' no existe en el plan' };
+        const deMes = c.grupo === 'ingreso' || c.grupo === 'gasto' || c.grupo === 'costo';
+        const e = (deMes ? mayorMes : mayorAcum)[token] || { debe: 0, haber: 0 };
+        const v = (c.grupo === 'ingreso' || c.grupo === 'pasivo' || c.grupo === 'patrimonio') ? (Number(e.haber) || 0) - (Number(e.debe) || 0) : (Number(e.debe) || 0) - (Number(e.haber) || 0);
+        return { ok: true, valor: r2(v) };
+    }
+    return { ok: false, motivo: 'no conozco «' + token + '»: usa un código de cuenta, un grupo o «trabajadores»' };
+}
+/* Fase 33, bloque 1: preguntas con botones. */
+function pctCambio(ahora, antes) {
+    if (!(Number(antes) || 0)) return null;
+    return r2(((Number(ahora) || 0) - (Number(antes) || 0)) / Math.abs(Number(antes)) * 100);
+}
+function pendienteCupFac(f) {
+    const saldo = r2((Number(f.total) || 0) - (f.cobros || []).reduce((s, c) => s + (Number(c.monto) || 0), 0));
+    return f.moneda === 'USD' ? r2(saldo * (Number(f.tasa) || 0)) : saldo;
+}
+function respuestaDeben(facturas) {
+    const lista = (facturas || []).filter((f) => pendienteCupFac(f) > 0.005);
+    return { total: r2(lista.reduce((s, f) => s + pendienteCupFac(f), 0)), n: lista.length };
+}
+function respuestaDebo(documentos, aplicaciones) {
+    const lista = (documentos || []).filter((d) => d.tipo === 'cxp').map((d) => {
+        const pagado = r2((aplicaciones || []).filter((a) => a.documentoId === d.id).reduce((s, a) => s + (Number(a.monto) || 0), 0));
+        return { doc: d, pendiente: r2((Number(d.importe) || 0) - pagado) };
+    }).filter((x) => x.pendiente > 0.005);
+    return { total: r2(lista.reduce((s, x) => s + x.pendiente, 0)), n: lista.length };
+}
+function respuestaMesContraMes(r, rAnt) {
+    return { ventas: r.ingresos, ventasAnt: rAnt.ingresos, pctVentas: pctCambio(r.ingresos, rAnt.ingresos), gastos: r.gastos, gastosAnt: rAnt.gastos, pctGastos: pctCambio(r.gastos, rAnt.gastos), utilidad: r.utilidad, utilidadAnt: rAnt.utilidad, pctUtilidad: pctCambio(r.utilidad, rAnt.utilidad) };
+}
+function respuestaVence(facturas, documentos, aplicaciones, hoy) {
+    const hasta = new Date(hoy + 'T12:00:00Z');
+    hasta.setUTCDate(hasta.getUTCDate() + 7);
+    const limite = hasta.toISOString().slice(0, 10);
+    const filas = [];
+    for (const f of (facturas || [])) {
+        const vence = f.vencimiento || '';
+        if (!vence || vence < hoy || vence > limite || !(pendienteCupFac(f) > 0.005)) continue;
+        filas.push({ que: 'Factura Nº ' + (f.numero || ''), quien: f.cliente || '', vence, monto: pendienteCupFac(f) });
+    }
+    for (const d of (documentos || []).filter((x) => x.tipo === 'cxp')) {
+        const vence = d.vencimiento || '';
+        if (!vence || vence < hoy || vence > limite) continue;
+        const pagado = r2((aplicaciones || []).filter((a) => a.documentoId === d.id).reduce((s, a) => s + (Number(a.monto) || 0), 0));
+        const pend = r2((Number(d.importe) || 0) - pagado);
+        if (!(pend > 0.005)) continue;
+        const cp = (conta.contrapartes || []).find((x) => x.id === d.contraparteId);
+        filas.push({ que: 'Documento por pagar ' + (d.numero || ''), quien: cp ? cp.nombre : '', vence, monto: pend });
+    }
+    filas.sort((a, b) => (a.vence || '').localeCompare(b.vence || ''));
+    return filas;
+}
+function pintarPregunta(clave) {
+    const mes = $('rMes').value;
+    const hoy = hoyLocal();
+    if (clave === 'deben') {
+        const r = respuestaDeben((conta.gestion && conta.gestion.facturas) || []);
+        $('preguntasBox').innerHTML = r.n ? '<p>Te deben <b>$' + fmt(r.total) + ' CUP</b> en ' + r.n + ' factura(s) sin pagar.</p>' : '<p>Nadie te debe nada: no hay facturas pendientes.</p>';
+    } else if (clave === 'debo') {
+        const r = respuestaDebo(conta.documentos || [], conta.aplicaciones || []);
+        $('preguntasBox').innerHTML = r.n ? '<p>Debes <b>$' + fmt(r.total) + ' CUP</b> en ' + r.n + ' documento(s) por pagar.</p>' : '<p>No debes nada: no hay documentos por pagar pendientes.</p>';
+    } else if (clave === 'mes') {
+        const r = respuestaMesContraMes(resumenMes(mes), resumenMes(mesAnterior(mes)));
+        const pct = (v) => v == null ? 'sin mes anterior para comparar' : (v >= 0 ? 'un ' + fmt(v) + ' % más' : 'un ' + fmt(-v) + ' % menos');
+        $('preguntasBox').innerHTML = '<p>Este mes vendiste <b>$' + fmt(r.ventas) + '</b> (' + pct(r.pctVentas) + ' que el anterior, $' + fmt(r.ventasAnt) + '), gastaste <b>$' + fmt(r.gastos) + '</b> (' + pct(r.pctGastos) + ' que el anterior, $' + fmt(r.gastosAnt) + ') y la utilidad es <b>$' + fmt(r.utilidad) + '</b> (el anterior, $' + fmt(r.utilidadAnt) + ').</p>';
+    } else if (clave === 'vence') {
+        const filas = respuestaVence((conta.gestion && conta.gestion.facturas) || [], conta.documentos || [], conta.aplicaciones || [], hoy);
+        $('preguntasBox').innerHTML = filas.length ? '<p>Esta semana vence:</p><table><thead><tr><th>Qué</th><th>Quién</th><th>Vence</th><th class="num">Monto</th></tr></thead><tbody>' +
+            filas.map((f) => '<tr><td>' + esc(f.que) + '</td><td>' + esc(f.quien) + '</td><td>' + esc(f.vence) + '</td><td class="num">' + fmt(f.monto) + '</td></tr>').join('') + '</tbody></table>' : '<p>Esta semana no vence nada.</p>';
+    }
+}
+/* Fase 33, bloque 2: el informe del mes se escribe solo. */
+function informeMesTexto(datos) {
+    const { mes, r, rAnt, deben, debo, mayorGasto } = datos;
+    const pct = (v) => v == null ? null : (v >= 0 ? 'un ' + fmt(v) + ' % más' : 'un ' + fmt(-v) + ' % menos');
+    const pV = pct(pctCambio(r.ingresos, rAnt.ingresos));
+    const pG = pct(pctCambio(r.gastos, rAnt.gastos));
+    let texto = 'En ' + mes + ' vendiste $' + fmt(r.ingresos) + (pV ? ', ' + pV + ' que el mes anterior ($' + fmt(rAnt.ingresos) + ')' : ', sin mes anterior para comparar') + '. ';
+    texto += 'Tus gastos fueron $' + fmt(r.gastos) + (pG ? ' (' + pG + ' que el mes anterior, $' + fmt(rAnt.gastos) + ')' : '') + (mayorGasto ? '; el gasto que más subió fue ' + mayorGasto.nombre + ' ($' + fmt(mayorGasto.ahora) + ', antes $' + fmt(mayorGasto.antes) + ')' : '') + '. ';
+    texto += 'La utilidad del mes es $' + fmt(r.utilidad) + ' (el mes anterior, $' + fmt(rAnt.utilidad) + '). ';
+    texto += 'Te deben $' + fmt(deben.total) + ' en ' + deben.n + ' factura(s) y debes $' + fmt(debo.total) + ' en ' + debo.n + ' documento(s).';
+    return texto;
+}
+function pintarInformeMes() {
+    const mes = $('rMes').value;
+    const r = resumenMes(mes), rAnt = resumenMes(mesAnterior(mes));
+    const deben = respuestaDeben((conta.gestion && conta.gestion.facturas) || []);
+    const debo = respuestaDebo(conta.documentos || [], conta.aplicaciones || []);
+    const gMes = gastosPorCuenta(conta, mes), gAnt = gastosPorCuenta(conta, mesAnterior(mes));
+    let mayorGasto = null;
+    for (const cod of Object.keys(gMes)) {
+        const sub = r2((gMes[cod] || 0) - (gAnt[cod] || 0));
+        if (sub > 0 && (!mayorGasto || sub > mayorGasto.sub)) {
+            const c = (conta.plan || []).find((x) => x.codigo === cod);
+            mayorGasto = { nombre: c ? c.nombre.replace(/ \(rango [^)]+\)$/, '') : cod, ahora: gMes[cod], antes: gAnt[cod] || 0, sub };
+        }
+    }
+    $('informeTexto').innerHTML = '<p>' + esc(informeMesTexto({ mes, r, rAnt, deben, debo, mayorGasto })) + '</p>';
+    cfg.informeNotas = cfg.informeNotas || {};
+    $('informeNota').value = cfg.informeNotas[mes] || '';
+}
+function pintarIndicadores(mes) {
+    const lista = cfg.indicadores || [];
+    const mayorMes = saldosMayor(conta.asientos, mes);
+    const mayorAcum = saldosMayor(conta.asientos, null);
+    const nTrab = (rrhh && rrhh.trabajadores ? rrhh.trabajadores.length : 0);
+    $('indicadoresBox').innerHTML = lista.length ? '<table><thead><tr><th>Indicador</th><th>Fórmula</th><th class="num">Valor este mes</th><th></th></tr></thead><tbody>' +
+        lista.map((ind) => {
+            const r = evaluarIndicador(ind.formula, (tk) => resolverIndicador(tk, conta.plan || [], mayorMes, mayorAcum, nTrab));
+            return '<tr><td><b>' + esc(ind.nombre) + '</b></td><td>' + esc(ind.formula) + '</td><td class="num">' + (r.ok ? fmt(r.valor) : '—') + '</td><td>' + (r.ok ? '' : '<span class="mal">' + esc(r.motivo) + '</span> ') + '<button type="button" class="chico secundario" data-quitar-ind="' + ind.id + '">Quitar</button></td></tr>';
+        }).join('') + '</tbody></table>' : '<p class="tenue">Sin indicadores todavía.</p>';
+    $('indicadoresBox').querySelectorAll('[data-quitar-ind]').forEach((b) => b.addEventListener('click', async () => {
+        cfg.indicadores = (cfg.indicadores || []).filter((x) => x.id !== b.dataset.quitarInd);
+        try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); pintarIndicadores($('rMes').value); aviso('Indicador quitado'); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarPresupuesto(mes) {
+    const reales = gastosPorCuenta(conta, mes);
+    const filas = presupuestoDesvio(cfg.presupuesto, reales, conta.plan);
+    $('presupuestoBox').innerHTML = filas.length
+        ? '<table><thead><tr><th>Cuenta</th><th class="num">Meta</th><th class="num">Real</th><th class="num">Diferencia</th><th class="num">% usado</th><th>Estado</th><th></th></tr></thead><tbody>' +
+            filas.map((f) => '<tr><td>' + esc(f.codigo + ' · ' + f.nombre) + '</td><td class="num">$' + fmt(f.meta) + '</td><td class="num">$' + fmt(f.real) + '</td><td class="num">' + (f.desvio > 0 ? '+' : '') + '$' + fmt(f.desvio) + '</td><td class="num">' + (f.pct === null ? '—' : f.pct.toFixed(0) + ' %') + '</td><td>' + (f.excedido ? '<span class="rojo">Pasado por $' + fmt(f.desvio) + '</span>' : 'Dentro') + '</td><td><button type="button" class="chico secundario" data-quitar-pre="' + esc(f.codigo) + '">Quitar</button></td></tr>').join('') + '</tbody></table>'
+        : '<p class="tenue">Todavía no tienes metas. Elige una cuenta de gasto y ponle su meta del mes.</p>';
+    $('presupuestoBox').querySelectorAll('[data-quitar-pre]').forEach((b) => b.addEventListener('click', async () => {
+        if (!cfg.presupuesto) return;
+        delete cfg.presupuesto[b.getAttribute('data-quitar-pre')];
+        try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); aviso('Meta quitada'); pintar(); }
+        catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+    }));
+}
+function pintarRatios(mes) {
+    const x = ratios(conta, mes);
+    const liqTxt = x.liquidez === null
+        ? 'Sin deudas a corto plazo: no hay liquidez que medir.'
+        : 'Por cada $1 que debes a corto plazo tienes $' + x.liquidez.toFixed(2) + ' a corto plazo.' +
+            (x.liquidez >= 1.5 ? ' Bien.' : x.liquidez >= 1 ? ' Justo.' : ' Cuidado: debes más a corto plazo de lo que tienes.');
+    const endTxt = x.endeudamientoPct === null
+        ? 'Sin activo: no hay endeudamiento que medir.'
+        : 'De cada $100 que tienes, $' + x.endeudamientoPct.toFixed(1) + ' son de otros.' + (x.endeudamientoPct > 70 ? ' Alto.' : x.endeudamientoPct > 40 ? ' Medio.' : ' Bajo.');
+    $('ratiosBox').innerHTML =
+        '<div class="pct-cifras"><span>Liquidez: <b>' + (x.liquidez === null ? '—' : x.liquidez.toFixed(2)) + '</b></span>' +
+        '<span>Endeudamiento: <b>' + (x.endeudamientoPct === null ? '—' : x.endeudamientoPct.toFixed(1) + ' %') + '</b></span>' +
+        '<span>Margen bruto: <b>' + (x.margenBrutoPct === null ? '—' : x.margenBrutoPct.toFixed(1) + ' %') + '</b></span>' +
+        '<span>Margen neto: <b>' + (x.margenNetoPct === null ? '—' : x.margenNetoPct.toFixed(1) + ' %') + '</b></span></div>' +
+        '<p class="tenue">' + liqTxt + ' ' + endTxt + '</p>' +
+        '<p class="tenue">Activo corriente $' + fmt(x.activoCorriente) + ' · Pasivo corriente $' + fmt(x.pasivoCorriente) + ' · Activo total $' + fmt(x.activoTotal) + ' · Pasivo total $' + fmt(x.pasivoTotal) + ' · Patrimonio $' + fmt(x.patrimonio) + '.' +
+        (x.cuadrado ? '' : ' Ojo: el balance no cuadra (Activo ≠ Pasivo + Patrimonio).') + '</p>';
+}
 function pintar() {
     const mes = $('rMes').value;
     if (!mes) return;
@@ -169,6 +688,315 @@ function pintar() {
         '<div class="pct-sugerencia">' + a.sugerencia + '</div>' +
         (a.detalle ? '<div class="pct-detalle">' + a.detalle + '</div>' : '');
     pintarTrimestre();
+    pintarRatios(mes);
+    pintarEquilibrio(mes);
+    pintarPresupuesto(mes);
+    pintarIndicadores(mes);
+    pintarInformeMes();
+    pintarHoy();
+    pintarCuentas();
+    pintarTesoreria();
+    pintarCuadre();
+    pintarTablaGeneral();
+}
+
+/* Fase 5 del plan, bloque 4: tabla «Todos los movimientos». Misma
+ * idea que Finanzas renderTablaGeneral: los movimientos del mes
+ * elegido en las 3 cuentas, con el filtro de tesorería (las áreas
+ * del bloque 2 y los dos desplegables mandan el mismo filtro), la
+ * insignia QR, el nº de aporte ONAT con su fecha y, en la USD, el
+ * equivalente en CUP con su tasa. Tocar una fila abre esa cuenta
+ * en la Chequera. La banda de totales es de lo mostrado, en CUP
+ * (los gastos incluyen la ONAT). El nº de aporte sale de la
+ * clasificación, donde el clasificador lo escribe como «Pago de
+ * ONAT (cód. XXXXXXX)» (chequera.html:360); Saldova no guarda el
+ * rango de fechas del aporte, así que la fecha es la del
+ * movimiento. */
+function codigoOnatMov(m) {
+    const c = String((m && m.clasificacion) || '').match(/cód\.?\s*(\d{6,7})/);
+    return c ? c[1] : '';
+}
+function aplicarFiltroTes(cuenta, tipo) {
+    filtroTes = { cuenta: cuenta || '', tipo: tipo || '' };
+    const sc = $('fCuenta'); if (sc) sc.value = filtroTes.cuenta;
+    const st = $('fTipo'); if (st) st.value = filtroTes.tipo;
+    pintarTesoreria();
+    pintarTablaGeneral();
+}
+function pintarTablaGeneral() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    const lista = tesAplicarFiltro(movs.filter((m) => String(m.fecha || '').slice(0, 7) === mes))
+        .slice().sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+    const aviso = $('avisoFiltroTes');
+    if (aviso) {
+        if (filtroTes.cuenta || filtroTes.tipo) { aviso.style.display = ''; aviso.textContent = 'Filtro de tesorería activo: la tabla muestra solo esa área y sus totales son los de lo mostrado.'; }
+        else { aviso.style.display = 'none'; aviso.textContent = ''; }
+    }
+    if (!lista.length) { $('tablaMovimientos').innerHTML = '<p class="tenue">Sin movimientos en este mes para el filtro elegido.</p>'; return; }
+    let ing = 0, gas = 0, usdSinTasa = false;
+    let html = '<table class="tabla-movs"><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Clasificación</th><th>Cuenta</th><th class="num">Monto</th></tr></thead><tbody>';
+    for (const m of lista) {
+        const monto = Number(m.monto) || 0;
+        const usd = (m.cuenta || 'chequera') === 'tarjeta_usd';
+        const cup = montoCup(m);
+        if (cup === null) usdSinTasa = true;
+        else if (m.tipo === 'ingreso') ing = r2(ing + cup);
+        else gas = r2(gas + cup);
+        const onat = esOnat(m);
+        const tipoTxt = m.tipo === 'ingreso' ? '⬆ Cobro' : onat ? '📄 ONAT' : '⬇ Pago';
+        const cod = onat ? codigoOnatMov(m) : '';
+        const montoTxt = (m.tipo === 'ingreso' ? '<span style="color:#0b5e3a">+ $' : '<span style="color:#D23B2E">− $') + fmt(monto) + ' ' + (usd ? 'USD' : 'CUP') + '</span>' +
+            (usd ? '<br><span class="tenue">' + (cup !== null ? '≈ $' + fmt(cup) + ' CUP · tasa ' + fmt(tasaDelMes(fx, String(m.fecha || '').slice(0, 7))) : 'Sin tasa para este mes') + '</span>' : '');
+        html += '<tr class="fila-clic" data-cuenta="' + esc(m.cuenta || 'chequera') + '"><td style="white-space:nowrap">' + esc(m.fecha) + '</td>' +
+            '<td>' + esc(m.concepto) + (m.qr ? ' <span class="tenue">(QR)</span>' : '') + (cod ? '<br><span class="tenue">Aporte ONAT nº ' + esc(cod) + '</span>' : '') + '</td>' +
+            '<td>' + tipoTxt + '</td><td>' + esc(m.clasificacion || 'Por clasificar') + '</td>' +
+            '<td>' + esc(NOMBRES_CUENTA[m.cuenta || 'chequera'] || m.cuenta) + '</td><td class="num">' + montoTxt + '</td></tr>';
+    }
+    html += '<tr class="totales"><td colspan="5">Totales de lo mostrado (en CUP)</td><td class="num"><span style="color:#0b5e3a">+ $' + fmt(ing) + '</span><br><span style="color:#D23B2E">− $' + fmt(gas) + '</span><br>Neto: $' + fmt(r2(ing - gas)) + '</td></tr></tbody></table>';
+    if (usdSinTasa) html += '<p class="tenue">Hay movimientos en USD sin tasa vigente: no entran en los totales.</p>';
+    $('tablaMovimientos').innerHTML = html;
+    document.querySelectorAll('#tablaMovimientos [data-cuenta]').forEach((b) => b.addEventListener('click', () => {
+        try { localStorage.setItem('saldova_chequera_cuenta', b.dataset.cuenta); } catch (e) { /* nada */ }
+        irA('chequera');
+    }));
+}
+
+/* Fase 5 del plan, bloque 3: cuadre banco–contabilidad. Misma idea
+ * que Finanzas cuadreBancoRender: el saldo del banco según los
+ * movimientos (Chequera + Tarjeta CUP, solo CUP, hasta fin del mes
+ * elegido) contra el mayor contable de la cuenta del banco
+ * (concepto 'banco_cup': 109-000 en el plan oficial, 110-010 en el
+ * del dueño; la tarjeta CUP no tiene cuenta propia en el mayor, va
+ * a la misma cuenta del banco, ver contabilidad.html:175). Solo
+ * cuentan los asientos confirmados hasta fin de mes; las cuentas
+ * de banco son deudoras, así que el mayor es debe menos haber. Si
+ * el mayor no tiene líneas, no hay nada que comparar y se dice. */
+function cuadreBanco(mes) {
+    const datos = cuentasMes(mes);
+    const saldoApp = r2(datos.chequera.saldo + datos.tarjeta_cup.saldo);
+    const ctaBanco = cuentaAuto(conta.plan, 'banco_cup', '110-010');
+    if (!ctaBanco) return { estado: 'sin-cuenta' };
+    let saldoConta = 0, nLineas = 0;
+    for (const a of (conta.asientos || [])) {
+        if (a.estado !== 'confirmado') continue;
+        if (String(a.fecha || '').slice(0, 7) > mes) continue;
+        for (const l of (a.lineas || [])) {
+            if (String(l.cuenta) !== String(ctaBanco)) continue;
+            saldoConta = r2(saldoConta + (Number(l.debe) || 0) - (Number(l.haber) || 0));
+            nLineas++;
+        }
+    }
+    if (!nLineas) return { estado: 'sin-mayor', ctaBanco };
+    const dif = r2(saldoApp - saldoConta);
+    return { estado: Math.abs(dif) > 0.01 ? 'no-cuadra' : 'cuadra', saldoApp, saldoConta, dif, ctaBanco };
+}
+function pintarCuadre() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    const c = cuadreBanco(mes);
+    if (c.estado === 'sin-cuenta') { $('cuadreBanco').innerHTML = '<p class="tenue">El plan activo no tiene cuenta para el banco: no se puede cuadrar.</p>'; return; }
+    if (c.estado === 'sin-mayor') { $('cuadreBanco').innerHTML = '<p class="tenue">Todavía no hay asientos en la cuenta del banco (' + esc(c.ctaBanco) + '): cuando asientes movimientos del banco, aquí verás si cuadra.</p>'; return; }
+    if (c.estado === 'cuadra') { $('cuadreBanco').innerHTML = '<div class="aviso aviso-ok"><span>✔ Banco y Contabilidad cuadran en CUP: $' + fmt(c.saldoApp) + '.</span></div>'; return; }
+    $('cuadreBanco').innerHTML = '<div class="aviso aviso-danger"><span>⚠ Banco y Contabilidad no cuadran (CUP): según tus movimientos $' + fmt(c.saldoApp) + ' y según el mayor de la cuenta ' + esc(c.ctaBanco) + ' $' + fmt(c.saldoConta) + ' — diferencia de <b>$' + fmt(c.dif) + '</b>. Revisa la conciliación en Contabilidad.</span><button type="button" class="secundario chico" data-modulo="contabilidad">Revisar en Contabilidad →</button></div>';
+    document.querySelectorAll('#cuadreBanco [data-modulo]').forEach((b) => b.addEventListener('click', () => irA(b.dataset.modulo)));
+}
+
+/* Fase 14, bloque 1: los cobros y pagos en USD se convierten a CUP
+ * con la tasa del mes del movimiento (guardada en Tasas); sin tasa
+ * del mes, con la vigente; sin tasa, esos movs no entran en el total
+ * y el área lo dice. */
+function montoCup(m) {
+    const v = Number(m.monto) || 0;
+    if ((m.cuenta || 'chequera') === 'tarjeta_usd') {
+        const t = tasaDelMes(fx, String(m.fecha || '').slice(0, 7));
+        return t > 0 ? r2(v * t) : null;
+    }
+    return v;
+}
+function areasMes(mes) {
+    const datos = cuentasMes(mes);
+    const delMes = movs.filter((m) => String(m.fecha || '').slice(0, 7) === mes);
+    let cobros = 0, pagos = 0, nCob = 0, nPag = 0, usdSinTasa = false;
+    for (const m of delMes) {
+        const cup = montoCup(m);
+        if (cup === null) { usdSinTasa = true; continue; }
+        if (m.tipo === 'ingreso') { cobros = r2(cobros + cup); nCob++; }
+        else { pagos = r2(pagos + cup); nPag++; }
+    }
+    const nTra = delMes.filter((m) => String(m.clasificacion || '') === 'transferencia').length;
+    return {
+        chequera: { saldo: datos.chequera.saldo, neto: r2(datos.chequera.ingresos - datos.chequera.gastos - datos.chequera.onat) },
+        tarjeta_cup: { saldo: datos.tarjeta_cup.saldo, neto: r2(datos.tarjeta_cup.ingresos - datos.tarjeta_cup.gastos - datos.tarjeta_cup.onat) },
+        tarjeta_usd: { saldo: datos.tarjeta_usd.saldo, neto: r2(datos.tarjeta_usd.ingresos - datos.tarjeta_usd.gastos - datos.tarjeta_usd.onat) },
+        cobros: { total: cobros, n: nCob, usdSinTasa },
+        pagos: { total: pagos, n: nPag, usdSinTasa },
+        transferencias: { n: nTra },
+    };
+}
+function tesAplicarFiltro(lista) {
+    return (lista || []).filter((m) => (!filtroTes.cuenta || (m.cuenta || 'chequera') === filtroTes.cuenta) && (!filtroTes.tipo || (filtroTes.tipo === 'transferencia' ? String(m.clasificacion || '') === 'transferencia' : m.tipo === filtroTes.tipo)));
+}
+function tesAreaClick(cuenta, tipo) {
+    if (filtroTes.cuenta === cuenta && filtroTes.tipo === tipo) aplicarFiltroTes('', '');
+    else aplicarFiltroTes(cuenta, tipo);
+}
+function pintarTesoreria() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    const a = areasMes(mes);
+    const tile = (titulo, grande, sub, cuenta, tipo) =>
+        '<button type="button" class="area' + (filtroTes.cuenta === cuenta && filtroTes.tipo === tipo ? ' activa' : '') + '" data-cuenta="' + cuenta + '" data-tipo="' + tipo + '">' +
+        '<div class="area-titulo">' + titulo + '</div><div class="area-grande">' + grande + '</div><div class="tenue">' + sub + '</div></button>';
+    $('areasTesoreria').innerHTML = '<div class="areas-grid">' +
+        tile('🏦 Chequera', '$' + fmt(a.chequera.saldo) + ' CUP', 'neto del mes: $' + fmt(a.chequera.neto), 'chequera', '') +
+        tile('💳 Tarjeta CUP', '$' + fmt(a.tarjeta_cup.saldo) + ' CUP', 'neto del mes: $' + fmt(a.tarjeta_cup.neto), 'tarjeta_cup', '') +
+        tile('💵 Tarjeta USD', '$' + fmt(a.tarjeta_usd.saldo) + ' USD', 'neto del mes: $' + fmt(a.tarjeta_usd.neto), 'tarjeta_usd', '') +
+        tile('⬇️ Cobros del mes', '$' + fmt(a.cobros.total) + ' CUP', a.cobros.n + ' movimiento(s)' + (a.cobros.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : ''), '', 'ingreso') +
+        tile('⬆️ Pagos del mes', '$' + fmt(a.pagos.total) + ' CUP', a.pagos.n + ' movimiento(s)' + (a.pagos.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : ''), '', 'gasto') +
+        tile('🔁 Transferencias', String(a.transferencias.n), 'entre tus cuentas', '', 'transferencia') +
+        '</div>';
+    document.querySelectorAll('#areasTesoreria [data-cuenta]').forEach((b) => b.addEventListener('click', () => tesAreaClick(b.dataset.cuenta, b.dataset.tipo)));
+}
+
+/* Fase 5 del plan, bloque 1: tarjetas por cuenta. Misma idea que
+ * Finanzas renderResumenCuentas: por cuenta, ingresos, gastos y
+ * ONAT del mes elegido y el saldo grande (acumulado hasta fin de
+ * mes). Los gastos no incluyen la ONAT, que va aparte. La USD
+ * muestra el saldo en USD y su equivalente en CUP con la tasa
+ * vigente de Tasas (fx.tasa); sin tasa no se inventa el
+ * equivalente. Tocar el saldo abre la Chequera en esa cuenta: se
+ * deja la cuenta en localStorage y la Chequera arranca en ella. */
+const NOMBRES_CUENTA = { chequera: '🏦 Chequera', tarjeta_cup: '💳 Tarjeta CUP', tarjeta_usd: '💵 Tarjeta USD' };
+function cuentasMes(mes) {
+    const out = {};
+    for (const c of ['chequera', 'tarjeta_cup', 'tarjeta_usd']) {
+        let ingresos = 0, gastos = 0, onat = 0, saldo = 0;
+        for (const m of movs.filter((x) => (x.cuenta || 'chequera') === c)) {
+            const monto = Number(m.monto) || 0;
+            const signo = m.tipo === 'ingreso' ? 1 : -1;
+            if (String(m.fecha || '').slice(0, 7) <= mes) saldo = r2(saldo + signo * monto);
+            if (String(m.fecha || '').slice(0, 7) !== mes) continue;
+            if (m.tipo === 'ingreso') ingresos = r2(ingresos + monto);
+            else if (esOnat(m)) onat = r2(onat + monto);
+            else gastos = r2(gastos + monto);
+        }
+        out[c] = { ingresos, gastos, onat, saldo };
+    }
+    return out;
+}
+function pintarCuentas() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    const datos = cuentasMes(mes);
+    $('tarjetasCuentas').innerHTML = '<div class="cuentas-grid">' + ['chequera', 'tarjeta_cup', 'tarjeta_usd'].map((c) => {
+        const d = datos[c];
+        const usd = c === 'tarjeta_usd';
+        const tasaMes = usd ? tasaDelMes(fx, mes) : 0;
+        const equiv = usd && tasaMes > 0 ? r2(d.saldo * tasaMes) : null;
+        return '<div class="cuenta-tarjeta"><h3>' + NOMBRES_CUENTA[c] + '</h3>' +
+            '<div class="cuenta-nums"><span>📈 +$' + fmt(d.ingresos) + '</span><span>📉 −$' + fmt(d.gastos) + '</span><span>📄 −$' + fmt(d.onat) + '</span></div>' +
+            '<button type="button" class="cuenta-saldo' + (d.saldo < 0 ? ' negativo' : '') + '" data-cuenta="' + c + '" title="Abrir en Chequera">' + (d.saldo >= 0 ? '+' : '−') + ' $' + fmt(Math.abs(d.saldo)) + ' ' + (usd ? 'USD' : 'CUP') + ' →</button>' +
+            (usd ? '<div class="tenue">' + (equiv !== null ? '≈ $' + fmt(equiv) + ' CUP (tasa ' + fmt(tasaMes) + ')' : 'Sin tasa para este mes en Tasas: el equivalente no se calcula') + '</div>' : '') +
+            '</div>';
+    }).join('') + '</div>';
+    document.querySelectorAll('#tarjetasCuentas [data-cuenta]').forEach((b) => b.addEventListener('click', () => {
+        try { localStorage.setItem('saldova_chequera_cuenta', b.dataset.cuenta); } catch (e) { /* nada */ }
+        irA('chequera');
+    }));
+}
+
+/* Fase 4 del plan, bloque 1: «Qué toca hoy». Los avisos se calculan
+ * al abrir el Resumen, con la lógica de Finanzas renderAvisosInicio,
+ * adaptada a lo que Saldova guarda. Cada aviso lleva a su módulo con
+ * window.parent.abrirModulo (el lanzador abre un módulo a la vez y
+ * cierra el que hubiera). Avisos que NO van en este bloque: impuestos
+ * que vencen (Fiscal no guarda obligaciones con fecha de vencimiento;
+ * va con el calendario fiscal de la fase 16), importación a medias
+ * (Saldova no guarda ese estado), contratos, suscripciones y retiro
+ * (fases 11 y 12, bloques 2 y 3). */
+function mesAnterior(mes) {
+    const y = Number((mes || '').slice(0, 4)) || 0;
+    const m = Number((mes || '').slice(5, 7)) || 1;
+    if (m === 1) return (y - 1) + '-12';
+    return y + '-' + String(m - 1).padStart(2, '0');
+}
+function irA(modulo) {
+    if (window.parent !== window && window.parent.abrirModulo) window.parent.abrirModulo(modulo);
+}
+/* Fase 13, bloque 4: informe programado del mes (copia de la
+ * función de Cierre: el día elegido y sin enviar este mes). */
+function informeTocaHoy(cfg, hoyStr) {
+    const prog = (cfg && cfg.informeProg) || null;
+    if (!prog || !prog.dia) return false;
+    const mes = String(hoyStr || '').slice(0, 7);
+    const dia = Number(String(hoyStr || '').slice(8, 10)) || 0;
+    if (dia !== Number(prog.dia)) return false;
+    return prog.enviado !== mes;
+}
+function avisosHoy() {
+    const filas = [];
+    const hoy = hoyLocal();
+    const mesHoy = hoy.slice(0, 7);
+    const dia = Number(hoy.slice(8, 10)) || 1;
+    const mesSel = $('rMes').value || mesHoy;
+    const sinClasificar = movs.filter((m) => String(m.clasificacion || '') === 'Por clasificar').length;
+    if (sinClasificar > 0) filas.push({ t: 'danger', icono: '🧾', txt: 'Tienes <b>' + sinClasificar + ' movimiento(s) sin clasificar</b> en la Chequera: no se contabilizan hasta que digas de qué son.', modulo: 'chequera', btn: 'Clasificarlos' });
+    if (mesSel < mesHoy && !(conta.candados && conta.candados[mesSel])) filas.push({ t: 'warning', icono: '🔒', txt: 'Sigues trabajando en <b>' + esc(mesSel) + '</b> y ya estamos en <b>' + esc(mesHoy) + '</b>: prepara el cierre de ese mes.', modulo: 'cierre', btn: 'Preparar cierre' });
+    const trab = (rrhh && rrhh.trabajadores) || [];
+    const prev = mesAnterior(mesHoy);
+    const asientosPrev = (conta.asientos || []).some((a) => String(a.fecha || '').slice(0, 7) === prev);
+    if (trab.length && !(rrhh.nominas && rrhh.nominas[prev]) && asientosPrev) filas.push({ t: 'warning', icono: '👥', txt: 'La <b>nómina de ' + esc(prev) + '</b> no está generada: pide los datos de asistencia y genérala para cerrar el mes.', modulo: 'nomina', btn: 'Generarla' });
+    if (trab.length && dia >= 25 && !(rrhh.nominas && rrhh.nominas[mesHoy])) filas.push({ t: 'warning', icono: '👥', txt: 'Ya es día ' + dia + ' y la <b>nómina de ' + esc(mesHoy) + '</b> aún no se ha generado.', modulo: 'nomina', btn: 'Generarla' });
+    if (asientosPrev && !(conta.candados && conta.candados[prev])) filas.push({ t: 'warning', icono: '🔒', txt: 'El mes <b>' + esc(prev) + '</b> tiene movimientos y no está cerrado.', modulo: 'cierre', btn: 'Ver el cierre' });
+    const incompletos = trab.filter((t) => !String(t.ci || '').trim() || !String(t.cargo || '').trim() || !(Number(t.salario) > 0)).length;
+    if (incompletos > 0) filas.push({ t: 'warning', icono: '🗂️', txt: '<b>' + incompletos + ' expediente(s) laboral(es) incompleto(s)</b>: les falta el carné, el cargo o el salario.', modulo: 'nomina', btn: 'Completarlos' });
+    /* Bloque 2: facturas y contratos (Gestión, en conta.gestion). */
+    const saldoFac = (f) => r2((Number(f.total) || 0) - ((f.cobros || []).reduce((s, c) => s + (Number(c.monto) || 0), 0)));
+    const diasMora = (f) => { const v = String(f.vencimiento || ''); if (!v) return 0; const d = Math.floor((Date.parse(hoy) - Date.parse(v)) / 86400000); return d > 0 ? d : 0; };
+    const vencidas = ((conta.gestion && conta.gestion.facturas) || []).filter((f) => saldoFac(f) > 0.004 && diasMora(f) > 0).sort((a, b) => diasMora(b) - diasMora(a));
+    if (vencidas.length) {
+        const vieja = diasMora(vencidas[0]);
+        filas.push({ t: vieja > 15 ? 'danger' : 'warning', icono: '💰', txt: '<b>' + vencidas.length + ' factura(s) vencida(s) por cobrar</b>' + (vieja > 15 ? ' (la más vieja lleva ' + vieja + ' días)' : '') + ': en Gestión tienes el aviso listo para copiar y pegar en WhatsApp.', modulo: 'gestion', btn: 'Ver en Gestión' });
+    }
+    const contratos = (conta.gestion && conta.gestion.contratos) || [];
+    const hoyMs = Date.parse(hoy);
+    /* Fase 11: los contratos terminados o cancelados ya no avisan. */
+    const activos = contratos.filter((c) => (c.estado || 'vigente') !== 'terminado' && (c.estado || 'vigente') !== 'cancelado');
+    const porVencer = activos.filter((c) => c.vigenciaHasta && Date.parse(c.vigenciaHasta) >= hoyMs && Date.parse(c.vigenciaHasta) <= hoyMs + 30 * 86400000).sort((a, b) => String(a.vigenciaHasta).localeCompare(String(b.vigenciaHasta)));
+    if (porVencer.length) filas.push({ t: 'warning', icono: '📄', txt: '<b>' + porVencer.length + ' contrato(s) vence(n) en los próximos 30 días</b> (el más cercano vence el ' + esc(porVencer[0].vigenciaHasta || '') + ').', modulo: 'gestion', btn: 'Ver contratos' });
+    const vencidos = activos.filter((c) => c.vigenciaHasta && Date.parse(c.vigenciaHasta) < hoyMs);
+    if (vencidos.length) filas.push({ t: 'danger', icono: '📄', txt: '<b>' + vencidos.length + ' contrato(s) vencido(s)</b> sin cerrar.', modulo: 'gestion', btn: 'Ver contratos' });
+    /* Fase 11, bloque 3: suscripciones por cobrar. */
+    const subsDebe = ((conta.gestion && conta.gestion.suscripciones) || []).filter((s) => s && s.activa !== false && s.proximoCobro && s.proximoCobro <= hoy);
+    if (subsDebe.length) filas.push({ t: 'warning', icono: '🔁', txt: '<b>' + subsDebe.length + ' suscripción(es) por cobrar</b>: genera su factura en Gestión.', modulo: 'gestion', btn: 'Ver suscripciones' });
+    /* Fase 13, bloque 4: informe programado del mes (la misma
+     * función vive en Cierre; aquí va la copia para el aviso). */
+    if (informeTocaHoy(cfg, hoy)) filas.push({ t: 'warning', icono: '📤', txt: 'Hoy toca <b>enviar el informe mensual</b> (día ' + cfg.informeProg.dia + '): en Cierre tienes el resumen ya escrito para copiar.', modulo: 'cierre', btn: 'Enviar informe' });
+    /* Bloque 3: documentos del cierre anterior que falten. El estado
+     * de cuenta se reconoce porque la importación marca los movs con
+     * origen 'pdf_banco' (chequera.html); si el mes anterior tiene
+     * asientos y ningún mov importado, falta el estado. Los informes
+     * del período no se avisan: Informes no guarda constancia de lo
+     * generado. Jubilación próxima, retiro sin resolución y aporte
+     * sin acreditarse no se pueden calcular: los trabajadores no
+     * guardan fecha de nacimiento ni de ingreso, y Saldova no tiene
+     * datos de retiro ni de retención de divisa (llegan con la
+     * fase 12). */
+    const hayEstadoPrev = movs.some((m) => m.origen === 'pdf_banco' && String(m.fecha || '').slice(0, 7) === prev);
+    if (asientosPrev && !hayEstadoPrev) filas.push({ t: 'danger', icono: '🧾', txt: 'El mes de <b>' + esc(prev) + '</b> ya cerró y <b>falta su estado de cuenta</b>: sin él no se puede hacer el cierre del mes.', modulo: 'chequera', btn: 'Ver el cierre' });
+    return filas;
+}
+function pintarHoy() {
+    const filas = avisosHoy();
+    /* Bloque 3: con todo al día, accesos rápidos (como Finanzas:
+     * importar el estado y anotar un movimiento; la DJ no existe
+     * en Saldova, así que son dos botones, los dos a Chequera). */
+    $('avisosHoy').innerHTML = filas.length
+        ? filas.map((f) => '<div class="aviso aviso-' + f.t + '"><span>' + f.icono + ' ' + f.txt + '</span><button type="button" class="secundario chico" data-modulo="' + f.modulo + '">' + f.btn + ' →</button></div>').join('')
+        : '<div class="aviso aviso-ok"><span>🎉 <b>Todo al día.</b> No tienes pendientes urgentes hoy.</span></div>' +
+          '<div class="fila"><button type="button" class="secundario chico" data-modulo="chequera">📥 Importar estado de cuenta</button><button type="button" class="secundario chico" data-modulo="chequera">✏️ Nuevo movimiento</button></div>';
+    document.querySelectorAll('#avisosHoy [data-modulo]').forEach((b) => b.addEventListener('click', () => irA(b.dataset.modulo)));
 }
 
 /* Fase 2 del plan: el porciento del trimestre. Suma los 3 meses del
@@ -227,6 +1055,8 @@ function pintarTrimestre() {
         $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
         movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        rrhh = (await bd().docLeer(tokenSesion(), 'rrhh')) || null;
+        fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
         cfg = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
         if (!(Number(cfg.meta) > 0)) cfg.meta = 15;
         if (!(Number(cfg.tolerancia) > 0)) cfg.tolerancia = 0.5;
@@ -237,6 +1067,7 @@ function pintarTrimestre() {
         $('cardTrim').style.display = tipoActor === 'tcp' ? 'none' : '';
         const soloLectura = sesion.role === 'consultor';
         $('filaObjetivo').style.display = soloLectura ? 'none' : '';
+        $('filaPresupuesto').style.display = soloLectura ? 'none' : '';
         $('txtObjetivoSoloLectura').style.display = soloLectura ? '' : 'none';
         if (soloLectura) $('txtObjetivoSoloLectura').textContent = 'Objetivo actual: ' + fmt(cfg.meta) + ' %. Solo el administrador o el editor lo cambian.';
         else $('rMeta').value = cfg.meta;
@@ -248,8 +1079,51 @@ function pintarTrimestre() {
             try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); aviso('Objetivo guardado: ' + fmt(meta) + ' %'); pintar(); }
             catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
         });
+        /* Fase 17, bloque 3: el desplegable trae las cuentas de gasto
+         * que admiten asientos; la meta se guarda en cfg.presupuesto. */
+        $('preCuenta').innerHTML = (conta.plan || []).filter((c) => c.grupo === 'gasto' && c.admite)
+            .map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.codigo + ' · ' + c.nombre) + '</option>').join('');
+        $('preGuardar').addEventListener('click', async () => {
+            if (soloLectura) { aviso('El consultor no cambia el presupuesto', 'error'); return; }
+            const cod = $('preCuenta').value, meta = Number($('preMeta').value);
+            if (!cod) { aviso('Elige una cuenta de gasto', 'error'); return; }
+            if (!(meta > 0)) { aviso('La meta tiene que ser mayor que cero', 'error'); return; }
+            cfg.presupuesto = cfg.presupuesto || {};
+            cfg.presupuesto[cod] = r2(meta);
+            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); aviso('Meta guardada: ' + cod + ' $' + fmt(meta)); pintar(); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        /* Fase 23, bloque 3: indicadores definidos por el usuario. */
+        cfg.indicadores = cfg.indicadores || [];
+        /* Fase 33: preguntas con botones y notas del informe del mes. */
+        document.querySelectorAll('[data-pregunta]').forEach((b) => b.addEventListener('click', () => pintarPregunta(b.dataset.pregunta)));
+        $('informeGuardar').addEventListener('click', async () => {
+            const mes = $('rMes').value;
+            cfg.informeNotas = cfg.informeNotas || {};
+            cfg.informeNotas[mes] = $('informeNota').value.trim();
+            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); aviso('Tus notas del mes guardadas'); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        $('indAdd').addEventListener('click', async () => {
+            if (soloLectura) { aviso('El consultor no cambia los indicadores', 'error'); return; }
+            const nombre = $('indNombre').value.trim();
+            const formula = $('indFormula').value.trim();
+            if (!nombre) { aviso('El indicador necesita un nombre', 'error'); return; }
+            if (!formula) { aviso('Escribe la fórmula', 'error'); return; }
+            const mes = $('rMes').value;
+            const r = evaluarIndicador(formula, (tk) => resolverIndicador(tk, conta.plan || [], saldosMayor(conta.asientos, mes), saldosMayor(conta.asientos, null), (rrhh && rrhh.trabajadores ? rrhh.trabajadores.length : 0)));
+            if (!r.ok) { aviso('La fórmula no vale: ' + r.motivo, 'error'); return; }
+            cfg.indicadores.push({ id: 'ind' + Date.now().toString(36), nombre, formula });
+            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); $('indNombre').value = ''; $('indFormula').value = ''; pintarIndicadores(mes); aviso('Indicador «' + nombre + '» añadido: vale ' + fmt(r.valor) + ' este mes'); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
         $('rMes').value = mesLocal();
         $('rVer').addEventListener('click', pintar);
+        /* Fase 5, bloque 4: los dos desplegables mandan el mismo
+         * filtro de tesorería que las áreas del bloque 2. */
+        $('fCuenta').addEventListener('change', () => aplicarFiltroTes($('fCuenta').value, $('fTipo').value));
+        $('fTipo').addEventListener('change', () => aplicarFiltroTes($('fCuenta').value, $('fTipo').value));
+        $('fLimpiar').addEventListener('click', () => aplicarFiltroTes('', ''));
         pintar();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);

@@ -40,6 +40,7 @@
 <div class="pest-bar" id="pestBar">
     <button type="button" data-pest="ordenes">Órdenes de producción</button>
     <button type="button" data-pest="fichas">Fichas y ficha de costo</button>
+    <button type="button" data-pest="trabajos">Trabajos por encargo</button>
 </div>
 
 <div class="tarjeta" data-grupo="ordenes">
@@ -83,6 +84,34 @@
         <button type="button" id="fcGuardar">Guardar la ficha</button>
     </div>
     <div id="ficha"><p class="tenue">Elige un producto con ficha de producción: aquí sale su costo desglosado.</p></div>
+</div>
+
+<div class="tarjeta" data-grupo="trabajos">
+    <h2>Trabajos por encargo</h2>
+    <p class="tenue">Un trabajo para un cliente (una reparación, un pedido especial, una obra): sus materiales y sus horas, con el precio que se cobra. El costo de cada material es el de hoy cuando lo añades, y queda guardado: si el costo cambia después, el trabajo no cambia.</p>
+    <div class="fila">
+        <label>Cliente <input id="trCliente" style="min-width:170px"></label>
+        <label>Fecha <input id="trFecha" type="date"></label>
+        <label>Descripción <input id="trDesc" style="flex:1;min-width:200px" placeholder="Qué se hizo"></label>
+        <label>Precio que se cobra $ <input id="trPrecio" class="monto" type="number" step="0.01" min="0" style="width:120px"></label>
+    </div>
+    <h2 style="margin-top:10px">Materiales</h2>
+    <div class="fila">
+        <select id="trMaterial" style="min-width:220px"></select>
+        <label>Cantidad <input id="trCant" type="number" step="0.01" min="0" value="1" style="width:80px"></label>
+        <button type="button" id="trAddMat" class="secundario chico">Añadir material</button>
+    </div>
+    <div id="trMateriales"></div>
+    <h2 style="margin-top:10px">Horas</h2>
+    <div class="fila">
+        <input id="trQuien" placeholder="Quién (ej. Juan)" style="min-width:150px">
+        <label>Horas <input id="trHoras" type="number" step="0.5" min="0" style="width:80px"></label>
+        <label>Tarifa por hora $ <input id="trTarifa" class="monto" type="number" step="0.01" min="0" style="width:100px"></label>
+        <button type="button" id="trAddHora" class="secundario chico">Añadir horas</button>
+    </div>
+    <div id="trHorasBox"></div>
+    <div class="fila"><span id="trResumen" class="tenue"></span><button type="button" id="trGuardar">Guardar trabajo</button></div>
+    <div id="trLista"></div>
 </div>
 
 <div class="tarjeta" id="fichaImp" style="display:none">
@@ -143,6 +172,41 @@ function pintarOrden() {
         '<tr class="totales"><td colspan="5">COSTO DE MATERIALES DE LA ORDEN (' + cant + ' unidades)</td><td class="num">' + fmt(c.total) + '</td></tr></tbody></table>' +
         '<p>Costo unitario del terminado por materiales: <b>' + fmt(c.unitario) + '</b>.' + (falta.length ? ' <span class="rojo">No alcanza: falta material (' + falta.map((d) => esc(d.nombre)).join(', ') + '); la orden no se puede producir todavía.</span>' : ' Alcanza para producir.') + '</p>';
 }
+/* Fase 19, bloque 3: coste por trabajo. Un trabajo por encargo
+ * lleva sus materiales (con el costo de hoy, guardado) y sus horas
+ * (quién, cuántas, a qué tarifa). El beneficio es precio menos
+ * costo total. */
+function costoTrabajo(t) {
+    const mat = r2((t.materiales || []).reduce((s, m) => s + (Number(m.cant) || 0) * (Number(m.costo) || 0), 0));
+    const mano = r2((t.horas || []).reduce((s, h) => s + (Number(h.horas) || 0) * (Number(h.tarifa) || 0), 0));
+    const total = r2(mat + mano);
+    const precio = r2(Number(t.precio) || 0);
+    return { mat, mano, total, precio, beneficio: r2(precio - total), margenPct: precio > 0 ? r2((precio - total) / precio * 100) : null };
+}
+let trMatEdit = [], trHoraEdit = [];
+function pintarTrEdit() {
+    $('trMateriales').innerHTML = trMatEdit.map((m, i) =>
+        '<div class="fila"><span>' + esc(m.nombre) + ' × ' + m.cant + '</span><span class="tenue">costo ' + fmt(m.costo) + ' · ' + fmt(r2(m.cant * m.costo)) + '</span>' +
+        '<button type="button" class="chico secundario" data-trm="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Sin materiales todavía.</p>';
+    $('trMateriales').querySelectorAll('[data-trm]').forEach((b) => b.addEventListener('click', () => { trMatEdit.splice(Number(b.dataset.trm), 1); pintarTrEdit(); }));
+    $('trHorasBox').innerHTML = trHoraEdit.map((h, i) =>
+        '<div class="fila"><span>' + esc(h.quien) + ' · ' + h.horas + ' h × $' + fmt(h.tarifa) + '</span><span class="tenue">' + fmt(r2(h.horas * h.tarifa)) + '</span>' +
+        '<button type="button" class="chico secundario" data-trh="' + i + '">Quitar</button></div>').join('') || '<p class="tenue">Sin horas todavía.</p>';
+    $('trHorasBox').querySelectorAll('[data-trh]').forEach((b) => b.addEventListener('click', () => { trHoraEdit.splice(Number(b.dataset.trh), 1); pintarTrEdit(); }));
+    const c = costoTrabajo({ materiales: trMatEdit, horas: trHoraEdit, precio: Number($('trPrecio').value) || 0 });
+    $('trResumen').textContent = 'Costo: materiales $' + fmt(c.mat) + ' + mano de obra $' + fmt(c.mano) + ' = $' + fmt(c.total) + ' · Beneficio: $' + fmt(c.beneficio);
+}
+function pintarTrabajos() {
+    const lista = [...(pos.trabajos || [])].reverse();
+    $('trLista').innerHTML = lista.length ? '<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th class="num">Materiales</th><th class="num">Mano de obra</th><th class="num">Costo</th><th class="num">Precio</th><th class="num">Beneficio</th><th></th></tr></thead><tbody>' +
+        lista.map((t) => { const c = costoTrabajo(t); return '<tr><td>' + (t.fecha || '') + '</td><td>' + esc(t.cliente) + '</td><td>' + esc(t.descripcion) + '</td><td class="num">$' + fmt(c.mat) + '</td><td class="num">$' + fmt(c.mano) + '</td><td class="num">$' + fmt(c.total) + '</td><td class="num">$' + fmt(c.precio) + '</td><td class="num">' + (c.beneficio < 0 ? '<span class="rojo">$' + fmt(c.beneficio) + '</span>' : '$' + fmt(c.beneficio)) + '</td><td><button type="button" class="chico secundario" data-tr-del="' + t.id + '">Borrar</button></td></tr>'; }).join('') + '</tbody></table>' : '<p class="tenue">Sin trabajos todavía.</p>';
+    $('trLista').querySelectorAll('[data-tr-del]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Borrar este trabajo?')) return;
+        pos.trabajos = (pos.trabajos || []).filter((x) => x.id !== b.dataset.trDel);
+        try { await guardar(); pintarTrabajos(); aviso('Trabajo borrado'); }
+        catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
 function pintarOrdenes() {
     const lista = [...(pos.produccion || [])].reverse().slice(0, 10);
     $('opLista').innerHTML = lista.length ? '<p style="margin-top:10px"><b>Últimas órdenes:</b></p>' + lista.map((o) =>
@@ -201,11 +265,45 @@ function pintarFicha() {
         pos.inventario = pos.inventario || [];
         pos.recetas = pos.recetas || [];
         pos.produccion = pos.produccion || [];
+        pos.trabajos = pos.trabajos || [];
         pos.fichas = pos.fichas || [];
         conta = (await bd().docLeer(tokenSesion(), 'conta')) || { candados: {} };
         $('opFecha').value = hoy();
-        const refrescarSelects = () => { opcionesProductos('opProducto', 'Sin productos'); opcionesProductos('rProducto', 'Sin productos'); opcionesProductos('rMaterial', 'Sin productos'); opcionesProductos('fcProducto', 'Sin productos'); };
+        const refrescarSelects = () => { opcionesProductos('opProducto', 'Sin productos'); opcionesProductos('rProducto', 'Sin productos'); opcionesProductos('rMaterial', 'Sin productos'); opcionesProductos('fcProducto', 'Sin productos'); opcionesProductos('trMaterial', 'Sin productos'); };
         refrescarSelects();
+        /* Fase 19, bloque 3: trabajos por encargo. */
+        $('trFecha').value = hoy();
+        $('trAddMat').addEventListener('click', () => {
+            const p = prod($('trMaterial').value), cant = Number($('trCant').value) || 0;
+            if (!p || cant <= 0) { aviso('Elige el material y su cantidad', 'error'); return; }
+            const ex = trMatEdit.find((m) => m.codigo === p.codigo);
+            if (ex) ex.cant = r2(ex.cant + cant);
+            else trMatEdit.push({ codigo: p.codigo, nombre: p.nombre, cant, costo: Number(p.costo) || 0 });
+            pintarTrEdit();
+        });
+        $('trAddHora').addEventListener('click', () => {
+            const quien = $('trQuien').value.trim(), horas = Number($('trHoras').value) || 0, tarifa = Number($('trTarifa').value) || 0;
+            if (!quien || horas <= 0 || tarifa < 0) { aviso('Las horas necesitan quién, cuántas y su tarifa', 'error'); return; }
+            trHoraEdit.push({ quien, horas, tarifa });
+            $('trQuien').value = ''; $('trHoras').value = ''; $('trTarifa').value = '';
+            pintarTrEdit();
+        });
+        $('trPrecio').addEventListener('input', pintarTrEdit);
+        $('trGuardar').addEventListener('click', async () => {
+            const cliente = $('trCliente').value.trim(), descripcion = $('trDesc').value.trim(), precio = Number($('trPrecio').value) || 0;
+            if (!cliente || !descripcion) { aviso('El trabajo necesita cliente y descripción', 'error'); return; }
+            if (precio <= 0) { aviso('El trabajo necesita el precio que se cobra', 'error'); return; }
+            if (!trMatEdit.length && !trHoraEdit.length) { aviso('El trabajo necesita al menos un material o unas horas', 'error'); return; }
+            pos.trabajos.push({ id: 'TR' + Date.now().toString(36).toUpperCase(), fecha: $('trFecha').value || hoy(), cliente, descripcion, materiales: [...trMatEdit], horas: [...trHoraEdit], precio });
+            try {
+                await guardar();
+                trMatEdit = []; trHoraEdit = [];
+                $('trCliente').value = ''; $('trDesc').value = ''; $('trPrecio').value = '';
+                pintarTrEdit(); pintarTrabajos();
+                aviso('Trabajo guardado');
+            } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        pintarTrEdit(); pintarTrabajos();
         $('opProducto').addEventListener('change', pintarOrden);
         $('opCant').addEventListener('input', pintarOrden);
         $('opVer').addEventListener('click', pintarOrden);

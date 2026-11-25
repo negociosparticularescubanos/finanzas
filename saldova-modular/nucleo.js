@@ -307,11 +307,14 @@ export const CTA_AUTO_DUENO = {
     gasto_salarios: '614-000', gasto_seguridad_social: '615-000', nomina_por_pagar: '331-000',
     ss_por_pagar: '333-000', fuerza_trabajo_por_pagar: '334-000',
     ingresos_personales_por_pagar: '345-000', retenciones_por_pagar: '332-000',
+    /* Fase 12, bloque 3: adelantos y préstamos a trabajadores. */
+    adelantos_trab: '139-000',
     /* F6-crédito (decisión de Leonardo 2026-11-24): en el plan del
      * dueño la compra de un activo a crédito va a 311-000 «Cuentas
      * por Pagar a Proveedores», la única cuenta de «por pagar» de
      * ese plan. El oficial usa su 421-000 (ver CTA_AUTO_OFICIAL). */
     aft_por_pagar: '311-000',
+    por_pagar: '311-000',
     gasto_depreciacion: '613-000',
     aft_edificios: '241-000', aft_transporte: '242-000', aft_maquinaria: '243-000',
     aft_computacion: '244-000', aft_muebles: '245-000',
@@ -320,6 +323,15 @@ export const CTA_AUTO_DUENO = {
     prestamos_por_pagar: '410', dividendos_por_pagar: '417', capital: '501-000',
     onat_utilidades: '342-000', onat_ingresos_personales: '345-000',
     onat_fuerza_trabajo: '334-000', onat_seguridad_social: '333-000', onat_ventas: '341-000',
+    /* Fase 13, bloque 1: cuentas del cierre anual (regularización
+     * 901 → 905 → 520 → 510). */
+    resultado: '901-000', liquidacion: '905-000',
+    resultado_ejercicio: '520-000', utilidades_retenidas: '510-000',
+    /* Fase 32: ingresos y gastos diferidos. El plan del dueño trae
+     * 440-010 «Ingresos Diferidos» pero NO trae cuenta de gastos
+     * diferidos: con ese plan el gasto diferido no tiene cuenta
+     * recomendada y el módulo avisa y deja elegirla. */
+    ingreso_diferido: '440-010',
 };
 /* Cuenta oficial (Res. 494/2016) -> conceptos que resuelve. Es la
  * tabla que Contabilidad inyecta como campo `auto` al cargar el
@@ -341,7 +353,14 @@ export const CTA_AUTO_OFICIAL = {
     '845-000': 'perdida_baja', '850-000': 'faltante_inventario', '646-000': 'reservas',
     '520-000': 'prestamos_por_pagar', '417-000': 'dividendos_por_pagar',
     '421-000': 'aft_por_pagar',
+    '405-000': 'por_pagar',
     '601-000': 'capital', '440-004': 'onat_utilidades', '440-001': 'onat_ventas',
+    /* Fase 13, bloque 1: el plan oficial no tiene 901/905/510/520 con
+     * el sentido del dueño; su cadena de cierre es 999-000
+     * «Resultado» → 630-000 «Utilidades Retenidas». */
+    '999-000': 'resultado', '630-000': 'utilidades_retenidas',
+    /* Fase 32: ingresos y gastos diferidos. */
+    '545-000': 'ingreso_diferido', '300-000': 'gasto_diferido',
 };
 export function existeCuenta(plan, cod) {
     return !!cod && (plan || []).some((c) => c.codigo === cod);
@@ -359,6 +378,54 @@ export function cuentaAuto(plan, concepto, defecto) {
     if (def && lista.some((c) => c.codigo === def)) return def;
     return (defecto && lista.some((c) => c.codigo === defecto)) ? defecto : '';
 }
+/* Fase 37 (restos chicos): las cuentas de seguros van al final de
+ * los desplegables. El plan oficial (Res. 494/2016) trae cuentas
+ * propias del seguro (primas, reaseguros, bonificaciones…) que un
+ * negocio que no es aseguradora casi nunca usa: salen las últimas
+ * para no estorbar, sin esconderlas. */
+export function esCuentaSeguro(c) {
+    return /seguro|reaseguro|prima|bonificaci|agentes y corredores|recobro|provisi.n de riesgos|osde/i.test(String((c && c.nombre) || ''));
+}
+export function ordenCuentas(lista) {
+    const l = (lista || []).slice();
+    return l.filter((c) => !esCuentaSeguro(c)).concat(l.filter((c) => esCuentaSeguro(c)));
+}
+/* Fase 14, bloque 1: tasa del mes. La tasa guardada para ese mes
+ * (del BCC o escrita a mano) manda; sin ella, vale la vigente. */
+export function tasaDelMes(fx, mes) {
+    const guardada = (fx && fx.tasasMes && fx.tasasMes[mes] && Number(fx.tasasMes[mes].tasa)) || 0;
+    if (guardada > 0) return guardada;
+    return Number((fx && fx.tasa) || 0);
+}
+/* Fase 14, bloque 4: reglas aprendidas (copia de Finanzas
+ * ctaNormConcepto/ctaGuardarRegla/ctaReglaPara). La regla guarda el
+ * patrón del concepto normalizado y la clasificación que el usuario
+ * eligió: la próxima vez que venga el mismo concepto, se clasifica
+ * solo. El patrón quita números, tildes y palabras vacías. */
+export function normConcepto(t) {
+    let s = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    s = s.replace(/[0-9]+/g, ' ').replace(/[^a-zñ ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const stop = ['de', 'del', 'la', 'el', 'los', 'las', 'por', 'en', 'a', 'al', 'con', 'y', 'ref', 'no', 'num', 'numero'];
+    return s.split(' ').filter((w) => w && !stop.includes(w)).join(' ');
+}
+export function guardarRegla(conta, concepto, clasificacion) {
+    const p = normConcepto(concepto);
+    if (!p || !clasificacion) return null;
+    conta.reglas = conta.reglas || [];
+    let r = conta.reglas.find((x) => x.patron === p);
+    if (r) { r.clasificacion = clasificacion; r.veces = (r.veces || 0) + 1; }
+    else { r = { id: 'R' + ((conta.reglas.length || 0) + 1) + '-' + Date.now(), patron: p, conceptoOriginal: concepto, clasificacion, veces: 1 }; conta.reglas.push(r); }
+    return r;
+}
+export function reglaPara(conta, concepto) {
+    const n = normConcepto(concepto);
+    if (!n) return null;
+    for (const r of ((conta && conta.reglas) || [])) {
+        if (!r.patron) continue;
+        if (r.patron === n || (r.patron.length >= 6 && (n.includes(r.patron) || r.patron.includes(n)))) return r;
+    }
+    return null;
+}
 /* Valida que todas las líneas de un asiento existan en el plan de
  * cuentas activo. Devuelve '' si está bien, o el mensaje de error
  * (en español) si alguna línea no tiene cuenta o la cuenta no
@@ -372,15 +439,20 @@ export function validarLineasAsiento(plan, lineas) {
 }
 
 /* Un movimiento es pago de ONAT si la importación lo marcó (clase
- * 'onat') o si el usuario lo clasificó así a mano («Pago de ONAT» o
- * «ONAT»). El guardado manual siempre ponía clase 'normal', así que
- * la clasificación es el respaldo para los movimientos ya guardados
- * a mano (Resumen y Vector fiscal). */
+ * 'onat'), si el usuario lo clasificó así a mano («Pago de ONAT» o
+ * «ONAT»), o si lo escribió así en el concepto («Pago de ONAT») y
+ * dejó la clasificación en «Por clasificar». El guardado manual
+ * siempre ponía clase 'normal', así que la clasificación y el
+ * concepto son el respaldo para los movimientos ya guardados a mano
+ * (Resumen, Vector fiscal y matriz ONAT). El concepto solo vale
+ * para gastos: un ingreso con ONAT en el concepto sería una
+ * devolución, no un pago. */
 export function esOnat(m) {
     if (!m) return false;
     if (m.clase === 'onat') return true;
     const c = String(m.clasificacion || '');
-    return /^pago de onat$/i.test(c) || /^onat\b/i.test(c);
+    if (/^pago de onat$/i.test(c) || /^onat\b/i.test(c)) return true;
+    return m.tipo === 'gasto' && /\bonat\b/i.test(String(m.concepto || ''));
 }
 
 /* ---------- Avisos en pantalla ---------- */
