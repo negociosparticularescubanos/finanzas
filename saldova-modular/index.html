@@ -73,7 +73,7 @@
     /* Barra del módulo abierto: solo SUS pestañas (modelo .exe) */
     #barraModulo { position: relative; z-index: 30; display: flex; align-items: center; gap: 12px; background: linear-gradient(180deg, #2B5B84, #1A3E5E); color: #fff; padding: 6px 10px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(13,38,66,.4); }
     #barraModulo .bm-mod { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
-    #barraModulo .bm-mod img { width: 30px; height: 30px; background: #fff; border-radius: 6px; object-fit: contain; }
+    #barraModulo .bm-mod img { width: 30px; height: 30px; background: transparent; border-radius: 0; object-fit: contain; }
     #barraModulo .bm-tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-end; }
     #barraModulo .bm-tabs button { background: linear-gradient(180deg, #DCE8F5, #C6D9EE); border: 1px solid #7E9CC0; color: #14324F; border-radius: 7px 7px 0 0; padding: 7px 14px; cursor: pointer; font-size: 13.5px; }
     #barraModulo .bm-tabs button.activa { background: linear-gradient(180deg, #FFC266, #F48C1E); border-color: #B96A0B; font-weight: 700; }
@@ -103,11 +103,27 @@
     .lz-modo .tenue { color: #5A738C; font-size: 12.5px; }
     .lz-modo button { cursor: pointer; border-radius: 5px; padding: 5px 12px; font-size: 13px; background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; color: #14324F; }
     .lz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 12px; padding: 16px; }
-    .lz-tile { background: linear-gradient(180deg, #FFFFFF, #E7F0FA); border: 1px solid #8FA8C8; border-radius: 10px; padding: 13px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; }
-    .lz-tile img { width: 54px; height: 54px; background: #fff; border-radius: 10px; object-fit: contain; }
-    .lz-tile span { text-align: center; line-height: 1.2; }
-    .lz-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 9px 19px rgba(20,50,79,.3); border-color: #F48C1E; }
-    .lz-tile:hover img { animation: tileBounce .5s ease; }
+    /* Lanzador moderno (2026-11-25): los módulos flotan sin caja ni borde;
+     * el icono (PNG transparente) lleva la sombra y al pasar el ratón se
+     * levanta con un resplandor circular detrás. Todo con el CSS de
+     * siempre, sin nada externo, que funciona sin internet. */
+    .lz-tile { background: transparent; border: none; border-radius: 0; padding: 10px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .3s cubic-bezier(.22,1,.36,1); font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; position: relative; }
+    .lz-tile::before { content: ''; position: absolute; top: 2px; left: 50%; width: 108px; height: 108px; transform: translateX(-50%) scale(.55); border-radius: 50%; background: radial-gradient(circle, rgba(59,130,246,.22) 0%, rgba(16,185,129,.10) 45%, transparent 72%); opacity: 0; pointer-events: none; transition: opacity .35s ease, transform .45s cubic-bezier(.22,1,.36,1); }
+    .lz-tile:hover::before, .lz-tile:focus-visible::before { opacity: 1; transform: translateX(-50%) scale(1.12); }
+    .lz-tile img { width: 64px; height: 64px; background: transparent; border: none; border-radius: 0; object-fit: contain; position: relative; z-index: 1; filter: drop-shadow(0 7px 11px rgba(15,23,42,.16)); transition: transform .38s cubic-bezier(.34,1.56,.64,1), filter .35s ease; }
+    .lz-tile span { text-align: center; line-height: 1.2; position: relative; z-index: 1; }
+    .lz-tile:hover { transform: translateY(-6px) scale(1.05); box-shadow: none; }
+    .lz-tile:hover img { transform: translateY(-2px) scale(1.08); filter: drop-shadow(0 14px 18px rgba(37,99,235,.28)); }
+    .lz-tile:active img { transform: translateY(0) scale(.98); }
+    /* Filtro por categoría + buscador del lanzador. */
+    .lz-filtro { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 2px 16px 0; }
+    .lz-pildoras { display: flex; flex-wrap: wrap; gap: 6px; }
+    .lz-pildora { cursor: pointer; border: 1px solid transparent; border-radius: 999px; padding: 4px 11px; font-size: 12.5px; background: transparent; color: #33536E; }
+    .lz-pildora:hover { background: rgba(255,255,255,.7); }
+    .lz-pildora.activa { background: #1A3E5E; color: #fff; font-weight: 600; }
+    .lz-buscar { padding: 5px 12px; border: 1px solid #8FA8C8; border-radius: 999px; font-size: 13px; width: min(240px, 90%); background: rgba(255,255,255,.8); color: #14324F; }
+    .lz-vacio { grid-column: 1 / -1; text-align: center; color: #5A738C; font-size: 13.5px; padding: 24px 0; }
+    .lz-vacio button { cursor: pointer; border: none; background: none; color: #1A5C9E; text-decoration: underline; font-size: 13.5px; padding: 0; }
     .lz-seccion { grid-column: 1 / -1; color: #1A3E5E; font-size: 15px; font-weight: 700; margin: 8px 0 0; }
     .lz-tile-wrap { position: relative; }
     .lz-tile-wrap .lz-fav, .lz-tile-wrap .lz-hide { position: absolute; top: 4px; width: 22px; height: 22px; border: 1px solid #8FA8C8; border-radius: 50%; background: #fff; color: #33536E; font-size: 13px; line-height: 1; cursor: pointer; padding: 0; }
@@ -116,7 +132,6 @@
     .lz-tile-wrap .lz-hide { right: 30px; }
     .lz-restaurar { grid-column: 1 / -1; background: none; border: none; color: #33536E; text-decoration: underline; cursor: pointer; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; text-align: left; padding: 0; }
     @keyframes tileIn { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: none; } }
-    @keyframes tileBounce { 0% { transform: scale(1); } 35% { transform: scale(1.15) rotate(-3deg); } 70% { transform: scale(1.06) rotate(2deg); } 100% { transform: scale(1); } }
     #lzBases { padding: 6px 16px 16px; }
     #lzBases h3 { color: #1A3E5E; margin: 14px 0 6px; font-size: 15.5px; }
     #lzBases .lz-nota { color: #5A738C; font-size: 13px; margin: 4px 0 8px; }
@@ -150,6 +165,10 @@
         <span>Dólar hoy: Banco (BCC) <b id="lzBanco">—</b> · Informal (elTOQUE) <b id="lzInformal">—</b> <span id="lzTasasNota" class="tenue"></span></span>
     </div>
     <div id="lzModo" class="lz-modo"></div>
+    <div id="lzFiltro" class="lz-filtro">
+        <div id="lzPildoras" class="lz-pildoras"></div>
+        <input id="lzBuscar" class="lz-buscar" type="search" placeholder="Buscar módulo…" aria-label="Buscar módulo">
+    </div>
     <div id="lzModulos" class="lz-grid"></div>
     <div id="lzBases" style="display:none"></div>
   </div>
@@ -181,25 +200,25 @@ try {
 let haySesion = false;
 
 const MODULOS = [
-    { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.png', activo: true, ancho: 900, alto: 640 },
-    { id: 'trimestres', titulo: 'Trimestres · Utilidad por trimestre', url: 'modulos/trimestres.html', icono: 'iconos/trimestres.png', activo: true, ancho: 940, alto: 700 },
-    { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.png', activo: true, ancho: 940, alto: 700 },
-    { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.png', activo: true, ancho: 860, alto: 620 },
-    { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.png', activo: true, ancho: 920, alto: 640 },
-    { id: 'pagosqr', titulo: 'Pagos QR · Registro de pagos por QR', url: 'modulos/pagosqr.html', icono: 'iconos/pagosqr.png', activo: true, ancho: 920, alto: 640 },
-    { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'fiscal', titulo: 'Fiscal · Vector y obligaciones', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'nomina', titulo: 'Nómina', url: 'modulos/nomina.html', icono: 'iconos/nomina.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'aft', titulo: 'Activos Fijos', url: 'modulos/aft.html', icono: 'iconos/aft.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'gestion', titulo: 'Gestión · Facturas y cobros', url: 'modulos/gestion.html', icono: 'iconos/gestion.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'pos', titulo: 'Punto de Venta', url: 'modulos/pos.html', icono: 'iconos/pos.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'cierre', titulo: 'Cierre de período', url: 'modulos/cierre.html', icono: 'iconos/cierre.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'gestor', titulo: 'Gestor · Panel del tenedor', url: 'modulos/gestor.html', icono: 'iconos/gestor.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'informes', titulo: 'Informes', url: 'modulos/informes.html', icono: 'iconos/informes.png', activo: true, ancho: 900, alto: 640 },
-    { id: 'inventarios', titulo: 'Inventarios', url: 'modulos/inventarios.html', icono: 'iconos/inventarios.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'produccion', titulo: 'Producción', url: 'modulos/produccion.html', icono: 'iconos/produccion.png', activo: true, ancho: 940, alto: 660 },
-    { id: 'tasas', titulo: 'Tasas y multimoneda', url: 'modulos/tasas.html', icono: 'iconos/tasas.png', activo: true, ancho: 900, alto: 620 },
-    { id: 'ayuda', titulo: 'Ayuda · Manual de la app', url: 'modulos/ayuda.html', icono: 'iconos/ayuda.png', activo: true, ancho: 900, alto: 640 },
+    { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.png', categoria: 'Análisis', activo: true, ancho: 900, alto: 640 },
+    { id: 'trimestres', titulo: 'Trimestres · Utilidad por trimestre', url: 'modulos/trimestres.html', icono: 'iconos/trimestres.png', categoria: 'Análisis', activo: true, ancho: 940, alto: 700 },
+    { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.png', categoria: 'Operaciones', activo: true, ancho: 940, alto: 700 },
+    { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.png', categoria: 'Gestión', activo: true, ancho: 860, alto: 620 },
+    { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.png', categoria: 'Tesorería', activo: true, ancho: 920, alto: 640 },
+    { id: 'pagosqr', titulo: 'Pagos QR · Registro de pagos por QR', url: 'modulos/pagosqr.html', icono: 'iconos/pagosqr.png', categoria: 'Tesorería', activo: true, ancho: 920, alto: 640 },
+    { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.png', categoria: 'Finanzas', activo: true, ancho: 940, alto: 660 },
+    { id: 'fiscal', titulo: 'Fiscal · Vector y obligaciones', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.png', categoria: 'Finanzas', activo: true, ancho: 940, alto: 660 },
+    { id: 'nomina', titulo: 'Nómina', url: 'modulos/nomina.html', icono: 'iconos/nomina.png', categoria: 'Gestión', activo: true, ancho: 940, alto: 660 },
+    { id: 'aft', titulo: 'Activos Fijos', url: 'modulos/aft.html', icono: 'iconos/aft.png', categoria: 'Gestión', activo: true, ancho: 940, alto: 660 },
+    { id: 'gestion', titulo: 'Gestión · Facturas y cobros', url: 'modulos/gestion.html', icono: 'iconos/gestion.png', categoria: 'Operaciones', activo: true, ancho: 940, alto: 660 },
+    { id: 'pos', titulo: 'Punto de Venta', url: 'modulos/pos.html', icono: 'iconos/pos.png', categoria: 'Operaciones', activo: true, ancho: 940, alto: 660 },
+    { id: 'cierre', titulo: 'Cierre de período', url: 'modulos/cierre.html', icono: 'iconos/cierre.png', categoria: 'Finanzas', activo: true, ancho: 940, alto: 660 },
+    { id: 'gestor', titulo: 'Gestor · Panel del tenedor', url: 'modulos/gestor.html', icono: 'iconos/gestor.png', categoria: 'Gestión', activo: true, ancho: 940, alto: 660 },
+    { id: 'informes', titulo: 'Informes', url: 'modulos/informes.html', icono: 'iconos/informes.png', categoria: 'Análisis', activo: true, ancho: 900, alto: 640 },
+    { id: 'inventarios', titulo: 'Inventarios', url: 'modulos/inventarios.html', icono: 'iconos/inventarios.png', categoria: 'Gestión', activo: true, ancho: 940, alto: 660 },
+    { id: 'produccion', titulo: 'Producción', url: 'modulos/produccion.html', icono: 'iconos/produccion.png', categoria: 'Gestión', activo: true, ancho: 940, alto: 660 },
+    { id: 'tasas', titulo: 'Tasas y multimoneda', url: 'modulos/tasas.html', icono: 'iconos/tasas.png', categoria: 'Finanzas', activo: true, ancho: 900, alto: 620 },
+    { id: 'ayuda', titulo: 'Ayuda · Manual de la app', url: 'modulos/ayuda.html', icono: 'iconos/ayuda.png', categoria: 'Gestión', activo: true, ancho: 900, alto: 640 },
 ];
 
 const cinta = document.getElementById('cinta');
@@ -286,6 +305,14 @@ let moduloActual = null;
  * pintar el lanzador; vacío hasta entonces (sin actor, no se
  * filtra nada). */
 let actorActual = '', plenoActual = false, rolActual = '';
+/* Filtro del lanzador (2026-11-25): categoría activa, texto buscado y
+ * la función que repinta las baldosas (la fija mostrarLanzador). */
+let lzCat = 'Todos', lzQuery = '';
+let repintarLanzador = null;
+document.getElementById('lzBuscar').addEventListener('input', (e) => {
+    lzQuery = e.target.value;
+    if (repintarLanzador) repintarLanzador();
+});
 function abrirModulo(id) {
     const m = MODULOS.find((x) => x.id === id);
     if (!m || !m.activo) return;
@@ -470,7 +497,7 @@ function mostrarLanzador(ses, acc) {
      * tipo de negocio (2026-11-25). */
     const nombreRol = (r) => (r === 'admin' ? 'Administrador' : r === 'editor' ? 'Editor' : r === 'consultor' ? 'Consultor' : (r || ''));
     document.getElementById('lzSesion').textContent = 'Usuario: ' + ses.username + ' · Rol: ' + nombreRol(ses.role);
-    document.getElementById('lzVer').textContent = '· v47';
+    document.getElementById('lzVer').textContent = '· v48';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     document.getElementById('lzBases').style.display = 'none';
     document.getElementById('lanzador').style.display = '';
@@ -521,12 +548,37 @@ function mostrarLanzador(ses, acc) {
             btnEditar.textContent = editando ? 'Listo' : 'Editar';
             pintarTiles();
         });
+        /* Píldoras de categoría: se arman con las categorías que trae
+         * lo visible, con su cuenta; la activa queda marcada. */
+        const ORDEN_CATS = ['Análisis', 'Operaciones', 'Finanzas', 'Tesorería', 'Gestión'];
+        function pintarPildoras(vis) {
+            const caja = document.getElementById('lzPildoras');
+            if (!caja) return;
+            const cuenta = {};
+            vis.forEach((m) => { cuenta[m.categoria] = (cuenta[m.categoria] || 0) + 1; });
+            const cats = ['Todos'].concat(ORDEN_CATS.filter((c) => cuenta[c]));
+            caja.innerHTML = '';
+            cats.forEach((c) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'lz-pildora' + (lzCat === c ? ' activa' : '');
+                b.textContent = c === 'Todos' ? 'Todos (' + vis.length + ')' : c + ' (' + cuenta[c] + ')';
+                b.addEventListener('click', () => { lzCat = c; pintarTiles(); });
+                caja.appendChild(b);
+            });
+        }
         function pintarTiles() {
             const g = document.getElementById('lzModulos');
             g.innerHTML = '';
             const vis = modulosVisibles(MODULOS, actor, pleno, ses.role);
+            pintarPildoras(vis);
+            /* Con categoría o texto se filtra la lista y se ve plana,
+             * sin las secciones de Favoritos; sin filtro, como antes. */
+            const q = lzQuery.trim().toLowerCase();
+            const filtrando = lzCat !== 'Todos' || q !== '';
+            const lista = filtrando ? vis.filter((m) => (lzCat === 'Todos' || m.categoria === lzCat) && (!q || m.titulo.toLowerCase().includes(q))) : vis;
             const atajos = leerAtajos();
-            const { favoritos, resto, hayOcultos } = ordenarAtajos(vis, atajos);
+            const { favoritos, resto, hayOcultos } = ordenarAtajos(lista, atajos);
             let i = 0;
             const crearTile = (m, esFavorito) => {
                 const wrap = document.createElement('div');
@@ -564,13 +616,30 @@ function mostrarLanzador(ses, acc) {
                 return wrap;
             };
             const seccion = (texto) => { const h = document.createElement('div'); h.className = 'lz-seccion'; h.textContent = texto; g.appendChild(h); };
-            if (favoritos.length) {
-                seccion('Favoritos');
-                favoritos.forEach((m) => g.appendChild(crearTile(m, true)));
-            }
-            if (resto.length) {
-                if (favoritos.length) seccion('Todos los módulos');
-                resto.forEach((m) => g.appendChild(crearTile(m, false)));
+            if (filtrando) {
+                if (!lista.length) {
+                    const v = document.createElement('div');
+                    v.className = 'lz-vacio';
+                    v.textContent = 'No hay módulos que coincidan con tu búsqueda. ';
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.textContent = 'Ver todos los módulos';
+                    b.addEventListener('click', () => { lzCat = 'Todos'; lzQuery = ''; document.getElementById('lzBuscar').value = ''; pintarTiles(); });
+                    v.appendChild(b);
+                    g.appendChild(v);
+                } else {
+                    favoritos.forEach((m) => g.appendChild(crearTile(m, true)));
+                    resto.forEach((m) => g.appendChild(crearTile(m, false)));
+                }
+            } else {
+                if (favoritos.length) {
+                    seccion('Favoritos');
+                    favoritos.forEach((m) => g.appendChild(crearTile(m, true)));
+                }
+                if (resto.length) {
+                    if (favoritos.length) seccion('Todos los módulos');
+                    resto.forEach((m) => g.appendChild(crearTile(m, false)));
+                }
             }
             if (hayOcultos && editando && puedeCambiar) {
                 const r = document.createElement('button');
@@ -582,6 +651,7 @@ function mostrarLanzador(ses, acc) {
             }
             g.style.display = '';
         }
+        repintarLanzador = pintarTiles;
         pintarTiles();
     })();
 }
