@@ -39,17 +39,13 @@
 <div class="tarjeta">
     <h2>Datos fiscales del negocio</h2>
     <div class="fila">
-        <label>Tipo de actor <select id="fTipo">
-            <option value="tcp">Trabajador por cuenta propia (TCP)</option>
-            <option value="mipyme">MIPYME</option>
-            <option value="pdl">Proyecto de Desarrollo Local (PDL)</option>
-        </select></label>
+        <span>Actor: <b id="fTipoTxt"></b></span>
         <label>NIT <input id="fNit" size="14"></label>
         <label>Razón social <input id="fRazon" size="26"></label>
         <label>Cuenta fiscal <input id="fCuenta" size="18"></label>
         <button type="button" id="fGuardar">Guardar</button>
     </div>
-    <p class="tenue">El PDL es un actor económico más, como el TCP y la MIPYME: su ficha vive aquí, en Fiscal (Decreto 174/2026).</p>
+    <p class="tenue">El actor se fijó al crear la base y no se cambia aquí: cada usuario solo ve lo de su actor.</p>
 </div>
 
 <div class="tarjeta">
@@ -119,7 +115,7 @@
 </style>
 <script type="module">
 import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal, esOnat } from 'nucleo';
-import { perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm, perfilVacio } from 'componentes';
+import { perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm, perfilVacio, perfilActorNombre } from 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(3);
 
@@ -211,6 +207,96 @@ function pintarPdl() {
         $('pdlFideicomiso').innerHTML = '<div class="bien">Fondo de Fideicomiso aprobado/ejecutado: ' + fmt(m) + ' · Comisión del 4 % (Res. 118/2026 BCC): ' + fmt(r2(m * 0.04)) + ' · Total a reembolsar al fondo: ' + fmt(r2(m * 1.04)) + '.</div>';
     } else $('pdlFideicomiso').innerHTML = '';
 }
+
+/* Importar el Vector Fiscal RC-04A (como Finanzas). El PDF oficial
+ * de la ONAT trae la identidad (NIT, razón social, municipio,
+ * año), las actividades, el catálogo de tributos (código de 7
+ * dígitos) y las obligaciones con su período y su vencimiento. El
+ * PDL no tiene RC-04A: esto es solo para TCP y MIPYME. La lectura
+ * del PDF usa el pdf.js local (libs/pdfjs), sin internet.
+ * parseVectorLines es pura: lee las líneas y devuelve los datos
+ * con su validación contra la ficha; guardar y pintar van aparte. */
+const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MES_ABR = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, sept: 8, oct: 9, nov: 10, dic: 11 };
+function normTxtVec(v) { return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+function isoVencimientoVec(day, mon, year) { const k = normTxtVec(mon).slice(0, 4).replace('.', ''), mi = Object.entries(MES_ABR).find(([x]) => k.startsWith(x))?.[1]; let y = parseInt(year); if (y < 100) y += 2000; if (mi === undefined || !day || !y) return ''; return y + '-' + String(mi + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'); }
+/* ¿El documento es de este negocio? Se compara con la ficha
+ * (NIT y razón social). Sin referencia no se puede comprobar;
+ * sin NIT legible queda «sin verificar». */
+function validarVectorRef(meta, ref) {
+    const nitDoc = String(meta.nit || '').replace(/[^0-9]/g, '');
+    const nitRef = String((ref && ref.nit) || '').replace(/[^0-9]/g, '');
+    const nomRef = String((ref && ref.nombre) || '').trim();
+    if (!nitRef && !nomRef) return { nivel: 'sin-ref', mensajes: ['Este negocio aún no tiene identidad fiscal registrada: al guardar, la ficha se completa desde este documento.'] };
+    if (!nitDoc) return { nivel: 'sin-nit', mensajes: ['El documento no trae NIT legible: quedará registrado «sin verificar».'] };
+    const nitOk = !!nitRef && nitDoc === nitRef;
+    const nomOk = (nomRef && meta.razon) ? normTxtVec(meta.razon) === normTxtVec(nomRef) : null;
+    if (nitOk && nomOk !== false) return { nivel: 'ok', mensajes: ['Corresponde a este negocio: el NIT coincide.'] };
+    if (nitOk) return { nivel: 'aviso', mensajes: ['El NIT coincide, pero el nombre del documento («' + meta.razon + '») difiere del registrado («' + nomRef + '»).'] };
+    if (nomOk === true) return { nivel: 'aviso', mensajes: ['El nombre coincide, pero el NIT del documento (' + nitDoc + ') difiere del registrado (' + nitRef + ').'] };
+    return { nivel: 'bloqueo', mensajes: ['El NIT del documento (' + nitDoc + ') NO coincide con el de este negocio (' + nitRef + '). No se guarda salvo forzado explícito, que quedará registrado.'] };
+}
+function parseVectorLines(lines, fileName, ref) {
+    const cleanLines = (lines || []).map((x) => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const full = cleanLines.join('\n'), meta = {};
+    meta.nit = (full.match(/NIT:\s*([0-9]+)/i) || [])[1] || '';
+    meta.razon = ((full.match(/Raz[oó]n social:\s*([^\n]+)/i) || [])[1] || '').trim();
+    meta.dpa = ((full.match(/DPA-Municipio:\s*([^\n]+)/i) || [])[1] || '').trim();
+    meta.barcode = (full.match(/C[oó]digo de barras[^:\n]*:\s*([0-9]+)/i) || [])[1] || '';
+    meta.anio = parseInt((full.match(/A[nñ]o:\s*(\d{4})/i) || [])[1]) || new Date().getFullYear();
+    const tributos = {}, actividades = []; let seccion = '', pendiente = null;
+    const cerrarPendiente = () => { if (!pendiente) return; const txt = pendiente.text.trim(); if (pendiente.tipo === 'tax' && pendiente.code && txt) tributos[pendiente.code] = txt; if (pendiente.tipo === 'act' && pendiente.code && txt) actividades.push(pendiente.code + '-' + txt); pendiente = null; };
+    for (const line of cleanLines) {
+        if (/Actividades\s*\(/i.test(line)) { cerrarPendiente(); seccion = 'act'; continue; }
+        if (/Tributos\s*\(/i.test(line)) { cerrarPendiente(); seccion = 'tax'; continue; }
+        if (seccion === 'act') {
+            let m = line.match(/^\*?\s*(\d{3,6})\s*-\s*(.*)$/);
+            if (m) { cerrarPendiente(); pendiente = { tipo: 'act', code: m[1], text: (m[2] || '').trim() }; if (pendiente.text) cerrarPendiente(); continue; }
+            if (pendiente && !/^Obligaciones|^Pagado|^Importe/i.test(line)) { pendiente.text += ' ' + line; continue; }
+        }
+        if (seccion === 'tax') {
+            let m = line.match(/^\*?\s*(\d{7})\s*-\s*(.*)$/);
+            if (m) { cerrarPendiente(); pendiente = { tipo: 'tax', code: m[1], text: (m[2] || '').trim() }; if (pendiente.text) cerrarPendiente(); continue; }
+            m = line.match(/^\*?\s*(\d{7})\s*$/);
+            if (m) { cerrarPendiente(); pendiente = { tipo: 'tax', code: m[1], text: '' }; continue; }
+            if (pendiente && line && !/^Actividades\s*\(/i.test(line)) { pendiente.text += ' ' + line; continue; }
+        }
+    }
+    cerrarPendiente();
+    const corte = cleanLines.findIndex((x) => /Actividades\s*\(/i.test(x));
+    const src = corte >= 0 ? cleanLines.slice(0, corte) : cleanLines, obs = []; let pendingCode = '';
+    const periodRe = /([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s*:\s*(\d{1,2})\/([A-Za-zÁÉÍÓÚÑáéíóúñ.]+)\/(\d{2,4})/;
+    for (const line of src) { const cm = line.match(/(?:^|\s)(\d{7})(?:\s|$)/), pm = line.match(periodRe); if (cm && pm) { obs.push({ code: cm[1], period: pm[1], day: pm[2], mon: pm[3], year: pm[4] }); pendingCode = ''; continue; } if (cm) { pendingCode = cm[1]; continue; } if (pendingCode && pm) { obs.push({ code: pendingCode, period: pm[1], day: pm[2], mon: pm[3], year: pm[4] }); pendingCode = ''; } }
+    const seen = new Set(), obligaciones = [];
+    for (const x of obs) { const mes = MESES_ES.find((z) => normTxtVec(z) === normTxtVec(x.period)) || x.period, periodo = mes + ' ' + meta.anio, vence = isoVencimientoVec(x.day, x.mon, x.year), key = x.code + '|' + periodo + '|' + vence; if (seen.has(key)) continue; seen.add(key); obligaciones.push({ id: 'vf_' + key.replace(/[^a-zA-Z0-9]+/g, '_'), codigo: x.code, concepto: tributos[x.code] || 'Tributo según Vector Fiscal', periodo, vence, vector: true, importeManual: null }); }
+    obligaciones.sort((a, b) => String(a.vence || '9999').localeCompare(String(b.vence || '9999')) || String(a.codigo).localeCompare(String(b.codigo)));
+    const validacion = validarVectorRef(meta, ref);
+    return { meta, actividades: [...new Set(actividades)], tributos, obligaciones, validacion, source: { fileName: fileName || 'RC-04A.pdf', importedAt: new Date().toISOString(), type: 'RC-04A PDF' } };
+}
+let pdfjsVecPromesa = null;
+function cargarPdfJsVec() {
+    if (window.pdfjsLib) return Promise.resolve();
+    if (!pdfjsVecPromesa) {
+        pdfjsVecPromesa = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '../libs/pdfjs/pdf.min.js';
+            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../libs/pdfjs/pdf.worker.min.js'; resolve(); };
+            s.onerror = () => { pdfjsVecPromesa = null; reject(new Error('No se pudo cargar el lector de PDF')); };
+            document.head.appendChild(s);
+        });
+    }
+    return pdfjsVecPromesa;
+}
+async function pdfLineasDeVec(file) {
+    if (!window.pdfjsLib) throw new Error('sin-pdfjs');
+    const buf = await file.arrayBuffer(), pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise, lines = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p), tc = await page.getTextContent(), map = {};
+        for (const it of tc.items) { const y = Math.round(it.transform[5]); (map[y] || (map[y] = [])).push({ x: it.transform[4], s: it.str }); }
+        for (const y of Object.keys(map).map(Number).sort((a, b) => b - a)) { const line = map[y].sort((a, b) => a.x - b.x).map((x) => x.s).join(' ').replace(/\s+/g, ' ').trim(); if (line) lines.push(line); }
+    }
+    return lines;
+}
 function amortizacion(c) {
     const P = Number(c.monto) || 0, n = Math.max(1, parseInt(c.plazo, 10) || 1), i = (Number(c.tasa) || 0) / 100 / 12;
     const cuota = i > 0 ? P * i / (1 - Math.pow(1 + i, -n)) : P / n;
@@ -279,16 +365,30 @@ function pintarCreditos() {
         try { await guardar(); pintarCreditos(); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
     }));
 }
-(function pestFiscal() {
-    const grupos = [['negocio', 'Negocio'], ['impuestos', 'Impuestos'], ['pdl', 'PDL']];
+/* Las pestañas del módulo. La de PDL solo existe si el actor es
+ * PDL: antes estaba siempre y al tocarla se veía la ficha del PDL
+ * aunque el actor fuera MIPYME o TCP, porque cambiar de pestaña
+ * pisa el display de las tarjetas (también pasaba con el Umbral
+ * TCP al entrar en Impuestos). Se reconstruye cuando se carga la
+ * base y cuando cambia el tipo de actor; y al cambiar de pestaña
+ * no se vuelve a enseñar ninguna tarjeta de otro actor. */
+const esPdlActor = () => !!(fiscal && fiscal.meta && fiscal.meta.tipo === 'pdl');
+const esTcpActor = () => !!(fiscal && fiscal.meta && fiscal.meta.tipo === 'tcp');
+let pestActual = 'negocio';
+function pestFiscal() {
+    const vieja = document.querySelector('.pest-bar');
+    if (vieja) vieja.remove();
+    const grupos = [['negocio', 'Negocio'], ['impuestos', 'Impuestos']];
+    if (esPdlActor()) grupos.push(['pdl', 'PDL']);
     const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Datos fiscales|Datos del negocio|Créditos/.test(x)) return 'negocio'; if (/Ficha del PDL/.test(x)) return 'pdl'; return 'impuestos'; };
     const bar = document.createElement('div'); bar.className = 'pest-bar';
     bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
     const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
-    const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+    const ir = (g) => { pestActual = g; document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = (de(t) === g && !(t.id === 'cardPdl' && !esPdlActor()) && !(t.id === 'cardUmbral' && !esTcpActor())) ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
     bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
-    ir('negocio');
-})();
+    ir(grupos.some((g) => g[0] === pestActual) ? pestActual : 'negocio');
+}
+pestFiscal();
 async function guardar() { await bd().docGuardar(tokenSesion(), 'fiscal', fiscal); }
 /* Tarjeta «Datos del negocio» (fase 38): la ficha completa, con
  * su logo, y su edición con el mismo formulario del asistente. */
@@ -319,8 +419,8 @@ function pintarPerfilForm() {
         fiscal.meta.cuentaFiscal = nuevo.cuentaCup;
         try {
             await guardar();
-            $('fTipo').value = fiscal.meta.tipo; $('fNit').value = fiscal.meta.nit; $('fRazon').value = fiscal.meta.razon; $('fCuenta').value = fiscal.meta.cuentaFiscal;
-            pintarPerfil(); aviso('Ficha del negocio guardada');
+            $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo); $('fNit').value = fiscal.meta.nit; $('fRazon').value = fiscal.meta.razon; $('fCuenta').value = fiscal.meta.cuentaFiscal;
+            pintarPerfil(); pestFiscal(); aviso('Ficha del negocio guardada');
         } catch (e) { aviso(String((e && e.message) || e), 'error'); }
     });
 }
@@ -337,15 +437,16 @@ function pintarPerfilForm() {
         movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
         rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
         pos = await bd().docLeer(tokenSesion(), 'pos');
-        $('fTipo').value = fiscal.meta.tipo || 'tcp';
+        $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo || 'tcp');
         $('fNit').value = fiscal.meta.nit || '';
         $('fRazon').value = fiscal.meta.razon || '';
         $('fCuenta').value = fiscal.meta.cuentaFiscal || '';
         $('pfTipo').innerHTML = FUENTES.map((f) => '<option>' + f + '</option>').join('');
         $('fGuardar').addEventListener('click', async () => {
-            fiscal.meta = Object.assign({}, fiscal.meta, { tipo: $('fTipo').value, nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() });
-            if (fiscal.meta.perfil) fiscal.meta.perfil.actor = $('fTipo').value;
-            try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); pintarPerfil(); }
+            /* El actor no se cambia aquí: se fijó al crear la base.
+             * Solo se guardan NIT, razón social y cuenta fiscal. */
+            fiscal.meta = Object.assign({}, fiscal.meta, { nit: $('fNit').value.trim(), razon: $('fRazon').value.trim(), cuentaFiscal: $('fCuenta').value.trim() });
+            try { await guardar(); aviso('Datos fiscales guardados'); pintarVector(); pintarPdl(); pintarPerfil(); pestFiscal(); }
             catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         pintarPerfil();
@@ -385,6 +486,7 @@ function pintarPerfilForm() {
         pintarVector();
         pintarEfectivo();
         pintarPdl();
+        pestFiscal();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

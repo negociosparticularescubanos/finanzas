@@ -250,6 +250,21 @@ function pintar() {
             const mes = $('tbMes').value, tasa = Number($('tbTasa').value) || 0;
             if (await guardarTasaMes(mes, tasa, 'Manual', $('tbSegmento').value)) aviso('Tasa de ' + mes + ' guardada: ' + fmt(tasa) + ' CUP.');
         });
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 auto 12px;max-width:880px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['divisa', 'Divisa'], ['bcc', 'Tasas del BCC']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Tasas del BCC') === 0) return 'bcc'; return 'divisa'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('divisa');
+        })();
     } catch (e) {
         $('estado').innerHTML = '<p class="mal">' + esc((e && e.message) || e) + '</p>';
     }

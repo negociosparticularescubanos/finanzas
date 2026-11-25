@@ -191,16 +191,18 @@ function expedienteClave(anio) {
     if (tipo === 'pdl') return 'pdl';
     if (tipo === 'mipyme') return 'mipyme';
     if (tipo === 'tcp') return indicadorAnio(anio).supera ? 'tcp_ncif' : 'tcp_registro';
-    return 'mipyme';
+    return ''; /* sin actor no se enseña la lista de otro actor */
 }
 function expedienteLista(clave) {
     if (clave === 'pdl') return EXPEDIENTE_PDL;
     if (clave === 'tcp_registro') return EXPEDIENTE_TCP_REGISTRO;
     if (clave === 'tcp_ncif') return EXPEDIENTE_TCP_REGISTRO.concat(EXPEDIENTE_TCP_NCIF_EXTRA);
-    return EXPEDIENTE_DEF;
+    if (clave === 'mipyme') return EXPEDIENTE_DEF;
+    return [];
 }
 function expedienteDatos(anio) {
     const clave = expedienteClave(anio);
+    if (!clave) return { filas: [], faltantes: [], total: 0, presentes: 0, pct: 0, completo: false, actorClave: '', actorTitulo: '' };
     const docs = ((conta.gestion || {}).expediente) || {};
     const filas = expedienteLista(clave).map((d) => ({ clave: d[0], nombre: d[1], presente: !!docs[d[0]] }));
     const faltantes = filas.filter((f) => !f.presente);
@@ -210,6 +212,10 @@ function expedienteDatos(anio) {
 }
 function pintarExpediente(anio) {
     const ex = expedienteDatos(anio);
+    if (!ex.actorClave) {
+        $('expedienteBox').innerHTML = '<p class="rojo">Todavía no se ha fijado qué actor económico es este negocio: el expediente se arma según el actor. Ve al módulo Fiscal y completa la ficha del negocio.</p>';
+        return;
+    }
     const sinDist = sesion && sesion.role === 'consultor';
     $('expedienteBox').innerHTML = '<b>Expediente digital de fiscalización · ' + esc(ex.actorTitulo) + '</b> <span class="tenue">(cada actor presenta su propia documentación)</span><br>' +
         ex.presentes + '/' + ex.total + ' documentos (' + fmt(ex.pct) + ' %) ' +
@@ -269,6 +275,23 @@ async function agregarManual() {
         else $('btnRegManAdd').addEventListener('click', agregarManual);
         $('rImprimir').addEventListener('click', () => window.print());
         pintar();
+        /* Pestañas internas del módulo (modelo .exe) */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['registro', 'Registro'], ['expediente', 'Expediente']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Expediente') === 0) return 'expediente'; return 'registro'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            /* La anotación manual no se le muestra al consultor: al
+             * cambiar de pestaña no se vuelve a enseñar. */
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = (de(t) === g && !(t.id === 'cardManual' && sesion && sesion.role === 'consultor')) ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('registro');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

@@ -559,6 +559,23 @@ function pintarRegistroRetiros(d, anio) {
         });
         $('btnExtraer').addEventListener('click', extraerContingencia);
         pintar();
+        /* Pestañas internas del módulo (modelo .exe). La rejilla de
+         * los trimestres (#trimestres) no es una .tarjeta: entra en
+         * el selector para que también se esconda al cambiar. */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = [['trimestres', 'Trimestres'], ['impuestos', 'Impuestos y ONAT'], ['socios', 'Socios'], ['cierre', 'Cierre anual']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (x.indexOf('Impuesto') === 0 || x.indexOf('Calendario fiscal') === 0 || x.indexOf('Resumen ONAT') === 0) return 'impuestos'; if (x.indexOf('Pagos a socios') === 0 || x.indexOf('Registro de retiros') === 0) return 'socios'; if (x.indexOf('Cierre anual') === 0) return 'cierre'; return 'trimestres'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map(([g, n]) => '<button type="button" data-pest="' + g + '">' + n + '</button>').join('');
+            const primera = document.querySelector('.tarjeta');
+            primera.parentNode.insertBefore(bar, primera);
+            const ir = (g) => { document.querySelectorAll('.tarjeta, #trimestres').forEach((t) => { t.style.display = de(t) === g ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir('trimestres');
+        })();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
     }

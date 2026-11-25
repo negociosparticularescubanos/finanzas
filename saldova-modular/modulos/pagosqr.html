@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagos QR · Saldova</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; margin: 0; padding: 16px; color: #173A5E; background: #EAF2FA; }
+    .tarjeta { background: rgba(255,255,255,.93); border: 1px solid #8FA8C8; border-radius: 10px; padding: 16px; max-width: 880px; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(23,58,94,.15); }
+    h1 { font-size: 19px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 16px 0 8px; }
+    p { margin: 6px 0; } .tenue { color: #56708E; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+    th, td { border-bottom: 1px solid #D6E2F0; padding: 5px 7px; text-align: left; }
+    th { background: #DCE8F5; } td.num, th.num { text-align: right; }
+    tr.totales td { font-weight: 700; background: #EBF3FC; }
+    input, select, textarea { padding: 6px 8px; border: 1px solid #8FA8C8; border-radius: 5px; font: inherit; font-size: 13px; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 110px; }
+    button { background: linear-gradient(#FFC266, #F48C1E); border: 1px solid #B25F00; color: #111; font-weight: 600; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+    button.secundario { background: linear-gradient(#F4F9FE, #B7D0EC); border-color: #8FA8C8; }
+    button.chico { padding: 3px 9px; font-size: 12px; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+    .ok { color: #1E7A34; font-weight: 600; } .mal { color: #B00020; font-weight: 600; }
+    .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+    .kpi { background: #EBF3FC; border: 1px solid #B7D0EC; border-radius: 8px; padding: 8px 12px; min-width: 120px; }
+    .kpi small { display: block; color: #56708E; font-size: 12px; } .kpi b { font-size: 16px; }
+    label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+    label span { color: #56708E; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="tarjeta" id="cardRegistrar">
+    <h1>📱 Pagos QR · Registro de pagos por QR</h1>
+    <p>Los pagos que te llegan por código QR (Transfermóvil o EnZona) y por transferencia, con su comprobante del banco. Pega el SMS de BANDEC y los datos se llenan solos; revísalos antes de guardar. Esto es un registro: el dinero también aparece en la Chequera cuando entra al banco.</p>
+    <div id="sesionTxt"><p class="tenue">Cargando…</p></div>
+    <h2>Pegar el SMS del banco</h2>
+    <p class="tenue">Copia el SMS completo de BANDEC y pégalo aquí. Al leerlo, los datos se llenan solos en el formulario; puedes corregir cualquiera antes de guardar.</p>
+    <textarea id="pqSms" spellcheck="false" placeholder="Banco Bandec: Pago completado.&#10;Fecha: 12/11/2026&#10;Entidad: …&#10;Id Compra: …&#10;Importe: …&#10;Importe pagado: …&#10;No. Transaccion: …&#10;Saldo disponible: CR … CUP"></textarea>
+    <div class="fila">
+        <button type="button" id="pqLeer">Leer SMS</button>
+        <button type="button" id="pqEjQr" class="secundario chico">Ejemplo: pago QR</button>
+        <button type="button" id="pqEjTr" class="secundario chico">Ejemplo: transferencia</button>
+        <button type="button" id="pqLimpiarSms" class="secundario chico">Limpiar</button>
+    </div>
+    <div id="pqDetect"><p class="tenue">Sin SMS leído todavía.</p></div>
+    <h2>El pago</h2>
+    <div class="fila">
+        <label><span>Tipo</span><select id="pqTipo"><option value="qr">Pago QR · Comercio electrónico</option><option value="transferencia">Transferencia</option></select></label>
+        <label><span>Fecha</span><input type="date" id="pqFecha"></label>
+        <label><span>Banco</span><select id="pqBanco"><option value="">—</option><option>BANDEC</option><option>BANMET</option><option>BPA</option></select></label>
+    </div>
+    <div class="fila">
+        <label><span>Entidad / Comercio (pagos QR)</span><input id="pqEntidad" size="24" placeholder="Nombre del comercio"></label>
+        <label><span>Nombre del cliente</span><input id="pqNombre" size="24" placeholder="Nombre completo del cliente"></label>
+    </div>
+    <div class="fila">
+        <label><span>Beneficiario (tarjeta del comercio)</span><input id="pqBeneficiario" size="20" class="mono" placeholder="9234XXXXXXXX4083"></label>
+        <label><span>Ordenante (tarjeta del cliente)</span><input id="pqOrdenante" size="20" class="mono" placeholder="9234XXXXXXXX8286"></label>
+    </div>
+    <div class="fila">
+        <label><span>Id Compra (pagos QR)</span><input id="pqIdCompra" size="16" inputmode="numeric" placeholder="9174997569"></label>
+        <label><span>No. Transacción</span><input id="pqTransaccion" size="18" placeholder="KW6024QF67999"></label>
+        <label><span>CI del cliente</span><input id="pqCi" size="14" inputmode="numeric" placeholder="Número del carné"></label>
+        <label><span>Teléfono</span><input id="pqTelefono" size="14" inputmode="tel" placeholder="Número de teléfono"></label>
+    </div>
+    <div class="fila">
+        <label><span>Importe (CUP)</span><input id="pqImporte" type="number" step="0.01" min="0" style="width:120px"></label>
+        <label><span>Importe pagado (CUP)</span><input id="pqPagado" type="number" step="0.01" min="0" style="width:120px"></label>
+        <label><span>Saldo disponible (CUP)</span><input id="pqSaldo" type="number" step="0.01" min="0" style="width:120px"></label>
+    </div>
+    <div class="fila">
+        <label style="flex:1;min-width:240px"><span>Notas</span><input id="pqNotas" placeholder="Lo que quieras anotar de este pago"></label>
+    </div>
+    <div class="fila">
+        <button type="button" id="pqGuardar">Guardar pago</button>
+        <button type="button" id="pqCancelar" class="secundario chico" style="display:none">Cancelar edición</button>
+    </div>
+</div>
+
+<div class="tarjeta" id="cardLista">
+    <h2>Pagos registrados</h2>
+    <div class="kpis" id="pqKpis"></div>
+    <div class="fila">
+        <label><span>Tipo</span><select id="pqFiltro"><option value="todos">Todos</option><option value="qr">Solo QR</option><option value="transferencia">Solo transferencias</option></select></label>
+        <button type="button" id="pqCsv" class="secundario chico">Exportar CSV</button>
+    </div>
+    <div id="pqTabla"><p class="tenue">Sin pagos todavía.</p></div>
+    <p class="tenue">La bonificación es lo que el banco te devuelve por el pago QR: importe menos importe pagado. Desde el 1 de agosto de 2026 el comercio recibe una bonificación del 2 % por cada operación, con un máximo de 105 CUP, y paga 0,8 % de comisión.</p>
+</div>
+
+<script type="module">
+import { esc, bd, aviso, sesionActual, tokenSesion, hoyLocal } from 'nucleo';
+import { aplicarFondo } from 'fondos';
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/* El lector del SMS de BANDEC (como la app Registro de Pagos).
+ * Lee fecha, entidad, beneficiario, ordenante, Id Compra, número
+ * de transacción, importe, importe pagado y saldo; y detecta si
+ * es pago QR o transferencia. */
+function parseMoney(str) {
+    if (str === null || str === undefined) return null;
+    let s = String(str).replace(/\s+/g, '').replace(/CUP/gi, '').replace(/CR/gi, '');
+    if (!s) return null;
+    const m = s.match(/\d[\d.,]*\d|\d/);
+    if (!m) return null;
+    s = m[0];
+    const hasDot = s.indexOf('.') >= 0, hasComma = s.indexOf(',') >= 0;
+    if (hasDot && hasComma) {
+        s = s.replace(/\./g, '').replace(',', '.');
+    } else if (hasComma) {
+        const cparts = s.split(','), lastC = cparts[cparts.length - 1]; let allMiles = cparts.length > 1;
+        for (let ci = 1; ci < cparts.length; ci++) { if (cparts[ci].length !== 3) allMiles = false; }
+        if (cparts.length === 2 && lastC.length !== 3) s = cparts[0] + '.' + lastC;
+        else if (allMiles) s = cparts.join('');
+        else s = cparts.slice(0, -1).join('') + '.' + lastC;
+    } else if (hasDot) {
+        const parts = s.split('.'), last = parts[parts.length - 1];
+        if (parts.length > 2) s = last.length === 2 ? parts.slice(0, -1).join('') + '.' + last : parts.join('');
+        else if (last.length === 3) s = parts.join('');
+    }
+    const n = parseFloat(s);
+    return isNaN(n) ? null : Math.round(n * 100) / 100;
+}
+const PQ_LABELS = 'Beneficiario|Ordenante|Monto|Importe pagado|Importe|Entidad|Id\\s*Compra|Nro\\.?\\s*Transacci[oó]n|No\\.?\\s*Transacci[oó]n|Saldo restante|Saldo disponible|Fecha';
+function pqGrab(text, labelRe) {
+    const re = new RegExp(labelRe + '\\s*:\\s*(.+?)(?=\\s*(?:' + PQ_LABELS + ')\\s*:|$)', 'i');
+    const m = text.match(re);
+    return m ? m[1].trim().replace(/\s+$/, '') : null;
+}
+function pqCleanCode(v) { return String(v || '').replace(/[\s,;]/g, '').replace(/\.+$/, ''); }
+function parseSmsQr(raw) {
+    const text = ' ' + String(raw || '').replace(/\r/g, ' ').replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim() + ' ';
+    const out = { tipo: null, fecha: null, entidad: null, beneficiario: null, ordenante: null, idCompra: null, transaccion: null, importe: null, importePagado: null, saldo: null, banco: null };
+    if (/BANDEC/i.test(text)) out.banco = 'BANDEC';
+    else if (/Banco\s+Metropolitano|BANMET/i.test(text)) out.banco = 'BANMET';
+    else if (/BPA|Banco Popular de Ahorro/i.test(text)) out.banco = 'BPA';
+    const mf = text.match(/Fecha\s*:\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/i);
+    if (mf) { let y = mf[3]; if (y.length === 2) y = '20' + y; out.fecha = y + '-' + ('0' + mf[2]).slice(-2) + '-' + ('0' + mf[1]).slice(-2); }
+    let v;
+    v = pqGrab(text, 'Entidad'); if (v) out.entidad = v.replace(/\.$/, '');
+    v = pqGrab(text, 'Beneficiario'); if (v) out.beneficiario = pqCleanCode(v);
+    v = pqGrab(text, 'Ordenante'); if (v) out.ordenante = pqCleanCode(v);
+    v = pqGrab(text, 'Id\\s*Compra'); if (v) out.idCompra = v.replace(/\D/g, '');
+    v = pqGrab(text, '(?:Nro\\.?|No\\.?|N[uú]mero)\\s*Transacci[oó]n');
+    if (v) out.transaccion = pqCleanCode(v).toUpperCase();
+    v = pqGrab(text, 'Importe pagado'); if (v) out.importePagado = parseMoney(v);
+    v = pqGrab(text, 'Importe'); if (v) out.importe = parseMoney(v);
+    if (out.importe === null) { v = pqGrab(text, 'Monto'); if (v) out.importe = parseMoney(v); }
+    v = pqGrab(text, 'Saldo (?:restante|disponible)');
+    if (v) out.saldo = parseMoney(v);
+    if (/Pago completado/i.test(text) || out.entidad || out.idCompra || out.importePagado !== null) out.tipo = 'qr';
+    else if (/Transferencia/i.test(text) || out.beneficiario || out.ordenante) out.tipo = 'transferencia';
+    return out;
+}
+
+let pagos = [];
+let editId = null;
+let filtroTipo = 'todos';
+let sesion = null;
+
+function guardarPagos() { return bd().docGuardar(tokenSesion(), 'pagosqr', pagos); }
+function bonif(p) { const i = Number(p.importe), g = Number(p.importePagado); if (!i || !g) return 0; return Math.max(0, r2(i - g)); }
+function duplicado(p, ignorarId) {
+    return pagos.find((x) => x.id !== ignorarId && ((p.idCompra && x.idCompra && String(x.idCompra) === String(p.idCompra)) || (p.transaccion && x.transaccion && String(x.transaccion).toUpperCase() === String(p.transaccion).toUpperCase())));
+}
+function leerForm() {
+    return {
+        tipo: $('pqTipo').value,
+        fecha: $('pqFecha').value || hoyLocal(),
+        entidad: $('pqEntidad').value.trim(),
+        beneficiario: $('pqBeneficiario').value.trim(),
+        ordenante: $('pqOrdenante').value.trim(),
+        idCompra: $('pqIdCompra').value.trim(),
+        nombre: $('pqNombre').value.trim(),
+        ci: $('pqCi').value.trim(),
+        telefono: $('pqTelefono').value.trim(),
+        transaccion: $('pqTransaccion').value.trim().toUpperCase(),
+        importe: $('pqImporte').value === '' ? null : Number($('pqImporte').value) || 0,
+        importePagado: $('pqPagado').value === '' ? null : Number($('pqPagado').value) || 0,
+        saldo: $('pqSaldo').value === '' ? null : Number($('pqSaldo').value) || 0,
+        banco: $('pqBanco').value,
+        notas: $('pqNotas').value.trim(),
+    };
+}
+function llenarForm(p) {
+    $('pqTipo').value = p.tipo || 'qr';
+    $('pqFecha').value = p.fecha || '';
+    $('pqEntidad').value = p.entidad || '';
+    $('pqBeneficiario').value = p.beneficiario || '';
+    $('pqOrdenante').value = p.ordenante || '';
+    $('pqIdCompra').value = p.idCompra || '';
+    $('pqNombre').value = p.nombre || '';
+    $('pqCi').value = p.ci || '';
+    $('pqTelefono').value = p.telefono || '';
+    $('pqTransaccion').value = p.transaccion || '';
+    $('pqImporte').value = (p.importe === null || p.importe === undefined) ? '' : p.importe;
+    $('pqPagado').value = (p.importePagado === null || p.importePagado === undefined) ? '' : p.importePagado;
+    $('pqSaldo').value = (p.saldo === null || p.saldo === undefined) ? '' : p.saldo;
+    $('pqBanco').value = p.banco || '';
+    $('pqNotas').value = p.notas || '';
+}
+function limpiarForm() {
+    editId = null;
+    llenarForm({ tipo: 'qr', fecha: hoyLocal() });
+    $('pqGuardar').textContent = 'Guardar pago';
+    $('pqCancelar').style.display = 'none';
+}
+function pintar() {
+    const lista = pagos.filter((p) => filtroTipo === 'todos' || p.tipo === filtroTipo).slice().sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.creado || '').localeCompare(String(a.creado || '')));
+    const qr = pagos.filter((p) => p.tipo === 'qr');
+    const recibido = pagos.reduce((a, p) => a + (Number(p.importePagado) || 0), 0);
+    const bon = pagos.reduce((a, p) => a + bonif(p), 0);
+    $('pqKpis').innerHTML =
+        '<div class="kpi"><small>Pagos registrados</small><b>' + pagos.length + '</b></div>' +
+        '<div class="kpi"><small>Pagos QR</small><b>' + qr.length + '</b></div>' +
+        '<div class="kpi"><small>Recibido (importe pagado)</small><b>' + fmt(recibido) + ' CUP</b></div>' +
+        '<div class="kpi"><small>Bonificación total</small><b>' + fmt(bon) + ' CUP</b></div>';
+    if (!lista.length) { $('pqTabla').innerHTML = '<p class="tenue">Sin pagos todavía.</p>'; return; }
+    const soloLectura = sesion && sesion.role === 'consultor';
+    $('pqTabla').innerHTML = '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Entidad / Cliente</th><th>Id Compra</th><th>Transacción</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Bonif.</th>' + (soloLectura ? '' : '<th></th>') + '</tr></thead><tbody>' +
+        lista.map((p) => '<tr><td>' + esc(p.fecha || '—') + '</td><td>' + (p.tipo === 'qr' ? 'QR' : 'Transf.') + '</td><td>' + esc(p.entidad || p.nombre || '—') + '</td><td>' + esc(p.idCompra || '—') + '</td><td>' + esc(p.transaccion || '—') + '</td><td class="num">' + (p.importe === null ? '—' : fmt(p.importe)) + '</td><td class="num">' + (p.importePagado === null ? '—' : fmt(p.importePagado)) + '</td><td class="num">' + fmt(bonif(p)) + '</td>' + (soloLectura ? '' : '<td><button type="button" class="secundario chico pq-editar" data-id="' + esc(p.id) + '">Editar</button> <button type="button" class="secundario chico pq-borrar" data-id="' + esc(p.id) + '">Borrar</button></td>') + '</tr>').join('') +
+        '</tbody></table>';
+    document.querySelectorAll('.pq-editar').forEach((b) => b.addEventListener('click', () => {
+        const p = pagos.find((x) => x.id === b.dataset.id);
+        if (!p) return;
+        editId = p.id;
+        llenarForm(p);
+        $('pqGuardar').textContent = 'Guardar cambios';
+        $('pqCancelar').style.display = '';
+        document.querySelector('#cardRegistrar').scrollIntoView();
+    }));
+    document.querySelectorAll('.pq-borrar').forEach((b) => b.addEventListener('click', async () => {
+        const p = pagos.find((x) => x.id === b.dataset.id);
+        if (!p) return;
+        if (!confirm('¿Borrar este pago (' + (p.entidad || p.nombre || p.fecha) + ')?')) return;
+        pagos = pagos.filter((x) => x.id !== p.id);
+        try { await guardarPagos(); pintar(); aviso('Pago borrado'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
+function exportarCsv() {
+    const lista = pagos.filter((p) => filtroTipo === 'todos' || p.tipo === filtroTipo).slice().sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')));
+    const c = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+    const lineas = [['fecha', 'tipo', 'entidad', 'beneficiario', 'ordenante', 'idCompra', 'nombre', 'ci', 'telefono', 'transaccion', 'importe', 'importePagado', 'saldo', 'banco', 'notas'].join(';')];
+    lista.forEach((p) => lineas.push([p.fecha, p.tipo, p.entidad, p.beneficiario, p.ordenante, p.idCompra, p.nombre, p.ci, p.telefono, p.transaccion, p.importe, p.importePagado, p.saldo, p.banco, p.notas].map(c).join(';')));
+    const blob = new Blob(['\ufeff' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pagos-qr-' + hoyLocal() + '.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+(async () => {
+    try {
+        aplicarFondo();
+        sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        pagos = (await bd().docLeer(tokenSesion(), 'pagosqr')) || [];
+        if (!Array.isArray(pagos)) pagos = [];
+        const soloLectura = sesion.role === 'consultor';
+        if (soloLectura) $('cardRegistrar').style.display = 'none';
+        $('pqFecha').value = hoyLocal();
+        $('pqFiltro').addEventListener('change', () => { filtroTipo = $('pqFiltro').value; pintar(); });
+        $('pqCsv').addEventListener('click', exportarCsv);
+        $('pqLeer').addEventListener('click', () => {
+            const d = parseSmsQr($('pqSms').value);
+            if (!d.tipo && !d.fecha && !d.importe && !d.importePagado) { aviso('No se reconoció nada en ese texto: revisa que sea el SMS completo de BANDEC', 'error'); return; }
+            llenarForm(Object.assign({ tipo: 'qr', fecha: hoyLocal() }, d));
+            $('pqDetect').innerHTML = '<p>' + (d.tipo === 'qr' ? 'Detectado: <b>pago QR</b>' : d.tipo === 'transferencia' ? 'Detectado: <b>transferencia</b>' : 'Tipo no detectado') + (d.fecha ? ' · Fecha ' + esc(d.fecha) : '') + (d.importe !== null ? ' · Importe ' + fmt(d.importe) : '') + (d.importePagado !== null ? ' · Pagado ' + fmt(d.importePagado) : '') + '. Revisa los datos antes de guardar.</p>';
+            aviso('SMS leído: revisa los datos antes de guardar');
+        });
+        $('pqEjQr').addEventListener('click', () => { $('pqSms').value = 'Banco Bandec: Pago completado.\nFecha: 12/11/2026\nEntidad: Comercio Ejemplo\nId Compra: 9174997569\nImporte: 2500.00 CUP\nImporte pagado: 2400.00 CUP\nNo. Transaccion: KW6024QF67999\nSaldo disponible: CR 34376.19 CUP'; });
+        $('pqEjTr').addEventListener('click', () => { $('pqSms').value = 'Banco Bandec: La Transferencia fue completada.\nFecha: 17/11/2026\nBeneficiario: 9234XXXXXXXX4083\nOrdenante: 9234XXXXXXXX8286\nMonto: 5000.00 CUP\nNro. Transaccion: KW6025VYCM999\nSaldo restante: CR 17956.60 CUP'; });
+        $('pqLimpiarSms').addEventListener('click', () => { $('pqSms').value = ''; $('pqDetect').innerHTML = '<p class="tenue">Sin SMS leído todavía.</p>'; });
+        $('pqCancelar').addEventListener('click', limpiarForm);
+        $('pqGuardar').addEventListener('click', async () => {
+            const p = leerForm();
+            if (!p.fecha) { aviso('Pon la fecha del pago', 'error'); return; }
+            if (p.importe === null && p.importePagado === null) { aviso('Pon al menos el importe o el importe pagado', 'error'); return; }
+            const dup = duplicado(p, editId);
+            if (dup && !confirm('Ya hay un pago con ese ' + (dup.idCompra && String(dup.idCompra) === String(p.idCompra) ? 'Id Compra (' + dup.idCompra + ')' : 'No. de transacción (' + dup.transaccion + ')') + '. ¿Guardarlo de todas formas?')) return;
+            try {
+                if (editId) {
+                    const i = pagos.findIndex((x) => x.id === editId);
+                    if (i >= 0) pagos[i] = Object.assign({}, pagos[i], p);
+                    aviso('Pago actualizado');
+                } else {
+                    pagos.push(Object.assign({ id: 'pq' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6), original: $('pqSms').value.trim(), creado: new Date().toISOString() }, p));
+                    aviso('Pago guardado');
+                }
+                await guardarPagos();
+                limpiarForm();
+                $('pqSms').value = '';
+                pintar();
+            } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
+        /* Pestañas internas del módulo (mismo modelo que los demás). */
+        (() => {
+            const estilo = document.createElement('style');
+            estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 auto 12px;max-width:880px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 15px;cursor:pointer}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
+            document.head.appendChild(estilo);
+            const grupos = soloLectura ? [['pagos', 'Pagos registrados']] : [['registrar', 'Registrar'], ['pagos', 'Pagos registrados']];
+            const de = (t) => { const h = t.querySelector('h2'); const x = h ? h.textContent : ''; if (/Pagos registrados/.test(x)) return 'pagos'; return 'registrar'; };
+            const bar = document.createElement('div'); bar.className = 'pest-bar';
+            bar.innerHTML = grupos.map((g) => '<button type="button" data-pest="' + g[0] + '">' + g[1] + '</button>').join('');
+            const primera = document.querySelector('.tarjeta'); if (primera) primera.before(bar);
+            const ir = (g) => { document.querySelectorAll('.tarjeta').forEach((t) => { t.style.display = (de(t) === g && !(t.id === 'cardRegistrar' && soloLectura)) ? '' : 'none'; }); bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.pest === g)); };
+            bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(b.dataset.pest)));
+            ir(soloLectura ? 'pagos' : 'registrar');
+        })();
+        pintar();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

@@ -37,6 +37,9 @@
     <h2>Chequera y tarjetas</h2>
     <p>Tres cuentas: chequera, tarjeta CUP y tarjeta USD. Importa el PDF de BANDEC, revisa la vista previa y guarda. La conciliación compara tus libros con el banco por el método del saldo ajustado: marca «en el banco» los movimientos que ya aparecen en el estado, y la app separa lo que está <b>en tránsito</b> de lo que es un error de verdad. Las transferencias entre tus propias cuentas mueven saldo pero <b>nunca cuentan como ingreso</b>.</p>
 
+    <h2>Pagos QR · Registro de pagos por QR</h2>
+    <p>Los pagos que te llegan por código QR (Transfermóvil o EnZona) y por transferencia, con su comprobante del banco. Pega el SMS completo de BANDEC y los datos se llenan solos: fecha, entidad, Id Compra, número de transacción, importe, importe pagado y saldo. Revisa los números antes de guardar. La bonificación es lo que el banco te devuelve por el pago QR: importe menos importe pagado (desde el 1 de agosto de 2026, 2 % por operación con un máximo de 105 CUP). Esto es un registro: el dinero también aparece en la Chequera cuando entra al banco.</p>
+
     <h2>Contabilidad</h2>
     <p>Plan de cuentas del dueño (87 cuentas) o el oficial de la Res. 494/2016 (423): el plan solo se cambia con la contabilidad vacía. Los asientos automáticos resuelven su cuenta por las equivalencias (ventas 801→900 en el plan oficial, etc.). Las <b>plantillas recurrentes</b> crean el asiento del mes con un clic (alquiler, servicios fijos). El <b>Flujo de Efectivo</b> y los <b>Cambios en el Patrimonio</b> salen de los movimientos y asientos, sin teclear nada.</p>
 
@@ -79,7 +82,7 @@ aplicarFondo(13);
     const estilo = document.createElement('style');
     estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 13px;cursor:pointer;font-size:13px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
     document.head.appendChild(estilo);
-    const cortos = { 'Cómo moverte por la app': 'Cómo moverte', 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
+    const cortos = { 'Cómo moverte por la app': 'Cómo moverte', 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Pagos QR · Registro de pagos por QR': 'Pagos QR', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
     const tarjeta = document.querySelector('.tarjeta');
     const secciones = [];
     let actual = null;

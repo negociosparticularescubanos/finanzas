@@ -36,7 +36,7 @@
     .cuenta-saldo { font-size: 22px; font-weight: 700; color: #1A3E5E; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
     .cuenta-saldo.negativo { color: #D23B2E; }
     .areas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-    .area { background: #fff; border: 1px solid #8FA8C8; border-radius: 8px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: inherit; color: #14324F; }
+    .area { background: #fff; border: 1px solid #8FA8C8; border-radius: 8px; padding: 10px 12px; cursor: default; text-align: left; font-family: inherit; color: #14324F; }
     .area.activa { background: linear-gradient(180deg, #3A87D4, #2B5B84); color: #fff; border-color: #2B5B84; }
     .area.activa .tenue { color: #DCE8F5; }
     .area-titulo { font-size: 13.5px; font-weight: 700; }
@@ -83,7 +83,7 @@
 
 <div class="tarjeta" id="cardTesoreria">
     <h2 style="margin-top:0">Tesorería por áreas</h2>
-    <p class="expl">Qué es: tus 6 áreas de tesorería del mes. Toca una y la tabla «Todos los movimientos» muestra solo esa área (la tabla llega en el bloque 4).</p>
+    <p class="expl">Qué es: tus 6 áreas de tesorería del mes.</p>
     <div id="areasTesoreria"><p class="tenue">Cargando…</p></div>
 </div>
 
@@ -91,18 +91,6 @@
     <h2 style="margin-top:0">Cuadre banco–contabilidad</h2>
     <p class="expl">Qué es: el saldo del banco según tus movimientos contra el mayor contable de la cuenta del banco. Si no coincide, te dice la diferencia exacta.</p>
     <div id="cuadreBanco"><p class="tenue">Revisando…</p></div>
-</div>
-
-<div class="tarjeta" id="cardMovimientos">
-    <h2 style="margin-top:0">Todos los movimientos</h2>
-    <p class="expl">Qué es: todos los movimientos del mes en las 3 cuentas. Toca una fila y se abre esa cuenta en la Chequera. Los totales son los de lo mostrado, en CUP.</p>
-    <div class="fila">
-        <label>Cuenta <select id="fCuenta"><option value="">Todas</option><option value="chequera">Chequera</option><option value="tarjeta_cup">Tarjeta CUP</option><option value="tarjeta_usd">Tarjeta USD</option></select></label>
-        <label>Tipo <select id="fTipo"><option value="">Todos</option><option value="ingreso">Cobros</option><option value="gasto">Pagos</option><option value="transferencia">Transferencias</option></select></label>
-        <button type="button" id="fLimpiar" class="secundario chico">Quitar filtro</button>
-    </div>
-    <p class="tenue" id="avisoFiltroTes" style="display:none"></p>
-    <div id="tablaMovimientos"><p class="tenue">Cargando…</p></div>
 </div>
 
 <div class="tarjeta">
@@ -205,7 +193,6 @@ const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null, rrhh = null, fx = {};
-let filtroTes = { cuenta: '', tipo: '' };
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -697,69 +684,6 @@ function pintar() {
     pintarCuentas();
     pintarTesoreria();
     pintarCuadre();
-    pintarTablaGeneral();
-}
-
-/* Fase 5 del plan, bloque 4: tabla «Todos los movimientos». Misma
- * idea que Finanzas renderTablaGeneral: los movimientos del mes
- * elegido en las 3 cuentas, con el filtro de tesorería (las áreas
- * del bloque 2 y los dos desplegables mandan el mismo filtro), la
- * insignia QR, el nº de aporte ONAT con su fecha y, en la USD, el
- * equivalente en CUP con su tasa. Tocar una fila abre esa cuenta
- * en la Chequera. La banda de totales es de lo mostrado, en CUP
- * (los gastos incluyen la ONAT). El nº de aporte sale de la
- * clasificación, donde el clasificador lo escribe como «Pago de
- * ONAT (cód. XXXXXXX)» (chequera.html:360); Saldova no guarda el
- * rango de fechas del aporte, así que la fecha es la del
- * movimiento. */
-function codigoOnatMov(m) {
-    const c = String((m && m.clasificacion) || '').match(/cód\.?\s*(\d{6,7})/);
-    return c ? c[1] : '';
-}
-function aplicarFiltroTes(cuenta, tipo) {
-    filtroTes = { cuenta: cuenta || '', tipo: tipo || '' };
-    const sc = $('fCuenta'); if (sc) sc.value = filtroTes.cuenta;
-    const st = $('fTipo'); if (st) st.value = filtroTes.tipo;
-    pintarTesoreria();
-    pintarTablaGeneral();
-}
-function pintarTablaGeneral() {
-    const mes = $('rMes').value;
-    if (!mes) return;
-    const lista = tesAplicarFiltro(movs.filter((m) => String(m.fecha || '').slice(0, 7) === mes))
-        .slice().sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
-    const aviso = $('avisoFiltroTes');
-    if (aviso) {
-        if (filtroTes.cuenta || filtroTes.tipo) { aviso.style.display = ''; aviso.textContent = 'Filtro de tesorería activo: la tabla muestra solo esa área y sus totales son los de lo mostrado.'; }
-        else { aviso.style.display = 'none'; aviso.textContent = ''; }
-    }
-    if (!lista.length) { $('tablaMovimientos').innerHTML = '<p class="tenue">Sin movimientos en este mes para el filtro elegido.</p>'; return; }
-    let ing = 0, gas = 0, usdSinTasa = false;
-    let html = '<table class="tabla-movs"><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Clasificación</th><th>Cuenta</th><th class="num">Monto</th></tr></thead><tbody>';
-    for (const m of lista) {
-        const monto = Number(m.monto) || 0;
-        const usd = (m.cuenta || 'chequera') === 'tarjeta_usd';
-        const cup = montoCup(m);
-        if (cup === null) usdSinTasa = true;
-        else if (m.tipo === 'ingreso') ing = r2(ing + cup);
-        else gas = r2(gas + cup);
-        const onat = esOnat(m);
-        const tipoTxt = m.tipo === 'ingreso' ? '⬆ Cobro' : onat ? '📄 ONAT' : '⬇ Pago';
-        const cod = onat ? codigoOnatMov(m) : '';
-        const montoTxt = (m.tipo === 'ingreso' ? '<span style="color:#0b5e3a">+ $' : '<span style="color:#D23B2E">− $') + fmt(monto) + ' ' + (usd ? 'USD' : 'CUP') + '</span>' +
-            (usd ? '<br><span class="tenue">' + (cup !== null ? '≈ $' + fmt(cup) + ' CUP · tasa ' + fmt(tasaDelMes(fx, String(m.fecha || '').slice(0, 7))) : 'Sin tasa para este mes') + '</span>' : '');
-        html += '<tr class="fila-clic" data-cuenta="' + esc(m.cuenta || 'chequera') + '"><td style="white-space:nowrap">' + esc(m.fecha) + '</td>' +
-            '<td>' + esc(m.concepto) + (m.qr ? ' <span class="tenue">(QR)</span>' : '') + (cod ? '<br><span class="tenue">Aporte ONAT nº ' + esc(cod) + '</span>' : '') + '</td>' +
-            '<td>' + tipoTxt + '</td><td>' + esc(m.clasificacion || 'Por clasificar') + '</td>' +
-            '<td>' + esc(NOMBRES_CUENTA[m.cuenta || 'chequera'] || m.cuenta) + '</td><td class="num">' + montoTxt + '</td></tr>';
-    }
-    html += '<tr class="totales"><td colspan="5">Totales de lo mostrado (en CUP)</td><td class="num"><span style="color:#0b5e3a">+ $' + fmt(ing) + '</span><br><span style="color:#D23B2E">− $' + fmt(gas) + '</span><br>Neto: $' + fmt(r2(ing - gas)) + '</td></tr></tbody></table>';
-    if (usdSinTasa) html += '<p class="tenue">Hay movimientos en USD sin tasa vigente: no entran en los totales.</p>';
-    $('tablaMovimientos').innerHTML = html;
-    document.querySelectorAll('#tablaMovimientos [data-cuenta]').forEach((b) => b.addEventListener('click', () => {
-        try { localStorage.setItem('saldova_chequera_cuenta', b.dataset.cuenta); } catch (e) { /* nada */ }
-        irA('chequera');
-    }));
 }
 
 /* Fase 5 del plan, bloque 3: cuadre banco–contabilidad. Misma idea
@@ -834,29 +758,21 @@ function areasMes(mes) {
         transferencias: { n: nTra },
     };
 }
-function tesAplicarFiltro(lista) {
-    return (lista || []).filter((m) => (!filtroTes.cuenta || (m.cuenta || 'chequera') === filtroTes.cuenta) && (!filtroTes.tipo || (filtroTes.tipo === 'transferencia' ? String(m.clasificacion || '') === 'transferencia' : m.tipo === filtroTes.tipo)));
-}
-function tesAreaClick(cuenta, tipo) {
-    if (filtroTes.cuenta === cuenta && filtroTes.tipo === tipo) aplicarFiltroTes('', '');
-    else aplicarFiltroTes(cuenta, tipo);
-}
 function pintarTesoreria() {
     const mes = $('rMes').value;
     if (!mes) return;
     const a = areasMes(mes);
-    const tile = (titulo, grande, sub, cuenta, tipo) =>
-        '<button type="button" class="area' + (filtroTes.cuenta === cuenta && filtroTes.tipo === tipo ? ' activa' : '') + '" data-cuenta="' + cuenta + '" data-tipo="' + tipo + '">' +
-        '<div class="area-titulo">' + titulo + '</div><div class="area-grande">' + grande + '</div><div class="tenue">' + sub + '</div></button>';
+    const tile = (titulo, grande, sub) =>
+        '<div class="area">' +
+        '<div class="area-titulo">' + titulo + '</div><div class="area-grande">' + grande + '</div><div class="tenue">' + sub + '</div></div>';
     $('areasTesoreria').innerHTML = '<div class="areas-grid">' +
-        tile('🏦 Chequera', '$' + fmt(a.chequera.saldo) + ' CUP', 'neto del mes: $' + fmt(a.chequera.neto), 'chequera', '') +
-        tile('💳 Tarjeta CUP', '$' + fmt(a.tarjeta_cup.saldo) + ' CUP', 'neto del mes: $' + fmt(a.tarjeta_cup.neto), 'tarjeta_cup', '') +
-        tile('💵 Tarjeta USD', '$' + fmt(a.tarjeta_usd.saldo) + ' USD', 'neto del mes: $' + fmt(a.tarjeta_usd.neto), 'tarjeta_usd', '') +
-        tile('⬇️ Cobros del mes', '$' + fmt(a.cobros.total) + ' CUP', a.cobros.n + ' movimiento(s)' + (a.cobros.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : ''), '', 'ingreso') +
-        tile('⬆️ Pagos del mes', '$' + fmt(a.pagos.total) + ' CUP', a.pagos.n + ' movimiento(s)' + (a.pagos.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : ''), '', 'gasto') +
-        tile('🔁 Transferencias', String(a.transferencias.n), 'entre tus cuentas', '', 'transferencia') +
+        tile('🏦 Chequera', '$' + fmt(a.chequera.saldo) + ' CUP', 'neto del mes: $' + fmt(a.chequera.neto)) +
+        tile('💳 Tarjeta CUP', '$' + fmt(a.tarjeta_cup.saldo) + ' CUP', 'neto del mes: $' + fmt(a.tarjeta_cup.neto)) +
+        tile('💵 Tarjeta USD', '$' + fmt(a.tarjeta_usd.saldo) + ' USD', 'neto del mes: $' + fmt(a.tarjeta_usd.neto)) +
+        tile('⬇️ Cobros del mes', '$' + fmt(a.cobros.total) + ' CUP', a.cobros.n + ' movimiento(s)' + (a.cobros.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : '')) +
+        tile('⬆️ Pagos del mes', '$' + fmt(a.pagos.total) + ' CUP', a.pagos.n + ' movimiento(s)' + (a.pagos.usdSinTasa ? ' · hay USD sin tasa, no entran en el total' : '')) +
+        tile('🔁 Transferencias', String(a.transferencias.n), 'entre tus cuentas') +
         '</div>';
-    document.querySelectorAll('#areasTesoreria [data-cuenta]').forEach((b) => b.addEventListener('click', () => tesAreaClick(b.dataset.cuenta, b.dataset.tipo)));
 }
 
 /* Fase 5 del plan, bloque 1: tarjetas por cuenta. Misma idea que
@@ -1119,11 +1035,6 @@ function pintarTrimestre() {
         });
         $('rMes').value = mesLocal();
         $('rVer').addEventListener('click', pintar);
-        /* Fase 5, bloque 4: los dos desplegables mandan el mismo
-         * filtro de tesorería que las áreas del bloque 2. */
-        $('fCuenta').addEventListener('change', () => aplicarFiltroTes($('fCuenta').value, $('fTipo').value));
-        $('fTipo').addEventListener('change', () => aplicarFiltroTes($('fCuenta').value, $('fTipo').value));
-        $('fLimpiar').addEventListener('click', () => aplicarFiltroTes('', ''));
         pintar();
     } catch (e) {
         $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);

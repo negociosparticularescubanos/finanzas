@@ -514,9 +514,9 @@ function cargarPdfJs() {
     if (!pdfjsPromesa) {
         pdfjsPromesa = new Promise((resolve, reject) => {
             const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; resolve(); };
-            s.onerror = () => { pdfjsPromesa = null; reject(new Error('No se pudo cargar el lector de PDF (hace falta conexión)')); };
+            s.src = '../libs/pdfjs/pdf.min.js';
+            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../libs/pdfjs/pdf.worker.min.js'; resolve(); };
+            s.onerror = () => { pdfjsPromesa = null; reject(new Error('No se pudo cargar el lector de PDF')); };
             document.head.appendChild(s);
         });
     }
@@ -1999,7 +1999,11 @@ async function crearDocumento() {
                 const r = asientoDevengo(d, mes, conta.plan);
                 if (!r.ok) continue;
                 conta.seqAsiento = (conta.seqAsiento || 0) + 1;
-                conta.asientos.push({ id: 'a' + Date.now().toString(36), numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Devengo ' + (d.tipo === 'ingreso' ? 'ingreso' : 'gasto') + ' · ' + d.concepto + ' (' + mes + ')', origen: 'diferido', estado: 'confirmado', lineas: r.lineas });
+                /* El bucle crea varios asientos en el mismo milisegundo:
+                 * el id lleva el nº de asiento para no repetirse (el mismo
+                 * error del refC en Chequera: con id repetido, Editar abría
+                 * el primero y Borrar borraba todos los del id). */
+                conta.asientos.push({ id: 'a' + Date.now().toString(36) + conta.seqAsiento, numero: conta.seqAsiento, fecha: mes + '-28', concepto: 'Devengo ' + (d.tipo === 'ingreso' ? 'ingreso' : 'gasto') + ' · ' + d.concepto + ' (' + mes + ')', origen: 'diferido', estado: 'confirmado', lineas: r.lineas });
                 d.devengados = d.devengados || [];
                 d.devengados.push({ mes, monto: r.monto, asientoNumero: conta.seqAsiento });
                 hechos++; total = r2(total + r.monto);

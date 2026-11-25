@@ -661,8 +661,7 @@ function pintarCuarentena() {
 async function cuarentenaLiberar(id) {
     const en = (contaDoc.cuarentena || []).find((x) => x.id === id);
     if (!en || en.estado !== 'retenida') return;
-    const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
-    const aImportar = (en.ops || []).filter((p) => p.op && !refs.has(p.op.refC) && !movs.some((m) => m.fecha === p.op.fecha && m.concepto === p.op.concepto && Number(m.monto) === p.op.monto && (m.cuenta || 'chequera') === en.cuenta));
+    const aImportar = (en.ops || []).filter((p) => p.op && !esDuplicada(p.op, en.cuenta));
     const enCerrado = aImportar.filter((p) => contaCandados[String(p.op.fecha || '').slice(0, 7)]);
     if (enCerrado.length) { aviso('Hay ' + enCerrado.length + ' operación(es) de un mes ya cerrado en este lote: no se puede liberar', 'error'); return; }
     if (!confirm('¿Liberar el lote «' + (en.archivo || '') + '» (' + aImportar.length + ' operación(es) nueva(s))? Se importa como una importación normal, con su deduplicación y su registro de estado.')) return;
@@ -917,9 +916,9 @@ function cargarPdfJs() {
     if (!pdfjsPromesa) {
         pdfjsPromesa = new Promise((resolve, reject) => {
             const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; resolve(); };
-            s.onerror = () => { pdfjsPromesa = null; reject(new Error('No se pudo cargar el lector de PDF (hace falta conexión)')); };
+            s.src = '../libs/pdfjs/pdf.min.js';
+            s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../libs/pdfjs/pdf.worker.min.js'; resolve(); };
+            s.onerror = () => { pdfjsPromesa = null; reject(new Error('No se pudo cargar el lector de PDF')); };
             document.head.appendChild(s);
         });
     }
@@ -1018,11 +1017,10 @@ async function leerCsv() {
             if (m2.fecha < 0 || m2.concepto < 0 || m2.monto < 0) { aviso('La fecha, el concepto y el importe son obligatorios', 'error'); return; }
             const { ops, invalidas } = opsDesdeCSV(filas, m2);
             if (!ops.length) { aviso('El CSV no trae operaciones válidas (fecha, concepto e importe en cada fila)', 'error'); return; }
-            const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
             previaOps = ops.map((op) => {
                 const c = clasificar(op, contaDoc);
                 return { op, clase: c.clase, qr: c.qr, clasificacion: c.clasificacion,
-                    duplicada: (op.refC && refs.has(op.refC)) || movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === op.monto && (m.cuenta || 'chequera') === cuentaActiva) };
+                    duplicada: esDuplicada(op) };
             });
             previaOps.saldoBanco = null;
             previaOps.invalidas = invalidas;
@@ -1051,11 +1049,10 @@ async function leerPdf() {
         }
         if (buf) { const p = cerrarBuf(buf); if (p) { if (fechaCalendarioOk(p.fecha)) ops.push(p); else invalidas.push(p); } }
         if (!ops.length && !invalidas.length) throw new Error('No se encontraron operaciones con el formato de BANDEC en este PDF');
-        const refs = new Set(movs.map((m) => m.ref).filter(Boolean));
         previaOps = ops.map((op) => {
             const c = clasificar(op, contaDoc);
             return { op, clase: c.clase, qr: c.qr, clasificacion: c.clasificacion,
-                duplicada: refs.has(op.refC) || movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === op.monto && (m.cuenta || 'chequera') === cuentaActiva) };
+                duplicada: esDuplicada(op) };
         });
         const saldoBanco = (ops.length && ops[ops.length - 1].saldo != null) ? ops[ops.length - 1].saldo : saldoLinea;
         previaOps.saldoBanco = saldoBanco;
@@ -1113,6 +1110,30 @@ function pintarPrevia() {
     $('btnDescartarPrevia').onclick = () => { previaOps = null; pintarPrevia(); };
     $('btnImportarPrevia').onclick = importarPrevia;
 }
+/* El id de un movimiento tiene que ser único: la referencia del banco
+ * (refC) NO lo es — el mismo refC cubre varias operaciones de un
+ * estado (la bonificación de 105,00 y el pago de 62.000,00 traían el
+ * mismo 98026A4878724). Con el id repetido, Editar abría el primer
+ * movimiento de ese id (el de arriba) y Borrar borraba los dos. */
+function nuevoIdMov(n) { return 'pdf' + Date.now().toString(36) + '-' + (n || 0) + '-' + Math.floor(Math.random() * 1e6); }
+/* Dos operaciones son la misma solo si coinciden fecha, concepto,
+ * importe, tipo y cuenta: el refC no entra, porque el banco lo
+ * reutiliza entre operaciones distintas. */
+function esDuplicada(op, cuenta) {
+    const c = cuenta || cuentaActiva;
+    return movs.some((m) => m.fecha === op.fecha && m.concepto === op.concepto && Number(m.monto) === Number(op.monto) && m.tipo === op.tipo && (m.cuenta || 'chequera') === c);
+}
+/* Sanea los id de los movimientos ya guardados: los importados antes
+ * de esta corrección pueden compartir id. El primero conserva el suyo;
+ * los demás reciben uno nuevo. Devuelve true si cambió algo. */
+function sanearIdsMovs(lista) {
+    const vistos = new Set(); let cambio = false;
+    for (const m of (lista || [])) {
+        if (!m.id || vistos.has(String(m.id))) { m.id = nuevoIdMov(vistos.size); cambio = true; }
+        vistos.add(String(m.id));
+    }
+    return cambio;
+}
 /* Fase 14, bloque 2: la importación que usan la vista previa y la
  * cuarentena (bloque 3): crea los movimientos (con su refO, para la
  * conciliación automática), registra el estado en conta.estadosBanco
@@ -1121,7 +1142,7 @@ async function aplicarImportacion(items, archivo, saldoBanco) {
     let n = 0;
     const opsEstado = [];
     items.forEach((p) => {
-        movs.push({ id: 'pdf' + (p.op.refC || (Date.now() + n + Math.floor(Math.random() * 999))), fecha: p.op.fecha, concepto: p.op.concepto,
+        movs.push({ id: nuevoIdMov(n), fecha: p.op.fecha, concepto: p.op.concepto,
             tipo: p.op.tipo, clasificacion: p.clasificacion, monto: p.op.monto, cuenta: cuentaActiva,
             clase: p.clase, qr: p.qr, ref: p.op.refC || '', refO: p.op.refO || '', conciliado: true, origen: 'pdf_banco' });
         opsEstado.push({ refC: p.op.refC || '', refO: p.op.refO || '', fecha: p.op.fecha, concepto: p.op.concepto, monto: p.op.monto, tipo: p.op.tipo });
@@ -1181,6 +1202,9 @@ async function pintarIndicador() {
         contaCandados = contaDoc.candados || {};
         fiscalDoc = (await bd().docLeer(token, 'fiscal')) || {};
         if (!Array.isArray(movs)) movs = [];
+        /* Los importados antes de esta corrección pueden compartir id
+         * (el refC se repetía): se sanean al arrancar y se guardan. */
+        if (sanearIdsMovs(movs)) { try { await bd().docGuardar(token, 'mov', movs); } catch (e) { /* se reintenta en el próximo arranque */ } }
         /* Fase 5, bloque 1: el Resumen deja la cuenta pedida en
          * localStorage para que la Chequera arranque en ella. */
         try { const c = localStorage.getItem('saldova_chequera_cuenta'); if (c && ['chequera', 'tarjeta_cup', 'tarjeta_usd'].includes(c)) { cuentaActiva = c; localStorage.removeItem('saldova_chequera_cuenta'); } } catch (e) { /* nada */ }

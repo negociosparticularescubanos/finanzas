@@ -517,7 +517,7 @@ function pintarObligaciones(porAcum) {
         const fide = (fiscal.fuentes || []).some((f) => String(f.tipo || '').includes('Fideicomiso'));
         if (fide) html += fila('Informe del fideicomiso', 'lo recibido del Fondo, lo ejecutado y lo que falta por reembolsar con la comisión del 4 %.', 'el banco fiduciario', 'según el contrato', 'la ficha de Fiscal lleva el control y el total a reembolsar');
     } else {
-        html += '<p class="rojo">Todavía no has dicho qué actor económico es este negocio: ve al módulo Fiscal y elige TCP, MIPYME o PDL en «Tipo de actor», y esta lista se arma sola con lo que te toca.</p>';
+        html += '<p class="rojo">Todavía no se ha fijado qué actor económico es este negocio: el actor se fija al crear la base y no se cambia aquí. Ve al módulo Fiscal y completa la ficha del negocio, y esta lista se arma sola con lo que te toca.</p>';
     }
     $('obligaciones').innerHTML = html;
 }

@@ -101,6 +101,7 @@
     .lz-info .tenue { color: #5A738C; font-size: 12.5px; }
     .lz-modo { padding: 0 16px 6px; font-size: 13px; color: #33536E; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .lz-modo .tenue { color: #5A738C; font-size: 12.5px; }
+    .lz-modo button { cursor: pointer; border-radius: 5px; padding: 5px 12px; font-size: 13px; background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border: 1px solid #7E9CC0; color: #14324F; }
     .lz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 12px; padding: 16px; }
     .lz-tile { background: linear-gradient(180deg, #FFFFFF, #E7F0FA); border: 1px solid #8FA8C8; border-radius: 10px; padding: 13px 8px 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tileIn .4s ease both; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color: #14324F; }
     .lz-tile img { width: 54px; height: 54px; }
@@ -163,7 +164,7 @@
     </section>
 </main>
 <script type="module">
-import { esc, bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal, mensajeImport, mesLocalDe } from 'nucleo';
+import { esc, bd, bus, SND, aviso, exponerBase, guardarSesion, tokenSesion, borrarSesion, sesionActual, abrirArchivoReal, mensajeImport, mesLocalDe, ingresosAnioCUP } from 'nucleo';
 import { PERFIL_ACTORES, perfilVacio, perfilFormHTML, perfilLeerForm, perfilValidar, perfilResumenHTML, perfilCablearForm } from 'componentes';
 import { aplicarFondo } from 'fondos';
 import 'componentes';
@@ -177,10 +178,6 @@ try {
     localStorage.setItem('saldova_fondo_turno', String(turno + 1));
 } catch (e) { /* sin fondo si el navegador lo impide */ }
 let haySesion = false;
-/* Fase 1 del plan: el Resumen abre solo al entrar, como la pestaña
- * Resumen de Finanzas. Una sola vez por carga de la página: al cerrar
- * el módulo se vuelve al lanzador y no se reabre solo. */
-let resumenAutoAbierto = false;
 
 const MODULOS = [
     { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.svg', activo: true, ancho: 900, alto: 640 },
@@ -188,8 +185,9 @@ const MODULOS = [
     { id: 'registro', titulo: 'Registro · Control de ingresos y gastos', url: 'modulos/registro.html', icono: 'iconos/registro.svg', activo: true, ancho: 940, alto: 700 },
     { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.svg', activo: true, ancho: 860, alto: 620 },
     { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.svg', activo: true, ancho: 920, alto: 640 },
+    { id: 'pagosqr', titulo: 'Pagos QR · Registro de pagos por QR', url: 'modulos/pagosqr.html', icono: 'iconos/pagosqr.svg', activo: true, ancho: 920, alto: 640 },
     { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.svg', activo: true, ancho: 940, alto: 660 },
-    { id: 'fiscal', titulo: 'Fiscal · Vector y PDL', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.svg', activo: true, ancho: 940, alto: 660 },
+    { id: 'fiscal', titulo: 'Fiscal · Vector y obligaciones', url: 'modulos/fiscal.html', icono: 'iconos/fiscal.svg', activo: true, ancho: 940, alto: 660 },
     { id: 'nomina', titulo: 'Nómina', url: 'modulos/nomina.html', icono: 'iconos/nomina.svg', activo: true, ancho: 940, alto: 660 },
     { id: 'aft', titulo: 'Activos Fijos', url: 'modulos/aft.html', icono: 'iconos/aft.svg', activo: true, ancho: 940, alto: 660 },
     { id: 'gestion', titulo: 'Gestión · Facturas y cobros', url: 'modulos/gestion.html', icono: 'iconos/gestion.svg', activo: true, ancho: 940, alto: 660 },
@@ -204,20 +202,18 @@ const MODULOS = [
 ];
 
 const cinta = document.getElementById('cinta');
-/* Fase 14, bloque 5: modo simple y visibilidad por actor. El modo
- * simple esconde Contabilidad, Gestión, Activos Fijos, Tasas y
- * Trimestres (y con Gestión, las Ideas). Por actor: el TCP sin
- * contabilidad completa solo ve Registro/Chequera/Resumen/Fiscal/
- * Nómina/POS/Inventarios/Producción/Cierre/Tasas/Informes/Panel/
- * Gestor/Ayuda; el TCP que superó los 500 000 CUP del año recupera
- * Contabilidad y Gestión; el PDL no ve AFT; la MIPYME lo ve todo.
- * El Registro solo es para el TCP (decisión 1: el trimestre es
- * para MIPYME y PDL). */
-const MODULOS_SIMPLE_OCULTOS = ['conta', 'gestion', 'aft', 'tasas', 'trimestres'];
-function modulosVisibles(modulos, actor, pleno, modoSimple) {
+/* Visibilidad por actor y por rol. El TCP sin contabilidad completa
+ * solo ve Registro/Chequera/Resumen/Fiscal/Nómina/POS/Inventarios/
+ * Producción/Cierre/Tasas/Informes/Panel/Ayuda; el TCP que superó
+ * los 500 000 CUP del año recupera Contabilidad y Gestión; el PDL
+ * no ve AFT; la MIPYME lo ve todo. El Registro solo es para el TCP
+ * (decisión 1: el trimestre es para MIPYME y PDL). El Gestor (el
+ * panel del tenedor) solo lo ve el administrador general: si no
+ * eres gestor, no tienes que tenerlo. */
+function modulosVisibles(modulos, actor, pleno, rol) {
     return (modulos || []).filter((m) => {
         if (!m.activo) return false;
-        if (modoSimple && MODULOS_SIMPLE_OCULTOS.includes(m.id)) return false;
+        if (m.id === 'gestor' && rol !== 'admin') return false;
         if (actor === 'tcp') {
             if (m.id === 'registro') return true;
             if (m.id === 'conta' || m.id === 'gestion') return !!pleno;
@@ -260,31 +256,8 @@ function ocultarModuloAtajo(atajos, id) {
 function mostrarModulosAtajo(atajos) {
     return { favs: (atajos.favs || []).slice(), ocultos: [] };
 }
-/* Ingresos del año en CUP, la misma regla del Registro: las
- * transferencias entre cuentas propias no son ingresos; la USD se
- * convierte con la tasa vigente (sin tasa, ese movimiento no entra);
- * las anotaciones manuales del Registro también cuentan. */
-function ingresosAnioCUP(movsDoc, manuales, tasa, anio) {
-    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-    let total = 0;
-    for (const m of (movsDoc || [])) {
-        if (String(m.fecha || '').slice(0, 4) !== String(anio)) continue;
-        if (String(m.clasificacion || '') === 'transferencia') continue;
-        if (m.tipo !== 'ingreso') continue;
-        let v = Number(m.monto) || 0;
-        if ((m.cuenta || 'chequera') === 'tarjeta_usd') {
-            if (!(Number(tasa) > 0)) continue;
-            v = r2(v * Number(tasa));
-        }
-        total = r2(total + v);
-    }
-    for (const x of (manuales || [])) {
-        if (String(x.fecha || '').slice(0, 4) !== String(anio)) continue;
-        if (x.tipo === 'gasto') continue;
-        total = r2(total + (Number(x.monto) || 0));
-    }
-    return total;
-}
+/* Los ingresos del año viven ahora en nucleo.js (ingresosAnioCUP),
+ * para que todos los módulos usen la misma regla. */
 cinta.modulos = MODULOS;
 if (!SND.isOn()) cinta.querySelector('button.sonido').textContent = '🔇';
 document.addEventListener('pointerdown', () => SND.ac(), { once: true });
@@ -297,10 +270,16 @@ const abiertas = {};
 let cambiandoModulo = false;
 let marcoActual = null;
 let moduloActual = null;
+/* Lo que ve esta sesión (actor, pleno y rol), para que abrirModulo
+ * no deje entrar a un módulo que el lanzador esconde. Se fija al
+ * pintar el lanzador; vacío hasta entonces (sin actor, no se
+ * filtra nada). */
+let actorActual = '', plenoActual = false, rolActual = '';
 function abrirModulo(id) {
     const m = MODULOS.find((x) => x.id === id);
     if (!m || !m.activo) return;
     if (!haySesion) { aviso('Primero entra con tu usuario', 'error'); return; }
+    if ((actorActual || rolActual) && !modulosVisibles(MODULOS, actorActual, plenoActual, rolActual).some((x) => x.id === id)) { aviso('Ese módulo no es de tu actor económico ni de tu rol', 'error'); return; }
     if (abiertas[id]) { abiertas[id].focus(); abiertas[id].restore(); return; }
     /* Un solo módulo abierto a la vez, como en el .exe: al abrir uno
      * se cierra el que hubiera, y arriba solo se ven SUS pestañas. */
@@ -477,7 +456,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v41';
+    document.getElementById('lzVer').textContent = '· v42';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     document.getElementById('lzBases').style.display = 'none';
     document.getElementById('lanzador').style.display = '';
@@ -485,42 +464,48 @@ function mostrarLanzador(ses, acc) {
     refrescarEstadoLanzador();
     refrescarFechaYTasas();
     /* La ficha del negocio en el lanzador (logo y razón social) y
-     * qué módulos se ven (modo simple + actor + pleno). */
+     * qué módulos se ven (actor + pleno). */
     (async () => {
-        let fiscal = {}, movsDoc = [], regDoc = {}, fxDoc = {}, cfg = {};
+        let fiscal = {}, movsDoc = [], regDoc = {}, fxDoc = {};
         try {
             fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
             movsDoc = (await bd().docLeer(tokenSesion(), 'mov')) || [];
             regDoc = (await bd().docLeer(tokenSesion(), 'registro')) || {};
             fxDoc = (await bd().docLeer(tokenSesion(), 'fx')) || {};
-            cfg = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
         } catch (e) { /* con lo que haya */ }
         const p = (fiscal.meta && fiscal.meta.perfil) || null;
         const actor = (fiscal.meta && fiscal.meta.tipo) || (p && p.actor) || '';
         const anio = new Date().getFullYear();
         const pleno = ingresosAnioCUP(movsDoc, regDoc.manuales, fxDoc.tasa, anio) > 500000;
+        actorActual = actor; plenoActual = pleno; rolActual = (ses && ses.role) || '';
         const el = document.getElementById('lzNegocio');
         if (el) {
             if (p && p.razon) el.innerHTML = (p.logo ? '<img src="' + esc(p.logo) + '" alt="" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;border-radius:4px;background:#fff;border:1px solid #8FA8C8"> ' : '') + '<b>' + esc(p.razon) + '</b> <span class="tenue">· ' + esc(p.actor === 'tcp' ? 'TCP' : p.actor === 'mipyme' ? 'MIPYME' : p.actor === 'pdl' ? 'PDL' : '') + '</span>';
             else el.textContent = '';
         }
-        /* El interruptor de modo simple (solo quien puede editar). */
+        /* El botón Editar (solo el editor): enciende el modo edición
+         * del lanzador y en cada módulo salen sus opciones ★
+         * (favorito) y × (esconder); con el modo apagado los módulos
+         * se ven limpios, sin botones encima. El administrador
+         * general (el tenedor) no lo tiene, y el consultor tampoco:
+         * cada rol tiene sus opciones y no las de los demás. */
         const fila = document.getElementById('lzModo');
-        const puedeCambiar = ses.role !== 'consultor';
-        fila.innerHTML = '<label><input type="checkbox" id="lzModoSimple"' + (cfg.modoSimple ? ' checked' : '') + (puedeCambiar ? '' : ' disabled') + '> Modo simple</label> ' +
-            '<span class="tenue">Esconde Contabilidad, Gestión, Activos Fijos, Tasas y Trimestres.' +
-            (actor === 'tcp' ? ' TCP · ' + (pleno ? 'contabilidad completa (superó 500 000 CUP en ' + anio + ')' : 'Registro de Control (hasta 500 000 CUP)') : '') +
-            (actor === 'pdl' ? ' PDL · Proyecto de Desarrollo Local' : '') + '</span>';
-        const chk = document.getElementById('lzModoSimple');
-        if (chk && puedeCambiar) chk.addEventListener('change', async () => {
-            cfg.modoSimple = chk.checked;
-            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); } catch (e) { /* se guarda al próximo cambio */ }
+        const puedeCambiar = ses.role === 'editor';
+        let editando = false;
+        fila.innerHTML = (puedeCambiar ? '<button type="button" id="lzEditar">Editar</button> ' : '') +
+            '<span class="tenue">' +
+            (actor === 'tcp' ? 'TCP · ' + (pleno ? 'contabilidad completa (superó 500 000 CUP en ' + anio + ')' : 'Registro de Control (hasta 500 000 CUP)') : '') +
+            (actor === 'pdl' ? 'PDL · Proyecto de Desarrollo Local' : '') + '</span>';
+        const btnEditar = document.getElementById('lzEditar');
+        if (btnEditar) btnEditar.addEventListener('click', () => {
+            editando = !editando;
+            btnEditar.textContent = editando ? 'Listo' : 'Editar';
             pintarTiles();
         });
         function pintarTiles() {
             const g = document.getElementById('lzModulos');
             g.innerHTML = '';
-            const vis = modulosVisibles(MODULOS, actor, pleno, !!(cfg && cfg.modoSimple));
+            const vis = modulosVisibles(MODULOS, actor, pleno, ses.role);
             const atajos = leerAtajos();
             const { favoritos, resto, hayOcultos } = ordenarAtajos(vis, atajos);
             let i = 0;
@@ -540,20 +525,23 @@ function mostrarLanzador(ses, acc) {
                 b.appendChild(sp);
                 b.addEventListener('click', () => abrirModulo(m.id));
                 wrap.appendChild(b);
-                const fav = document.createElement('button');
-                fav.type = 'button';
-                fav.className = 'lz-fav' + (esFavorito ? ' on' : '');
-                fav.textContent = '★';
-                fav.title = esFavorito ? 'Quitar de favoritos' : 'Fijar arriba como favorito';
-                fav.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(alternarFavorito(leerAtajos(), m.id)); pintarTiles(); });
-                wrap.appendChild(fav);
-                const hide = document.createElement('button');
-                hide.type = 'button';
-                hide.className = 'lz-hide';
-                hide.textContent = '×';
-                hide.title = 'Esconder este módulo del lanzador';
-                hide.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(ocultarModuloAtajo(leerAtajos(), m.id)); pintarTiles(); });
-                wrap.appendChild(hide);
+                /* Las opciones de edición solo salen en modo edición. */
+                if (editando && puedeCambiar) {
+                    const fav = document.createElement('button');
+                    fav.type = 'button';
+                    fav.className = 'lz-fav' + (esFavorito ? ' on' : '');
+                    fav.textContent = '★';
+                    fav.title = esFavorito ? 'Quitar de favoritos' : 'Fijar arriba como favorito';
+                    fav.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(alternarFavorito(leerAtajos(), m.id)); pintarTiles(); });
+                    wrap.appendChild(fav);
+                    const hide = document.createElement('button');
+                    hide.type = 'button';
+                    hide.className = 'lz-hide';
+                    hide.textContent = '×';
+                    hide.title = 'Esconder este módulo del lanzador';
+                    hide.addEventListener('click', (e) => { e.stopPropagation(); guardarAtajos(ocultarModuloAtajo(leerAtajos(), m.id)); pintarTiles(); });
+                    wrap.appendChild(hide);
+                }
                 return wrap;
             };
             const seccion = (texto) => { const h = document.createElement('div'); h.className = 'lz-seccion'; h.textContent = texto; g.appendChild(h); };
@@ -565,7 +553,7 @@ function mostrarLanzador(ses, acc) {
                 if (favoritos.length) seccion('Todos los módulos');
                 resto.forEach((m) => g.appendChild(crearTile(m, false)));
             }
-            if (hayOcultos) {
+            if (hayOcultos && editando && puedeCambiar) {
                 const r = document.createElement('button');
                 r.type = 'button';
                 r.className = 'lz-restaurar';
@@ -689,10 +677,6 @@ async function pintarPuerta() {
         haySesion = true;
         document.getElementById('area').style.display = 'none';
         mostrarLanzador(ses, acc);
-        if (!resumenAutoAbierto) {
-            resumenAutoAbierto = true;
-            setTimeout(() => abrirModulo('resumen'), 60);
-        }
         return;
     }
     if (!acc.hayUsuarios) {

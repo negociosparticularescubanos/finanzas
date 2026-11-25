@@ -397,6 +397,33 @@ export function tasaDelMes(fx, mes) {
     if (guardada > 0) return guardada;
     return Number((fx && fx.tasa) || 0);
 }
+/* Ingresos del año en CUP, la misma regla del Registro: las
+ * transferencias entre cuentas propias no son ingresos; la USD se
+ * convierte con la tasa vigente (sin tasa, ese movimiento no entra);
+ * las anotaciones manuales del Registro también cuentan. Decide si
+ * el TCP lleva contabilidad completa (más de 500 000 CUP en el año).
+ * Antes vivía solo en index.html; ahora es de todos los módulos. */
+export function ingresosAnioCUP(movsDoc, manuales, tasa, anio) {
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    let total = 0;
+    for (const m of (movsDoc || [])) {
+        if (String(m.fecha || '').slice(0, 4) !== String(anio)) continue;
+        if (String(m.clasificacion || '') === 'transferencia') continue;
+        if (m.tipo !== 'ingreso') continue;
+        let v = Number(m.monto) || 0;
+        if ((m.cuenta || 'chequera') === 'tarjeta_usd') {
+            if (!(Number(tasa) > 0)) continue;
+            v = r2(v * Number(tasa));
+        }
+        total = r2(total + v);
+    }
+    for (const x of (manuales || [])) {
+        if (String(x.fecha || '').slice(0, 4) !== String(anio)) continue;
+        if (x.tipo === 'gasto') continue;
+        total = r2(total + (Number(x.monto) || 0));
+    }
+    return total;
+}
 /* Fase 14, bloque 4: reglas aprendidas (copia de Finanzas
  * ctaNormConcepto/ctaGuardarRegla/ctaReglaPara). La regla guarda el
  * patrón del concepto normalizado y la clasificación que el usuario
