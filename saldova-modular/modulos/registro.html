@@ -248,6 +248,19 @@ async function agregarManual() {
     } catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
 }
 
+/* El punto verde/rojo de la base (igual que en los demás módulos):
+ * faltaba la función y el arranque moría en la primera línea, así
+ * que el módulo no cargaba nada ni salían sus pestañas. */
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
 (async () => {
     try {
         pintarIndicador();

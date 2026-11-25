@@ -184,7 +184,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal, hoyLocal, esOnat, esc, tasaDelMes } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal, hoyLocal, esOnat, esc, tasaDelMes, ingresosAnioCUP } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(15);
@@ -192,7 +192,7 @@ aplicarFondo(15);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null, rrhh = null, fx = {};
+let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null, rrhh = null, fx = {}, reg = null, tieneGestion = true;
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -867,7 +867,10 @@ function avisosHoy() {
     if (asientosPrev && !(conta.candados && conta.candados[prev])) filas.push({ t: 'warning', icono: '🔒', txt: 'El mes <b>' + esc(prev) + '</b> tiene movimientos y no está cerrado.', modulo: 'cierre', btn: 'Ver el cierre' });
     const incompletos = trab.filter((t) => !String(t.ci || '').trim() || !String(t.cargo || '').trim() || !(Number(t.salario) > 0)).length;
     if (incompletos > 0) filas.push({ t: 'warning', icono: '🗂️', txt: '<b>' + incompletos + ' expediente(s) laboral(es) incompleto(s)</b>: les falta el carné, el cargo o el salario.', modulo: 'nomina', btn: 'Completarlos' });
-    /* Bloque 2: facturas y contratos (Gestión, en conta.gestion). */
+    /* Bloque 2: facturas y contratos (Gestión, en conta.gestion).
+     * Hallazgo 2 de la auditoría (2026-11-25): el TCP sin pleno
+     * no tiene Gestión, así que estos avisos no se le muestran. */
+    if (tieneGestion) {
     const saldoFac = (f) => r2((Number(f.total) || 0) - ((f.cobros || []).reduce((s, c) => s + (Number(c.monto) || 0), 0)));
     const diasMora = (f) => { const v = String(f.vencimiento || ''); if (!v) return 0; const d = Math.floor((Date.parse(hoy) - Date.parse(v)) / 86400000); return d > 0 ? d : 0; };
     const vencidas = ((conta.gestion && conta.gestion.facturas) || []).filter((f) => saldoFac(f) > 0.004 && diasMora(f) > 0).sort((a, b) => diasMora(b) - diasMora(a));
@@ -886,6 +889,7 @@ function avisosHoy() {
     /* Fase 11, bloque 3: suscripciones por cobrar. */
     const subsDebe = ((conta.gestion && conta.gestion.suscripciones) || []).filter((s) => s && s.activa !== false && s.proximoCobro && s.proximoCobro <= hoy);
     if (subsDebe.length) filas.push({ t: 'warning', icono: '🔁', txt: '<b>' + subsDebe.length + ' suscripción(es) por cobrar</b>: genera su factura en Gestión.', modulo: 'gestion', btn: 'Ver suscripciones' });
+    }
     /* Fase 13, bloque 4: informe programado del mes (la misma
      * función vive en Cierre; aquí va la copia para el aviso). */
     if (informeTocaHoy(cfg, hoy)) filas.push({ t: 'warning', icono: '📤', txt: 'Hoy toca <b>enviar el informe mensual</b> (día ' + cfg.informeProg.dia + '): en Cierre tienes el resumen ya escrito para copiar.', modulo: 'cierre', btn: 'Enviar informe' });
@@ -981,6 +985,16 @@ function pintarTrimestre() {
         const fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || null;
         const tipoActor = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
         $('cardTrim').style.display = tipoActor === 'tcp' ? 'none' : '';
+        /* Hallazgos 2 y 3 de la auditoría (2026-11-25): el TCP sin
+         * pleno no tiene Gestión ni Contabilidad. Pleno = ingresos
+         * del año > 500 000 CUP, igual que en el lanzador; sin
+         * Gestión no salen los avisos de facturas, contratos ni
+         * suscripciones, y sin Contabilidad no se muestra el
+         * cuadre banco–contabilidad (no hay Mayor contra el que
+         * cuadrar). */
+        reg = (await bd().docLeer(tokenSesion(), 'registro')) || {};
+        tieneGestion = tipoActor !== 'tcp' || ingresosAnioCUP(movs, reg.manuales, fx.tasa, new Date().getFullYear()) > 500000;
+        if (!tieneGestion) $('cardCuadre').style.display = 'none';
         const soloLectura = sesion.role === 'consultor';
         $('filaObjetivo').style.display = soloLectura ? 'none' : '';
         $('filaPresupuesto').style.display = soloLectura ? 'none' : '';

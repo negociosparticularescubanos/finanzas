@@ -195,10 +195,13 @@ export async function guardarArchivoReal(bytes, nombreSugerido, descripcion, ext
             await w.close();
             return 'archivo';
         } catch (e) {
-            /* Si el usuario canceló, no hacer nada más; si el selector
-             * existe pero falla (navegador sin cabeza, contexto no
-             * permitido), caer a la descarga normal (F1). */
-            if (e && e.name === 'AbortError') throw e;
+            /* Cancelar el selector no es un error: el usuario dijo
+             * que no, y se devuelve 'cancelado' para que quien llama
+             * no avise nada ni deje nada registrado como guardado.
+             * Si el selector existe pero falla de otra forma (navegador
+             * sin cabeza, contexto no permitido), caer a la descarga
+             * normal (F1). */
+            if (e && e.name === 'AbortError') return 'cancelado';
         }
     }
     const url = URL.createObjectURL(new Blob([bytes]));
@@ -217,9 +220,11 @@ export async function abrirArchivoReal(extension) {
             const file = await handle.getFile();
             return new Uint8Array(await file.arrayBuffer());
         } catch (e) {
-            /* Si el usuario canceló, no hacer nada más; si el selector
-             * existe pero falla, caer al <input type=file> (F1). */
-            if (e && e.name === 'AbortError') throw e;
+            /* Cancelar el selector no es un error: se devuelve null
+             * y quien llama no hace nada (ya lo comprueba con
+             * «if (!bytes) return»). Si el selector existe pero falla
+             * de otra forma, caer al <input type=file> (F1). */
+            if (e && e.name === 'AbortError') return null;
         }
     }
     return new Promise((resolve, reject) => {

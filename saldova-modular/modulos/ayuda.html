@@ -26,7 +26,7 @@
     <ol>
         <li>Descarga el estado de cuenta en PDF desde Virtual BANDEC (eso lo haces tú, con tus claves, en tu equipo).</li>
         <li>En <b>Chequera y tarjetas</b> impórtalo: la app lo lee, clasifica cada operación y te enseña la vista previa antes de guardar. Lo que no entiende queda «Por clasificar» en rojo y <b>no se contabiliza</b> hasta que lo clasifiques.</li>
-        <li>En <b>Contabilidad → Bandeja</b> cada movimiento clasificado trae su asiento propuesto <b>con el motivo escrito</b>. Confírmalo, edítalo o descártalo. Con «Confirmar todos los que cuadran» los asientas en un clic.</li>
+        <li id="flujoPaso3">En <b>Contabilidad → Bandeja</b> cada movimiento clasificado trae su asiento propuesto <b>con el motivo escrito</b>. Confírmalo, edítalo o descártalo. Con «Confirmar todos los que cuadran» los asientas en un clic.</li>
         <li>El <b>Vector Fiscal</b>, la conciliación y los informes se alimentan solos de esos asientos y movimientos.</li>
         <li>Al final, <b>Cierre de período</b> revisa el mes y lo bloquea: un mes cerrado ya no se puede tocar en ningún módulo.</li>
     </ol>
@@ -46,11 +46,20 @@
     <h2>Fiscal · Vector y PDL</h2>
     <p>El Vector del mes se calcula de los asientos (ventas) y de la nómina; lo pagado sale de los pagos ONAT de la Chequera. Si el negocio es TCP, la app vigila el umbral de 500 000 CUP del año (Res. 272/2024) y avisa al llegar al 80 %. Los cobros en efectivo mayores de 5 000 CUP se señalan (Res. 111/2023 del BCC). La Declaración Jurada <b>no se calcula en la app</b>: eso es un servicio aparte. Para los PDL, la ficha recoge las fuentes del art. 43.1 del Decreto 174/2026 y el fideicomiso con su comisión del 4 % (Res. 118/2026 del BCC).</p>
 
-    <h2>Nómina y Activos Fijos</h2>
-    <p>La nómina del mes crea su asiento sola (salarios, seguridad social 14 % e impuesto por la fuerza de trabajo 5 %). La depreciación de los activos fijos también, y el Cierre se niega si falta registrarla. Los porcientos viven en la propia pantalla: si la norma cambia, se cambian ahí.</p>
+    <h2>Nómina</h2>
+    <p>La nómina del mes crea su asiento sola (salarios, seguridad social 14 % e impuesto por la fuerza de trabajo 5 %). Los porcientos viven en la propia pantalla: si la norma cambia, se cambian ahí.</p>
 
-    <h2>Gestión, Punto de Venta e Inventarios</h2>
-    <p>Las facturas con saldo alimentan <b>TeleCobranzas</b>: pendientes por antigüedad, estrategia según la mora y el aviso listo para WhatsApp. El detector de <b>consecutivos</b> avisa si falta o se repite un número de factura. El POS vende, descuenta stock y agrupa el día en un solo asiento; el <b>IPV del turno</b> resume ventas y cobros por vía. La venta <b>a crédito</b> crea sola su factura y entra en TeleCobranzas; las <b>devoluciones</b> se registran desde la venta, reponen el stock y ajustan el día; el <b>arqueo del turno</b> compara el efectivo contado con el que debe haber y deja la diferencia registrada. Las <b>ofertas</b> de Gestión se convierten en factura heredando todo. <b>Inventarios</b> registra entradas y salidas con documento y motivo, lleva el <b>costo promedio</b> de cada producto (y su valor a costo) y trae el <b>conteo físico guiado</b> a ciegas, con ajuste y asiento automáticos. En Activos Fijos, la <b>baja</b> sale con motivo, asiento cuadrado y su tarjeta imprimible. El módulo <b>Producción</b> fabrica desde la ficha: descuenta los materiales y entra el terminado a su costo; su <b>ficha de costo</b> (Res. 148/2023) se alimenta sola de los costos reales del almacén. La <b>lista de precios</b> del POS guarda la historia de cada cambio, los listados principales se <b>descargan en Excel (CSV)</b> y en Informes puedes <b>guardar tus consultas</b> con nombre para reabrirlas cada mes.</p>
+    <h2>Activos Fijos</h2>
+    <p>La depreciación de los activos fijos también se asienta sola, y el Cierre se niega si falta registrarla. La <b>baja</b> sale con motivo, asiento cuadrado y su tarjeta imprimible.</p>
+
+    <h2>Gestión</h2>
+    <p>Las facturas con saldo alimentan <b>TeleCobranzas</b>: pendientes por antigüedad, estrategia según la mora y el aviso listo para WhatsApp. El detector de <b>consecutivos</b> avisa si falta o se repite un número de factura. Las <b>ofertas</b> se convierten en factura heredando todo.</p>
+
+    <h2>Punto de Venta e Inventarios</h2>
+    <p>El POS vende, descuenta stock y agrupa el día en un solo asiento; el <b>IPV del turno</b> resume ventas y cobros por vía. La venta <b>a crédito</b> crea sola su factura y entra en TeleCobranzas; las <b>devoluciones</b> se registran desde la venta, reponen el stock y ajustan el día; el <b>arqueo del turno</b> compara el efectivo contado con el que debe haber y deja la diferencia registrada. <b>Inventarios</b> registra entradas y salidas con documento y motivo, lleva el <b>costo promedio</b> de cada producto (y su valor a costo) y trae el <b>conteo físico guiado</b> a ciegas, con ajuste y asiento automáticos. La <b>lista de precios</b> del POS guarda la historia de cada cambio, los listados principales se <b>descargan en Excel (CSV)</b> y en Informes puedes <b>guardar tus consultas</b> con nombre para reabrirlas cada mes.</p>
+
+    <h2>Producción</h2>
+    <p>El módulo <b>Producción</b> fabrica desde la ficha: descuenta los materiales y entra el terminado a su costo; su <b>ficha de costo</b> (Res. 148/2023) se alimenta sola de los costos reales del almacén.</p>
 
     <h2>Informes</h2>
     <p>Estado de Resultados, Balance de Comprobación, <b>Balance General</b> (que debe cuadrar: Activo = Pasivo + Patrimonio) y <b>Presupuesto contra real</b> del mes. Todo sale solo de los asientos confirmados: lo que no está contabilizado no aparece.</p>
@@ -73,16 +82,54 @@
 
 <script type="module">
 import 'componentes';
-import 'nucleo';
+import { bd, sesionActual, tokenSesion, ingresosAnioCUP } from 'nucleo';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(13);
+/* Hallazgo 8 de la auditoría (2026-11-25): el manual se filtra por
+ * actor y rol, igual que el lanzador. Sin filtro, el TCP sin pleno
+ * leía de Contabilidad y Gestión (que no tiene), el PDL de Activos
+ * Fijos (que no tiene) y cualquiera del Gestor (solo el admin).
+ * Función pura para poder probarla en Node. */
+function seccionesOcultas(actor, pleno, rol) {
+    const ocultas = [];
+    const tieneContab = actor !== 'tcp' || pleno;
+    if (!tieneContab) { ocultas.push('Contabilidad'); ocultas.push('Gestión'); }
+    if (actor === 'pdl') ocultas.push('Activos Fijos');
+    if (rol !== 'admin') ocultas.push('Gestor (solo el administrador)');
+    return ocultas;
+}
 /* Pestañas por tema (modelo .exe): cada apartado del manual es una
  * pestaña; se ve uno cada vez, nada de manual en cascada. */
-(() => {
+(async () => {
+    /* Actor, pleno y rol de esta base, igual que en el lanzador:
+     * pleno = ingresos del año > 500 000 CUP. Sin sesión o sin
+     * base legible, se muestra todo (no se esconde nada a ciegas). */
+    let actor = '', pleno = false, rol = '', filtrar = false;
+    try {
+        const ses = await sesionActual();
+        if (ses) {
+            rol = ses.role || '';
+            const fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+            actor = (fiscal.meta && fiscal.meta.tipo) || '';
+            const movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+            const reg = (await bd().docLeer(tokenSesion(), 'registro')) || {};
+            const fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
+            pleno = ingresosAnioCUP(movs, reg.manuales, fx.tasa, new Date().getFullYear()) > 500000;
+            filtrar = true;
+        }
+    } catch (e) { /* sin base: se muestra todo */ }
+    const tieneContab = actor !== 'tcp' || pleno;
+    if (filtrar && !tieneContab) {
+        /* El Paso 3 del flujo también cambia: sin Contabilidad no
+         * hay Bandeja; el Registro se arma solo (igual que en el
+         * Paso 3 del Cierre, hallazgo 6). */
+        const paso3 = document.getElementById('flujoPaso3');
+        if (paso3) paso3.innerHTML = 'El <b>Registro de Control</b> se arma solo con tus movimientos clasificados: en el Registro no hay asientos que confirmar.';
+    }
     const estilo = document.createElement('style');
     estilo.textContent = '.pest-bar{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}.pest-bar button{background:linear-gradient(180deg,#DCE8F5,#C6D9EE);border:1px solid #7E9CC0;color:#14324F;font-weight:400;border-radius:7px 7px 0 0;padding:7px 13px;cursor:pointer;font-size:13px}.pest-bar button.activa{background:linear-gradient(180deg,#3A87D4,#2B5B84);color:#fff;font-weight:700}';
     document.head.appendChild(estilo);
-    const cortos = { 'Cómo moverte por la app': 'Cómo moverte', 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Pagos QR · Registro de pagos por QR': 'Pagos QR', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina y Activos Fijos': 'Nómina y AFT', 'Gestión, Punto de Venta e Inventarios': 'Gestión, POS e Inventarios', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
+    const cortos = { 'Cómo moverte por la app': 'Cómo moverte', 'El flujo de cada mes': 'El flujo del mes', 'Panel y base de datos': 'Panel', 'Chequera y tarjetas': 'Chequera', 'Pagos QR · Registro de pagos por QR': 'Pagos QR', 'Contabilidad': 'Contabilidad', 'Fiscal · Vector y PDL': 'Fiscal', 'Nómina': 'Nómina', 'Activos Fijos': 'Activos Fijos', 'Gestión': 'Gestión', 'Punto de Venta e Inventarios': 'POS e Inventarios', 'Producción': 'Producción', 'Informes': 'Informes', 'Tasas y multimoneda': 'Tasas', 'Gestor (solo el administrador)': 'Gestor', 'Reglas que la app nunca rompe': 'Reglas' };
     const tarjeta = document.querySelector('.tarjeta');
     const secciones = [];
     let actual = null;
@@ -95,11 +142,14 @@ aplicarFondo(13);
         }
     });
     if (!secciones.length) return;
+    const ocultas = filtrar ? seccionesOcultas(actor, pleno, rol) : [];
+    const visibles = secciones.filter((sec) => !ocultas.includes(sec.titulo));
+    secciones.filter((sec) => ocultas.includes(sec.titulo)).forEach((sec) => sec.nodos.forEach((n) => { if (n.nodeType === 1) n.style.display = 'none'; }));
     const bar = document.createElement('div'); bar.className = 'pest-bar';
-    bar.innerHTML = secciones.map((sec, i) => '<button type="button" data-sec="' + i + '">' + (cortos[sec.titulo] || sec.titulo) + '</button>').join('');
+    bar.innerHTML = visibles.map((sec, i) => '<button type="button" data-sec="' + i + '">' + (cortos[sec.titulo] || sec.titulo) + '</button>').join('');
     tarjeta.parentNode.insertBefore(bar, tarjeta);
     const ir = (i) => {
-        secciones.forEach((sec, j) => sec.nodos.forEach((n) => { if (n.nodeType === 1) n.style.display = i === j ? '' : 'none'; }));
+        visibles.forEach((sec, j) => sec.nodos.forEach((n) => { if (n.nodeType === 1) n.style.display = i === j ? '' : 'none'; }));
         bar.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', Number(b.dataset.sec) === i));
     };
     bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ir(Number(b.dataset.sec))));

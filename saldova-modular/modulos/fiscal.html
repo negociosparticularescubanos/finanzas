@@ -75,6 +75,22 @@
     <label><input type="checkbox" id="vAlimentos"> Ventas de alimentos de minindustria al detalle (5 % en vez de 10 %)</label></div>
     <div id="vector"><p class="tenue">Elige el mes.</p></div>
     <p class="tenue">El impuesto sobre utilidades se liquida en la declaración jurada anual; esta app no la calcula: para ese servicio está el contacto del menú de la página principal.</p>
+    <div class="fila" style="margin-top:10px">
+        <button type="button" id="vImportar">Importar RC-04A (PDF)</button>
+        <input type="file" id="vArchivo" accept="application/pdf" hidden>
+        <span class="tenue">El Vector Fiscal oficial de la ONAT (TCP, MIPYME y PDL): trae tus obligaciones con su vencimiento.</span>
+    </div>
+    <div id="vectorImportado"></div>
+    <h2 style="margin-top:12px">Añadir una obligación a mano</h2>
+    <p class="tenue">Para lo que el Vector no trae (o mientras no lo importas): queda guardada con las del Vector y no se borra al importar otro.</p>
+    <div class="fila">
+        <input id="obCodigo" size="9" placeholder="Código (7 dígitos)" title="Código de tributo de 7 dígitos, p. ej. 0114822">
+        <input id="obConcepto" placeholder="Concepto" style="flex:1;min-width:140px">
+        <input id="obPeriodo" type="month" title="Período (mes)">
+        <input id="obVence" type="date" title="Vencimiento">
+        <input id="obImporte" class="monto" type="number" step="0.01" min="0" placeholder="Importe (opcional)">
+        <button type="button" id="obAdd" class="secundario chico">Añadir obligación</button>
+    </div>
 </div>
 
 <div class="tarjeta" id="cardUmbral" style="display:none">
@@ -164,6 +180,7 @@ function pintarVector() {
         '</tbody></table>' +
         '<p class="tenue">Pagado por el banco en el mes según la Chequera (pagos ONAT): ' + fmt(pagado) + '. Pendiente estimado: ' + fmt(Math.max(0, impVentas + iuft + ss - pagado)) + '.</p>';
     pintarUmbral();
+    pintarVectorImportado();
 }
 function pintarUmbral() {
     const esTcp = fiscal.meta.tipo === 'tcp';
@@ -211,11 +228,13 @@ function pintarPdl() {
 /* Importar el Vector Fiscal RC-04A (como Finanzas). El PDF oficial
  * de la ONAT trae la identidad (NIT, razón social, municipio,
  * año), las actividades, el catálogo de tributos (código de 7
- * dígitos) y las obligaciones con su período y su vencimiento. El
- * PDL no tiene RC-04A: esto es solo para TCP y MIPYME. La lectura
- * del PDF usa el pdf.js local (libs/pdfjs), sin internet.
- * parseVectorLines es pura: lee las líneas y devuelve los datos
- * con su validación contra la ficha; guardar y pintar van aparte. */
+ * dígitos) y las obligaciones con su período y su vencimiento.
+ * Corrección 2026-11-25: los PDL SÍ tienen Vector Fiscal («Vector
+ * Fiscal del PDL», ONAT, Res. 202/2026 art. 5): esto es para los
+ * TRES actores, no solo TCP y MIPYME. La lectura del PDF usa el
+ * pdf.js local (libs/pdfjs), sin internet. parseVectorLines es
+ * pura: lee las líneas y devuelve los datos con su validación
+ * contra la ficha; guardar y pintar van aparte. */
 const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MES_ABR = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, sept: 8, oct: 9, nov: 10, dic: 11 };
 function normTxtVec(v) { return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -286,6 +305,145 @@ function cargarPdfJsVec() {
         });
     }
     return pdfjsVecPromesa;
+}
+/* La UI del Vector importado (como Finanzas: calcImporteObligacion,
+ * pagosObligacion y estadoObligacion). El importe de cada obligación
+ * sale del cálculo que ya tiene el Vector del mes (ventas × %,
+ * nómina…); lo que ese cálculo no cubre queda en blanco para
+ * ponerlo a mano, y el importe manual manda siempre. */
+function mesDePeriodo(periodo) {
+    const m = String(periodo || '').trim().match(/^([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s+(\d{4})$/);
+    if (!m) return '';
+    const mi = MESES_ES.findIndex((z) => normTxtVec(z) === normTxtVec(m[1]));
+    if (mi < 0) return '';
+    return m[2] + '-' + String(mi + 1).padStart(2, '0');
+}
+function codigoOnatMov(m) {
+    const c = String((m && m.clasificacion) || '').match(/cód\.?\s*(\d{6,7})/);
+    return c ? c[1].replace(/^0+/, '') : '';
+}
+/* Lo pagado de una obligación: los pagos ONAT de la Chequera con
+ * el mismo código de tributo y el mismo mes (la Chequera los marca
+ * con clase 'onat' y la clasificación trae el código). */
+function pagosObligacion(ob) {
+    const cod = String((ob && ob.codigo) || '').replace(/^0+/, '');
+    const mes = mesDePeriodo(ob && ob.periodo);
+    if (!cod || !mes) return 0;
+    return r2((movs || []).filter((m) => esOnat(m) && codigoOnatMov(m) === cod && String(m.fecha || '').slice(0, 7) === mes)
+        .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+}
+function calcImporteObligacion(ob) {
+    if (ob && Number(ob.importeManual) >= 0 && ob.importeManual !== '' && ob.importeManual !== null && ob.importeManual !== undefined)
+        return { importe: Number(ob.importeManual) || 0, origen: 'Manual' };
+    const mes = mesDePeriodo(ob && ob.periodo);
+    if (!mes) return { importe: null, origen: 'Manual / según Vector' };
+    const t = normTxtVec(ob && ob.concepto);
+    const ventas = ventasPeriodo(mes + '-01', mes + '-31');
+    const nom = (rrhh && rrhh.nominas && rrhh.nominas[mes]) || null;
+    const bruto = nom ? r2(nom.trabajadores.reduce((s, x) => s + (Number(x.bruto) || 0), 0)) : 0;
+    if (/ventas|servicios/.test(t)) { const tasa = ($('vAlimentos') && $('vAlimentos').checked) ? 5 : 10; return { importe: r2(ventas * tasa / 100), origen: 'Ingresos × ' + tasa + ' %' }; }
+    if (/fuerza.*trabajo/.test(t)) return { importe: r2(bruto * 0.05), origen: 'Nómina · 5 %' };
+    if (/seguridad social/.test(t) && !/especial|trabajador/.test(t)) return { importe: r2(bruto * 0.14), origen: 'Nómina · 14 %' };
+    if (/especial/.test(t)) return { importe: null, origen: 'Retención nómina (la app no calcula retenciones)' };
+    if (/utilidad/.test(t)) return { importe: null, origen: 'Liquidación / pago a cuenta' };
+    if (/ingresos pers|ingresos personales/.test(t)) return { importe: null, origen: 'Liquidación anual / DJ' };
+    if (/territorial/.test(t)) return { importe: null, origen: 'Según Vector' };
+    return { importe: null, origen: 'Manual / según Vector' };
+}
+function estadoObligacion(ob, importe) {
+    const p = pagosObligacion(ob);
+    if (importe === null) return p > 0 ? { key: 'pagada', txt: 'Pago registrado', pagado: p } : { key: 'sin-importe', txt: 'Importe manual', pagado: 0 };
+    if (importe === 0) return { key: 'sin-importe', txt: 'Sin importe', pagado: p };
+    if (p + 0.005 >= importe && importe > 0) return { key: 'pagada', txt: 'Pagada', pagado: p };
+    if (p > 0) return { key: 'parcial', txt: 'Parcial', pagado: p };
+    return { key: 'pendiente', txt: 'Pendiente', pagado: 0 };
+}
+/* Al importar otro Vector, las obligaciones a mano se conservan
+ * y las del Vector se sustituyen por las nuevas. */
+function fusionarObligaciones(nuevas, viejas) {
+    return [...(nuevas || []), ...((viejas || []).filter((o) => !o.vector))];
+}
+function pintarVectorImportado() {
+    const caja = $('vectorImportado');
+    if (!caja) return;
+    const v = (fiscal && fiscal.vector) || null;
+    if (!v || !v.meta) {
+        caja.innerHTML = '<p class="tenue">Sin Vector importado todavía. Si tienes el PDF de la ONAT, impórtalo arriba; si no, añade las obligaciones a mano.</p>';
+        return;
+    }
+    const meta = v.meta || {};
+    const forzado = v.source && v.source.validacion === 'forzada';
+    const sinNit = v.source && v.source.validacion === 'sin-nit';
+    const obs = (v.obligaciones || []).slice().sort((a, b) => String(a.vence || '9999').localeCompare(String(b.vence || '9999')) || String(a.codigo).localeCompare(String(b.codigo)));
+    const filas = obs.map((o) => {
+        const c = calcImporteObligacion(o), est = estadoObligacion(o, c.importe);
+        const imp = c.importe === null ? '—' : fmt(c.importe);
+        const resto = c.importe === null ? null : Math.max(0, c.importe - est.pagado);
+        return '<tr><td>' + esc(o.codigo || '—') + '</td><td>' + esc(o.concepto || 'Tributo') + (est.pagado > 0 ? '<br><span class="tenue">Pagado: ' + fmt(est.pagado) + '</span>' : '') + '</td>' +
+            '<td>' + esc(o.periodo || '—') + '</td><td>' + esc(o.vence || '—') + '</td>' +
+            '<td class="num"><input type="number" step="0.01" min="0" class="monto" style="width:100px" data-imp="' + o.id + '" value="' + (c.importe === null ? '' : c.importe) + '" placeholder="—" title="Importe: lo calcula la app o lo pones tú"></td>' +
+            '<td><span class="tenue">' + esc(c.origen) + '</span>' + (resto !== null && resto > 0 ? '<br><span class="tenue">Falta: ' + fmt(resto) + '</span>' : '') + '</td>' +
+            '<td>' + est.txt + '</td>' +
+            '<td>' + (o.vector ? '' : '<button type="button" class="chico secundario" data-delob="' + o.id + '">Quitar</button>') + '</td></tr>';
+    }).join('');
+    caja.innerHTML =
+        '<div class="fila"><b>Vector Fiscal ' + (meta.anio || '') + '</b>' +
+        '<span class="tenue">NIT ' + esc(meta.nit || '—') + ' · ' + esc(meta.razon || '—') + ' · ' + esc(meta.dpa || '') + '</span>' +
+        (forzado ? '<span class="alerta" style="margin:0;padding:2px 8px">Guardado FORZADO: el documento no coincidía con la ficha</span>' : '') +
+        (sinNit ? '<span class="alerta" style="margin:0;padding:2px 8px">Sin verificar: el documento no trae NIT legible</span>' : '') + '</div>' +
+        '<p class="tenue">Archivo: ' + esc((v.source && v.source.fileName) || '—') + ' · Importado: ' + esc((v.source && v.source.importedAt || '').slice(0, 10)) +
+        ' · Actividades: ' + ((v.actividades || []).map(esc).join('; ') || '—') + '</p>' +
+        ((v.tributos && Object.keys(v.tributos).length)
+            ? '<p class="tenue">Tributos: ' + Object.entries(v.tributos).map(([c, n]) => '<code>' + esc(c) + '</code> · ' + esc(n)).join('; ') + '</p>' : '') +
+        (obs.length
+            ? '<table><thead><tr><th>Código</th><th>Concepto</th><th>Período</th><th>Vence</th><th class="num">Importe</th><th>Origen</th><th>Estado</th><th></th></tr></thead><tbody>' + filas + '</tbody></table>' +
+              '<p class="tenue">El importe lo calcula la app del Vector del mes; si lo cambias a mano, ese valor manda. Las obligaciones del Vector no se quitan: se sustituyen al importar otro Vector.</p>'
+            : '<p class="tenue">El Vector no trajo obligaciones.</p>');
+    caja.querySelectorAll('[data-imp]').forEach((inp) => inp.addEventListener('change', async () => {
+        const ob = (fiscal.vector.obligaciones || []).find((x) => x.id === inp.dataset.imp);
+        if (!ob) return;
+        const val = inp.value === '' ? null : Number(inp.value);
+        ob.importeManual = (val === null || !(val >= 0)) ? null : r2(val);
+        try { await guardar(); pintarVectorImportado(); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+    caja.querySelectorAll('[data-delob]').forEach((b) => b.addEventListener('click', async () => {
+        fiscal.vector.obligaciones = (fiscal.vector.obligaciones || []).filter((x) => x.id !== b.dataset.delob);
+        try { await guardar(); pintarVectorImportado(); aviso('Obligación quitada'); } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+    }));
+}
+async function importarVectorArchivo(file) {
+    if (!file) return;
+    try {
+        await cargarPdfJsVec();
+        const lines = await pdfLineasDeVec(file);
+        const res = parseVectorLines(lines, file.name, { nit: fiscal.meta.nit, nombre: fiscal.meta.razon });
+        const val = res.validacion || { nivel: 'ok', mensajes: [] };
+        let forzado = false;
+        if (val.nivel === 'aviso' || val.nivel === 'bloqueo') {
+            if (!confirm('⚠️ Validación contra el negocio abierto:\n\n' + val.mensajes.join('\n') + '\n\n¿Importar el Vector de todas formas? Quedará registrado como forzado.')) {
+                alert('Importación cancelada: el Vector NO se guardó.');
+                return;
+            }
+            forzado = true;
+        }
+        const viejas = (fiscal.vector && fiscal.vector.obligaciones) || [];
+        fiscal.vector = {
+            meta: res.meta, actividades: res.actividades, tributos: res.tributos,
+            obligaciones: fusionarObligaciones(res.obligaciones, viejas),
+            source: Object.assign({}, res.source, { validacion: forzado ? 'forzada' : (val.nivel === 'sin-nit' ? 'sin-nit' : 'ok') }),
+        };
+        if (val.nivel === 'sin-ref') {
+            /* La base no tenía ficha: se completa desde el documento. */
+            fiscal.meta = Object.assign({}, fiscal.meta, { nit: res.meta.nit || fiscal.meta.nit, razon: res.meta.razon || fiscal.meta.razon });
+            $('fNit').value = fiscal.meta.nit || ''; $('fRazon').value = fiscal.meta.razon || '';
+            $('fTipoTxt').textContent = perfilActorNombre(fiscal.meta.tipo || 'tcp');
+        }
+        await guardar();
+        pintarVector(); pintarPerfil(); pestFiscal();
+        alert('✅ Vector Fiscal importado.\n\nObligaciones: ' + res.obligaciones.length + '\nTributos: ' + Object.keys(res.tributos).length + '\nActividades: ' + res.actividades.length + '\nAño: ' + (res.meta.anio || '—') + (forzado ? '\n\n⚠️ Guardado FORZADO: el documento no coincidía con la identidad registrada de este negocio.' : ''));
+    } catch (e) {
+        aviso('No se pudo leer ese PDF: ' + String((e && e.message) || e) + '. Puedes añadir las obligaciones manualmente.', 'error');
+    }
 }
 async function pdfLineasDeVec(file) {
     if (!window.pdfjsLib) throw new Error('sin-pdfjs');
@@ -465,6 +623,37 @@ function pintarPerfilForm() {
         $('vMes').value = mesLocal();
         $('vVer').addEventListener('click', pintarVector);
         $('vAlimentos').addEventListener('change', pintarVector);
+        /* Importar el Vector Fiscal RC-04A (para los TRES actores)
+         * y añadir obligaciones a mano. */
+        $('vImportar').addEventListener('click', () => $('vArchivo').click());
+        $('vArchivo').addEventListener('change', async () => {
+            const f = $('vArchivo').files && $('vArchivo').files[0];
+            $('vArchivo').value = '';
+            await importarVectorArchivo(f);
+        });
+        $('obAdd').addEventListener('click', async () => {
+            const codigo = $('obCodigo').value.trim().replace(/\D/g, '');
+            const concepto = $('obConcepto').value.trim();
+            const per = $('obPeriodo').value, vence = $('obVence').value;
+            const imp = $('obImporte').value === '' ? null : Number($('obImporte').value);
+            if (!/^\d{7}$/.test(codigo)) { aviso('El código del tributo tiene 7 dígitos, p. ej. 0114822', 'error'); return; }
+            if (!concepto) { aviso('Pon el concepto del tributo', 'error'); return; }
+            if (!per) { aviso('Pon el período (mes)', 'error'); return; }
+            if (!vence) { aviso('Pon el vencimiento', 'error'); return; }
+            const anio = per.slice(0, 4), mi = Number(per.slice(5, 7)) - 1;
+            const periodo = MESES_ES[mi] + ' ' + anio;
+            if (!fiscal.vector) fiscal.vector = { meta: {}, actividades: [], tributos: {}, obligaciones: [], source: { fileName: 'Manual', importedAt: new Date().toISOString(), type: 'Manual' } };
+            fiscal.vector.obligaciones = fiscal.vector.obligaciones || [];
+            const id = 'vm_' + codigo + '_' + per + '_' + vence;
+            if (fiscal.vector.obligaciones.some((o) => o.id === id)) { aviso('Esa obligación ya está', 'error'); return; }
+            fiscal.vector.obligaciones.push({ id, codigo, concepto, periodo, vence, vector: false, importeManual: imp });
+            fiscal.vector.obligaciones.sort((a, b) => String(a.vence || '9999').localeCompare(String(b.vence || '9999')) || String(a.codigo).localeCompare(String(b.codigo)));
+            try {
+                await guardar();
+                $('obCodigo').value = ''; $('obConcepto').value = ''; $('obPeriodo').value = ''; $('obVence').value = ''; $('obImporte').value = '';
+                pintarVectorImportado(); aviso('Obligación añadida');
+            } catch (e) { aviso(String((e && e.message) || e), 'error'); }
+        });
         $('pfAdd').addEventListener('click', async () => {
             const monto = Number($('pfMonto').value) || 0;
             if (monto <= 0) { aviso('La fuente necesita un monto', 'error'); return; }

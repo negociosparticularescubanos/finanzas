@@ -81,7 +81,7 @@
 </div>
 
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, guardarArchivoReal, hoyLocal, mesLocal, validarLineasAsiento, cuentaAuto, esOnat, descargarCSV, existeCuenta } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, guardarArchivoReal, hoyLocal, mesLocal, validarLineasAsiento, cuentaAuto, esOnat, descargarCSV, existeCuenta, ingresosAnioCUP } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(8);
@@ -89,7 +89,7 @@ aplicarFondo(8);
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-let conta = null, movs = [], aft = null, rrhh = null, hist = [], sesion = null, cfgResumen = {};
+let conta = null, movs = [], aft = null, rrhh = null, hist = [], sesion = null, cfgResumen = {}, fiscal = null, reg = null, fx = {}, tieneContabilidad = true;
 
 async function pintarIndicador() {
     const ind = $('indicador');
@@ -191,7 +191,9 @@ function pintarPasos() {
     const pasos = [
         { hecho: delMes.length > 0, texto: '<b>Paso 1 · Importa el estado de cuenta</b> en el módulo <b>Chequera</b>: todo parte del banco, no teclees lo que el banco ya te da.', falta: 'todavía no hay movimientos de ' + mes },
         { hecho: delMes.length > 0 && porClasificar === 0, texto: '<b>Paso 2 · Clasifica lo que quedó en rojo</b> en la <b>Chequera</b>: lo que la app no entendió espera tu palabra; sin clasificar no se contabiliza.', falta: porClasificar + ' movimiento(s) «Por clasificar»' },
-        { hecho: delMes.length > 0 && porClasificar === 0 && sinAsiento === 0, texto: '<b>Paso 3 · Confirma los asientos</b> en <b>Contabilidad → Bandeja</b>: cada propuesta trae su motivo escrito; con «Confirmar todos» van en un clic.', falta: sinAsiento + ' movimiento(s) clasificados sin asiento' },
+        tieneContabilidad
+            ? { hecho: delMes.length > 0 && porClasificar === 0 && sinAsiento === 0, texto: '<b>Paso 3 · Confirma los asientos</b> en <b>Contabilidad → Bandeja</b>: cada propuesta trae su motivo escrito; con «Confirmar todos» van en un clic.', falta: sinAsiento + ' movimiento(s) clasificados sin asiento' }
+            : { hecho: true, texto: '<b>Paso 3 · El Registro se arma solo</b>: en el Registro de Control no hay asientos que confirmar; el libro se llena con tus movimientos clasificados.', falta: '' },
         { hecho: !!cerrado, texto: '<b>Paso 4 · Revisa los informes que te tocan</b> en <b>Informes</b> («Tus informes según tu actor económico») y el <b>Vector</b> en Fiscal: ahí ves qué hay que presentar y pagar.', falta: 'revísalos antes de cerrar' },
         { hecho: !!cerrado, texto: '<b>Paso 5 · Cierra el mes</b> aquí mismo, con el botón «Cerrar el mes»: el mes queda bloqueado y nadie lo toca por accidente.', falta: 'cuando los pasos 1 a 3 estén en ✔, cierra' },
     ];
@@ -250,7 +252,8 @@ async function crearSalva(mes, tipo) {
     try {
         const bytesC = await bd().exportar(tokenSesion());
         const nombre = 'saldova-salva-' + mes + '-' + tipo + '.db';
-        await guardarArchivoReal(bytesC, nombre, 'Salva automática de Saldova', '.db');
+        const via = await guardarArchivoReal(bytesC, nombre, 'Salva automática de Saldova', '.db');
+        if (via === 'cancelado') return false; /* no se guardó: no se registra la salva */
         const reg = leerRegistroSalvas();
         reg.unshift({ fecha: hoyLocal(), mes, tipo, archivo: nombre });
         guardarRegistroSalvas(reg);
@@ -616,6 +619,15 @@ async function salvasAutomaticas() {
         rrhh = await bd().docLeer(tokenSesion(), 'rrhh');
         hist = (await bd().docLeer(tokenSesion(), 'hist')) || [];
         cfgResumen = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
+        /* Hallazgo 6 de la auditoría (2026-11-25): el TCP sin
+         * pleno no tiene Contabilidad, así que el Paso 3 no le
+         * manda a la Bandeja. Pleno = ingresos del año
+         * > 500 000 CUP, igual que en el lanzador. */
+        fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || {};
+        reg = (await bd().docLeer(tokenSesion(), 'registro')) || {};
+        fx = (await bd().docLeer(tokenSesion(), 'fx')) || {};
+        const tipoActor = (fiscal.meta && fiscal.meta.tipo) || '';
+        tieneContabilidad = tipoActor !== 'tcp' || ingresosAnioCUP(movs, reg.manuales, fx.tasa, new Date().getFullYear()) > 500000;
         $('cMes').value = mesLocal();
         $('qrMes').value = mesLocal();
         $('qrVer').addEventListener('click', pintarQR);

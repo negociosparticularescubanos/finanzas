@@ -1819,14 +1819,16 @@ async function crearDocumento() {
             const datos = paqueteContador(conta, movs, fiscal, desde, hasta);
             const nombre = 'paquete-contador-' + (desde || 'inicio') + '-' + (hasta || 'hoy') + '.html';
             try {
-                await guardarArchivoReal(new TextEncoder().encode(paqueteHTML(datos)), nombre, 'Paquete para el contador', '.html');
+                const via = await guardarArchivoReal(new TextEncoder().encode(paqueteHTML(datos)), nombre, 'Paquete para el contador', '.html');
+                if (via === 'cancelado') return;
                 $('pcNota').textContent = 'Paquete descargado: ' + datos.diario.filas.length + ' líneas de diario, ' + datos.mayor.length + ' cuentas con movimiento, ' + (datos.balance.cuadrado ? 'el balance cuadra.' : 'OJO: el balance no cuadra en este período.');
             } catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });
         $('pcBase').addEventListener('click', async () => {
             try {
                 const bytes = await bd().exportar(tokenSesion());
-                await guardarArchivoReal(bytes, 'Mi base.db', 'Base de datos Saldova', '.db');
+                const via = await guardarArchivoReal(bytes, 'Mi base.db', 'Base de datos Saldova', '.db');
+                if (via === 'cancelado') return;
                 $('pcNota').textContent = 'Base descargada: entrégala con el paquete.';
             } catch (e) { aviso(String((e && e.message) || e), 'error'); }
         });

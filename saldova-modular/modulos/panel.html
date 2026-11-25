@@ -212,6 +212,7 @@ document.getElementById('btnExportar').addEventListener('click', async () => {
     try {
         const bytes = await bd().exportar(tokenSesion());
         const via = await guardarArchivoReal(bytes, 'Mi base.db', 'Base de datos Saldova', '.db');
+        if (via === 'cancelado') return;
         aviso(via === 'archivo' ? 'Archivo guardado donde elegiste' : 'Archivo descargado');
     } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo guardar: ' + e.message, 'error'); }
 });
@@ -219,13 +220,15 @@ document.getElementById('btnExportarGz').addEventListener('click', async () => {
     try {
         const bytes = await bd().exportar(tokenSesion());
         const gz = await comprimir(bytes);
-        await guardarArchivoReal(gz, 'Mi base.db.gz', 'Base comprimida', '.gz');
+        const via = await guardarArchivoReal(gz, 'Mi base.db.gz', 'Base comprimida', '.gz');
+        if (via === 'cancelado') return;
         aviso('Comprimido: de ' + bytes.length + ' a ' + gz.length + ' bytes');
     } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo comprimir: ' + e.message, 'error'); }
 });
 document.getElementById('btnImportar').addEventListener('click', async () => {
     try {
         const bytes = await abrirArchivoReal('.db');
+        if (!bytes) return;
         const r = await bd().importar(tokenSesion(), bytes);
         aviso(mensajeImport(r));
         refrescar();
