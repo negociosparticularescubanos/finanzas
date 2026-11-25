@@ -307,6 +307,11 @@ export const CTA_AUTO_DUENO = {
     gasto_salarios: '614-000', gasto_seguridad_social: '615-000', nomina_por_pagar: '331-000',
     ss_por_pagar: '333-000', fuerza_trabajo_por_pagar: '334-000',
     ingresos_personales_por_pagar: '345-000', retenciones_por_pagar: '332-000',
+    /* F6-crédito (decisión de Leonardo 2026-11-24): en el plan del
+     * dueño la compra de un activo a crédito va a 311-000 «Cuentas
+     * por Pagar a Proveedores», la única cuenta de «por pagar» de
+     * ese plan. El oficial usa su 421-000 (ver CTA_AUTO_OFICIAL). */
+    aft_por_pagar: '311-000',
     gasto_depreciacion: '613-000',
     aft_edificios: '241-000', aft_transporte: '242-000', aft_maquinaria: '243-000',
     aft_computacion: '244-000', aft_muebles: '245-000',
@@ -335,6 +340,7 @@ export const CTA_AUTO_OFICIAL = {
     '375-000': 'dep_acum_edificios,dep_acum_transporte,dep_acum_maquinaria',
     '845-000': 'perdida_baja', '850-000': 'faltante_inventario', '646-000': 'reservas',
     '520-000': 'prestamos_por_pagar', '417-000': 'dividendos_por_pagar',
+    '421-000': 'aft_por_pagar',
     '601-000': 'capital', '440-004': 'onat_utilidades', '440-001': 'onat_ventas',
 };
 export function existeCuenta(plan, cod) {
@@ -363,6 +369,18 @@ export function validarLineasAsiento(plan, lineas) {
         if (!existeCuenta(plan, l.cuenta)) return 'La cuenta ' + l.cuenta + ' no existe en el plan de cuentas activo (' + ((plan && plan.length) ? 'revisa el plan o el asiento' : 'sin plan cargado') + '): el asiento no se guardó.';
     }
     return '';
+}
+
+/* Un movimiento es pago de ONAT si la importación lo marcó (clase
+ * 'onat') o si el usuario lo clasificó así a mano («Pago de ONAT» o
+ * «ONAT»). El guardado manual siempre ponía clase 'normal', así que
+ * la clasificación es el respaldo para los movimientos ya guardados
+ * a mano (Resumen y Vector fiscal). */
+export function esOnat(m) {
+    if (!m) return false;
+    if (m.clase === 'onat') return true;
+    const c = String(m.clasificacion || '');
+    return /^pago de onat$/i.test(c) || /^onat\b/i.test(c);
 }
 
 /* ---------- Avisos en pantalla ---------- */

@@ -255,11 +255,18 @@ async function guardarMov() {
     if (!fecha || !concepto || !(monto > 0)) { aviso('Faltan la fecha, el concepto o un monto válido', 'error'); return; }
     if (contaCandados[fecha.slice(0, 7)]) { aviso('El mes de ' + fecha + ' está cerrado: no se añaden ni editan movimientos en un período cerrado', 'error'); return; }
     const clasificacion = $('fClasificacion').value.trim() || 'Por clasificar';
+    /* El guardado manual siempre ponía clase 'normal': un pago ONAT
+     * anotado a mano no contaba en el Resumen ni en el Vector fiscal.
+     * La clase 'onat' sale del clasificador de la importación (código
+     * de tributo en el concepto) o de la clasificación que el usuario
+     * eligió («Pago de ONAT» / «ONAT»). */
+    const c = clasificar({ concepto, tipo });
+    const clase = (c.clase === 'onat' || /^pago de onat$/i.test(clasificacion) || /^onat\b/i.test(clasificacion)) ? 'onat' : 'normal';
     if (editandoId) {
         const m = movs.find((x) => String(x.id) === String(editandoId));
-        if (m) Object.assign(m, { fecha, concepto, tipo, clasificacion, monto });
+        if (m) Object.assign(m, { fecha, concepto, tipo, clasificacion, monto, clase });
     } else {
-        movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase: 'normal' });
+        movs.push({ id: 'm' + Date.now() + Math.floor(Math.random() * 999), fecha, concepto, tipo, clasificacion, monto, cuenta: cuentaActiva, clase });
     }
     try {
         await guardar();

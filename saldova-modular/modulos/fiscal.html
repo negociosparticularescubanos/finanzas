@@ -111,7 +111,7 @@
 .pest-bar button.activa { background: linear-gradient(#3A87D4,#2B5B84); color:#fff; }
 </style>
 <script type="module">
-import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal } from 'nucleo';
+import { esc, bd, aviso, sesionActual, tokenSesion, cuentaAuto, validarLineasAsiento, hoyLocal, mesLocal, esOnat } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(3);
@@ -151,7 +151,7 @@ function pintarVector() {
     const nom = (rrhh && rrhh.nominas && rrhh.nominas[mes]) || null;
     const bruto = nom ? r2(nom.trabajadores.reduce((s, t) => s + (Number(t.bruto) || 0), 0)) : 0;
     const iuft = r2(bruto * 0.05), ss = r2(bruto * 0.14);
-    const pagado = r2(movs.filter((m) => m.clase === 'onat' && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+    const pagado = r2(movs.filter((m) => esOnat(m) && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
     const fila = (c, b, t, imp) => '<tr><td>' + c + '</td><td class="num">' + fmt(b) + '</td><td class="num">' + t + '</td><td class="num">' + fmt(imp) + '</td></tr>';
     $('vector').innerHTML = '<table><thead><tr><th>Tributo</th><th class="num">Base</th><th class="num">Tasa</th><th class="num">Importe</th></tr></thead><tbody>' +
         fila('Impuesto sobre las ventas / servicios', base, tasaVentas + ' %', impVentas) +

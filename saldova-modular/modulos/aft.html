@@ -225,7 +225,7 @@ function pintarTodo() {
                 const ctaHaber = pago === 'caja' ? cuentaAuto(conta.plan, 'caja', '101-010')
                     : pago === 'credito' ? cuentaAuto(conta.plan, 'aft_por_pagar', '421-000')
                     : cuentaAuto(conta.plan, 'banco_cup', '110-010');
-                if (!ctaHaber) { aviso('Con el plan de cuentas activo no hay cuenta para pagar este activo a crédito: elige Banco o Caja.', 'error'); return; }
+                if (!ctaHaber) { aviso('Con el plan de cuentas activo no hay cuenta para pagar este activo a crédito: elige Banco o Caja' + (conta.planOrigen === 'oficial' ? '.' : ' o carga el plan oficial (Res. 494/2016).'), 'error'); return; }
                 lineas = [{ cuenta: cuentaACT(categoria), debe: costo, haber: 0 }, { cuenta: ctaHaber, debe: 0, haber: costo }];
                 const errLin = validarLineasAsiento(conta.plan, lineas);
                 if (errLin) { aviso(errLin, 'error'); return; }

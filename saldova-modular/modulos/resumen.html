@@ -54,6 +54,13 @@
     <p class="tenue" style="margin-top:10px">De dónde sale cada número: los ingresos, el costo de ventas y los gastos salen de tus asientos confirmados del mes, igual que el Estado de resultados de Informes. La ONAT es lo que pagaste en el mes según la Chequera. La utilidad es ingresos menos costo, menos gastos, menos ONAT. El porciento es la utilidad entre los ingresos.</p>
 </div>
 
+<div class="tarjeta" id="cardTrim">
+    <h2 id="titTrim" style="margin-top:4px">El porciento del trimestre</h2>
+    <p class="expl">Qué es: lo mismo que la tarjeta del mes, pero sumando los 3 meses del trimestre en curso. Los meses cerrados llevan candado.</p>
+    <div id="alertaTrim" class="pct pct-vacio"><p class="tenue">Elige el mes.</p></div>
+    <p class="tenue" style="margin-top:10px">De dónde sale: suma los ingresos, el costo, los gastos y la ONAT de los 3 meses del trimestre, con las mismas reglas del mes. Un mes cerrado se marca con candado y no se toca.</p>
+</div>
+
 <div class="tarjeta" id="cardObjetivo">
     <h2 style="margin-top:0">Objetivo de utilidad del mes</h2>
     <p class="tenue">El porciento al que quieres llegar cada mes. Por defecto es 15 %, como en Finanzas; si lo cambias, la tarjeta se mide contra tu número.</p>
@@ -65,7 +72,7 @@
 </div>
 
 <script type="module">
-import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal } from 'nucleo';
+import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal, esOnat } from 'nucleo';
 import 'componentes';
 import { aplicarFondo } from 'fondos';
 aplicarFondo(15);
@@ -111,7 +118,7 @@ function resumenMes(mes) {
         else if (c.grupo === 'ingreso') ingresos = r2(ingresos + (g.haber - g.debe));
         else if (c.grupo === 'gasto') gastos = r2(gastos + (g.debe - g.haber));
     }
-    const onat = r2(movs.filter((m) => m.clase === 'onat' && (m.fecha || '').slice(0, 7) === mes)
+    const onat = r2(movs.filter((m) => esOnat(m) && (m.fecha || '').slice(0, 7) === mes)
         .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
     const utilidad = r2(ingresos - costo - gastos - onat);
     return { ingresos, costo, gastos, onat, utilidad };
@@ -152,7 +159,7 @@ function pintar() {
     const a = analizar(r, Number(cfg.meta) || 15, Number(cfg.tolerancia) || 0.5);
     $('alertaMes').className = 'pct ' + a.clase;
     $('alertaMes').innerHTML =
-        '<div class="pct-cabeza"><div class="pct-num">' + a.porcentaje.toFixed(1) + ' %</div>' +
+        '<div class="pct-cabeza"><div class="pct-num">' + (a.estado === 'vacio' ? '—' : a.porcentaje.toFixed(1) + ' %') + '</div>' +
         '<div class="pct-titulo">' + a.titulo + '</div></div>' +
         '<div class="pct-cifras"><span>Ingresos: <b>$' + fmt(r.ingresos) + '</b></span>' +
         '<span>Costo de ventas: <b>$' + fmt(r.costo) + '</b></span>' +
@@ -161,6 +168,56 @@ function pintar() {
         '<span>Utilidad: <b>$' + fmt(r.utilidad) + '</b></span></div>' +
         '<div class="pct-sugerencia">' + a.sugerencia + '</div>' +
         (a.detalle ? '<div class="pct-detalle">' + a.detalle + '</div>' : '');
+    pintarTrimestre();
+}
+
+/* Fase 2 del plan: el porciento del trimestre. Suma los 3 meses del
+ * trimestre del mes elegido, con las mismas reglas de resumenMes.
+ * Los meses cerrados se leen del candado de Cierre (conta.candados).
+ * Decisión 1 de Leonardo (2026-11-24): el trimestre es para MIPYME
+ * y PDL, no para TCP. El tipo de actor se lee de Fiscal
+ * (fiscal.meta.tipo); si es 'tcp', la tarjeta se esconde. */
+function trimestreDe(mes) {
+    const y = Number((mes || '').slice(0, 4)) || 0;
+    const m = Number((mes || '').slice(5, 7)) || 1;
+    const ini = Math.floor((m - 1) / 3) * 3 + 1;
+    const meses = [];
+    for (let i = 0; i < 3; i++) meses.push(y + '-' + String(ini + i).padStart(2, '0'));
+    return meses;
+}
+function resumenTrimestre(mes) {
+    const t = { ingresos: 0, costo: 0, gastos: 0, onat: 0, utilidad: 0, meses: [] };
+    for (const mm of trimestreDe(mes)) {
+        const r = resumenMes(mm);
+        t.ingresos = r2(t.ingresos + r.ingresos);
+        t.costo = r2(t.costo + r.costo);
+        t.gastos = r2(t.gastos + r.gastos);
+        t.onat = r2(t.onat + r.onat);
+        t.utilidad = r2(t.utilidad + r.utilidad);
+        t.meses.push({ mes: mm, utilidad: r.utilidad, cerrado: !!(conta.candados && conta.candados[mm]), enCurso: mm === mesLocal() });
+    }
+    return t;
+}
+function pintarTrimestre() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    const meses = trimestreDe(mes);
+    $('titTrim').textContent = 'El porciento del trimestre (' + meses[0] + ' a ' + meses[2] + ')';
+    const t = resumenTrimestre(mes);
+    const a = analizar(t, Number(cfg.meta) || 15, Number(cfg.tolerancia) || 0.5);
+    const detalleMeses = t.meses.map((x) => x.mes + ': utilidad $' + fmt(x.utilidad) + (x.cerrado ? ' 🔒 cerrado' : x.enCurso ? ' · en curso' : '')).join(' · ');
+    $('alertaTrim').className = 'pct ' + a.clase;
+    $('alertaTrim').innerHTML =
+        '<div class="pct-cabeza"><div class="pct-num">' + (a.estado === 'vacio' ? '—' : a.porcentaje.toFixed(1) + ' %') + '</div>' +
+        '<div class="pct-titulo">' + a.titulo + '</div></div>' +
+        '<div class="pct-cifras"><span>Ingresos: <b>$' + fmt(t.ingresos) + '</b></span>' +
+        '<span>Costo de ventas: <b>$' + fmt(t.costo) + '</b></span>' +
+        '<span>Gastos: <b>$' + fmt(t.gastos) + '</b></span>' +
+        '<span>ONAT: <b>$' + fmt(t.onat) + '</b></span>' +
+        '<span>Utilidad: <b>$' + fmt(t.utilidad) + '</b></span></div>' +
+        '<div class="pct-sugerencia">' + a.sugerencia + '</div>' +
+        (a.detalle ? '<div class="pct-detalle">' + a.detalle + '</div>' : '') +
+        '<div class="pct-detalle">' + detalleMeses + '</div>';
 }
 (async () => {
     try {
@@ -173,6 +230,11 @@ function pintar() {
         cfg = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
         if (!(Number(cfg.meta) > 0)) cfg.meta = 15;
         if (!(Number(cfg.tolerancia) > 0)) cfg.tolerancia = 0.5;
+        /* Decisión 1 (2026-11-24): el trimestre es para MIPYME y PDL.
+         * Si el actor es TCP, la tarjeta del trimestre no se ve. */
+        const fiscal = (await bd().docLeer(tokenSesion(), 'fiscal')) || null;
+        const tipoActor = (fiscal && fiscal.meta && fiscal.meta.tipo) || '';
+        $('cardTrim').style.display = tipoActor === 'tcp' ? 'none' : '';
         const soloLectura = sesion.role === 'consultor';
         $('filaObjetivo').style.display = soloLectura ? 'none' : '';
         $('txtObjetivoSoloLectura').style.display = soloLectura ? '' : 'none';

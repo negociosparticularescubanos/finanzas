@@ -152,7 +152,9 @@ async function pintarIndicador() {
 }
 function nombreCuenta(cod) {
     const c = (conta.plan || []).find((x) => x.codigo === cod);
-    return c ? c.nombre : '';
+    /* F10-residual: el nombre del plan trae « (rango …)» y se veía en
+     * el Balance y el submayor; los desplegables ya lo quitaban. */
+    return c ? c.nombre.replace(/ \(rango [^)]+\)$/, '') : '';
 }
 function opcionesCuentas(sel) {
     const opts = (conta.plan || []).filter((c) => c.admite).map((c) =>
@@ -315,7 +317,7 @@ function pintarInversos(por) {
         const cta = (conta.plan || []).find((c) => c.codigo === cod);
         if (!cta) continue;
         const saldo = cta.naturaleza === 'acreedora' ? g.haber - g.debe : g.debe - g.haber;
-        if (saldo < -0.005) mal.push(cod + ' (' + (cta.nombre || '') + ')');
+        if (saldo < -0.005) mal.push(cod + ' (' + (cta.nombre || '').replace(/ \(rango [^)]+\)$/, '') + ')');
     }
     $('saldosInversos').innerHTML = mal.length ? '<span class="rojo">Ojo con estas cuentas: su saldo va al revés de lo normal — ' + mal.join(' · ') + '. Suele ser un asiento cruzado o una cuenta mal elegida; revísalas en el submayor (toca el código en el Balance).</span>' : '';
 }
@@ -420,7 +422,7 @@ function pintarPatrimonio() {
     let total = 0;
     const filas = ctas.map((c) => {
         const s = por.get(c.codigo) || 0; total += s;
-        return '<tr><td>' + c.codigo + '</td><td>' + c.nombre + '</td><td class="num">' + fmt(s) + '</td></tr>';
+        return '<tr><td>' + c.codigo + '</td><td>' + c.nombre.replace(/ \(rango [^)]+\)$/, '') + '</td><td class="num">' + fmt(s) + '</td></tr>';
     }).join('');
     $('cambiosPatrimonio').innerHTML = '<table><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Saldo</th></tr></thead><tbody>' + filas +
         '<tr class="totales"><td colspan="2">PATRIMONIO TOTAL</td><td class="num">' + fmt(total) + '</td></tr></tbody></table>';
