@@ -82,6 +82,14 @@ async function aplicarEsquema(dbX) {
         const resp = await fetch(ruta);
         if (resp.ok) dbX.exec(await resp.text());
     }
+    /* Datos de la persona del usuario (v47): las bases viejas no traen
+     * esas columnas; se añaden al abrir, sin tocar lo que ya hay. */
+    try {
+        const cols = columnasDe(dbX, 'usuarios');
+        for (const [col, def] of [['nombre', 'TEXT'], ['ci', 'TEXT'], ['telefono', 'TEXT'], ['correo', 'TEXT'], ['cargo', 'TEXT']]) {
+            if (!cols.has(col)) dbX.exec('ALTER TABLE usuarios ADD COLUMN ' + col + ' ' + def);
+        }
+    } catch (e) { /* si la tabla no existe aún, el esquema la crea */ }
 }
 
 /* Nombre de respaldo válido: lo crea `importar` al sustituir la
@@ -135,7 +143,7 @@ if (self.navigator && navigator.locks) {
     abrir().catch((e) => { estado = 'error'; detalle = String((e && e.message) || e); listoResolve(); });
 }
 
-const usuariosDeActiva = () => filas(db, 'SELECT username, role, negocio, entity_type, socios, must_change FROM usuarios ORDER BY username');
+const usuariosDeActiva = () => filas(db, 'SELECT username, role, negocio, entity_type, socios, must_change, nombre, ci, telefono, correo, cargo FROM usuarios ORDER BY username');
 function sesionValida(token) {
     if (!token) return null;
     const f = filas(db, 'SELECT username FROM sesiones WHERE token = ? AND expira > ?', [token, Math.floor(Date.now() / 1000)]);
@@ -364,9 +372,12 @@ const api = {
         } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
         return { ok: true };
     },
+    /* Guardar la base como archivo .db (la «salva»): desde la v47
+     * cualquier usuario que haya entrado puede hacerla, no solo el
+     * admin. Es una copia de lectura: no cambia nada en la base. */
     async exportar(token) {
         await listo;
-        if (!esAdmin(token)) throw new Error('Solo el administrador puede exportar la base');
+        if (!sesionValida(token)) throw new Error('Sesión expirada');
         return poolUtil.exportFile(activaArchivo);
     },
     /* Respaldos automáticos: `importar` guarda la base anterior como
@@ -396,11 +407,14 @@ const api = {
     },
     async importar(token, bytes) {
         await listo;
-        /* La única excepción sin sesión de admin es la primera puesta
-         * en marcha: una base sin usuarios aún no tiene a quién
-         * proteger, y el botón «Localizar un archivo .db» de la
-         * puerta solo existe en ese estado (igual que inicializar). */
-        if (usuariosDeActiva().length && !esAdmin(token)) throw new Error('Solo el administrador puede abrir un archivo .db');
+        /* Desde la v47 cualquier usuario que haya entrado puede abrir
+         * un archivo .db (cargar una base antigua). La única excepción
+         * sin sesión sigue siendo la primera puesta en marcha: una
+         * base sin usuarios aún no tiene a quién proteger, y el botón
+         * «Localizar un archivo .db» de la puerta solo existe en ese
+         * estado (igual que inicializar). Al abrirlo, la base actual
+         * se guarda sola como un respaldo nuevo. */
+        if (usuariosDeActiva().length && !sesionValida(token)) throw new Error('Entra con tu usuario para abrir un archivo .db');
         if (!bytes || !bytes.length) throw new Error('El archivo está vacío');
         /* 1. Escribir en un archivo TEMPORAL: la base activa no se toca
          * hasta que el archivo nuevo esté validado (y migrado, si es
@@ -539,11 +553,47 @@ const api = {
         if (filas(db, 'SELECT 1 FROM usuarios WHERE username = ?', [username]).length) throw new Error('Ese nombre de usuario ya existe');
         const mismo = filas(db, 'SELECT COUNT(*) AS n FROM usuarios WHERE negocio = ? AND role = ?', [negocio, role])[0].n;
         if (mismo >= 1) throw new Error('Ese negocio ya tiene su ' + role + ' (límite: 1 por negocio)');
+        /* Datos de la persona (v47): nombre, CI, teléfono, correo y cargo. */
+        const nombre = String(datos.nombre || '').trim();
+        const ci = String(datos.ci || '').trim();
+        const telefono = String(datos.telefono || '').trim();
+        const correo = String(datos.correo || '').trim();
+        const cargo = String(datos.cargo || '').trim();
         db.exec({
-            sql: 'INSERT INTO usuarios (username, hash, role, entity_type, socios, negocio) VALUES (?, ?, ?, ?, ?, ?)',
-            bind: [username, await hashSecreto(clave), role, datos.entity_type || 'tcp', datos.socios || 0, negocio],
+            sql: 'INSERT INTO usuarios (username, hash, role, entity_type, socios, negocio, nombre, ci, telefono, correo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            bind: [username, await hashSecreto(clave), role, datos.entity_type || 'tcp', datos.socios || 0, negocio, nombre, ci, telefono, correo, cargo],
         });
         traza(username, 'usuario-creado', negocio, null, 'Rol ' + role + ' creado por el administrador');
+        return { ok: true };
+    },
+    /* Recuperación de contraseña (v47): solo el admin pone una
+     * contraseña temporal; el usuario debe cambiarla la primera vez
+     * que entra (must_change). La propia contraseña del admin no se
+     * toca aquí: se cambia en la pantalla de entrada. */
+    async usuarioClave(token, username, clave) {
+        await listo;
+        const s = esAdmin(token);
+        if (!s) throw new Error('Solo el administrador');
+        username = String(username || '').trim();
+        clave = String(clave || '');
+        if (!username || clave.length < 6) throw new Error('Contraseña nueva de al menos 6 caracteres');
+        if (username === s.username) throw new Error('Tu propia contraseña se cambia en la pantalla de entrada, no aquí');
+        if (!filas(db, 'SELECT 1 FROM usuarios WHERE username = ?', [username]).length) throw new Error('Ese usuario no existe');
+        db.exec({ sql: 'UPDATE usuarios SET hash = ?, must_change = 1 WHERE username = ?', bind: [await hashSecreto(clave), username] });
+        traza(s.username, 'clave-recuperada', null, null, 'Contraseña temporal para ' + username);
+        return { ok: true };
+    },
+    /* Cambio de contraseña propio: lo pide la pantalla de entrada
+     * cuando must_change es 1, y vale también para cambiarla cuando
+     * se quiera. */
+    async cambiarClave(token, claveNueva) {
+        await listo;
+        const s = sesionValida(token);
+        if (!s) throw new Error('Sesión expirada');
+        claveNueva = String(claveNueva || '');
+        if (claveNueva.length < 6) throw new Error('La contraseña nueva debe tener al menos 6 caracteres');
+        db.exec({ sql: 'UPDATE usuarios SET hash = ?, must_change = 0 WHERE username = ?', bind: [await hashSecreto(claveNueva), s.username] });
+        traza(s.username, 'clave-cambiada', s.negocio, null, 'Contraseña cambiada');
         return { ok: true };
     },
     async negocios(token) {
@@ -561,6 +611,58 @@ const api = {
         lista.push(nombre);
         guardarNegocios(lista);
         return lista;
+    },
+    /* Crear un negocio con su ficha completa (v47): el nombre entra en
+     * la lista de negocios y la ficha (actor, razón, NIT, cuentas...)
+     * queda en el documento fiscal de ESE negocio, igual que la deja
+     * el asistente al crear la primera base. Solo el admin. */
+    async negocioCrearFicha(token, datos) {
+        await listo;
+        const s = esAdmin(token);
+        if (!s) throw new Error('Solo el administrador');
+        const nombre = String((datos && datos.nombre) || '').trim();
+        const perfil = (datos && datos.perfil) || null;
+        if (!nombre) throw new Error('El negocio necesita un nombre');
+        if (!perfil || !perfil.actor) throw new Error('Falta la ficha del negocio');
+        const lista = listaNegocios();
+        if (lista.some((n) => n.toLowerCase() === nombre.toLowerCase())) throw new Error('Ese negocio ya existe en esta base');
+        const fiscal = { meta: { tipo: perfil.actor, nit: perfil.nit || '', razon: perfil.razon || '', cuentaFiscal: perfil.cuentaCup || '', perfil }, fuentes: [] };
+        const ahora = new Date().toISOString();
+        db.exec('BEGIN');
+        try {
+            lista.push(nombre);
+            guardarNegocios(lista);
+            escribirDoc(nombre, 'fiscal', JSON.stringify(fiscal), ahora);
+            traza(s.username, 'negocio-creado', nombre, 'fiscal', 'Negocio creado con su ficha');
+            db.exec('COMMIT');
+        } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
+        return lista;
+    },
+    /* Módulos inhabilitados por negocio (v47): solo el admin los
+     * cambia. Se guardan en el documento fiscal de ESE negocio
+     * (meta.modulosInhabilitados), que el lanzador ya lee al entrar,
+     * así que no hace falta otro documento. */
+    async modulosNegocioGuardar(token, negocio, inhabilitados) {
+        await listo;
+        const s = esAdmin(token);
+        if (!s) throw new Error('Solo el administrador');
+        negocio = String(negocio || '').trim();
+        if (!negocio) throw new Error('Falta el negocio');
+        if (!listaNegocios().some((n) => n === negocio)) throw new Error('Ese negocio no existe en esta base');
+        if (!Array.isArray(inhabilitados)) throw new Error('Falta la lista de módulos');
+        const lista = [...new Set(inhabilitados.map((x) => String(x || '').trim()).filter((x) => /^[a-z0-9_]+$/.test(x)))];
+        const f = filas(db, 'SELECT json FROM documentos WHERE negocio = ? AND slot = ?', [negocio, 'fiscal']);
+        const fiscal = f.length ? JSON.parse(f[0].json) : { meta: {}, fuentes: [] };
+        fiscal.meta = fiscal.meta || {};
+        fiscal.meta.modulosInhabilitados = lista;
+        const ahora = new Date().toISOString();
+        db.exec('BEGIN');
+        try {
+            escribirDoc(negocio, 'fiscal', JSON.stringify(fiscal), ahora);
+            traza(s.username, 'modulos-negocio', negocio, 'fiscal', 'Módulos inhabilitados: ' + (lista.join(', ') || 'ninguno'));
+            db.exec('COMMIT');
+        } catch (e) { try { db.exec('ROLLBACK'); } catch (_) { /* nada */ } throw e; }
+        return { ok: true, inhabilitados: lista };
     },
     async bases() {
         await listo;

@@ -11,7 +11,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   socios      INTEGER NOT NULL DEFAULT 0,
   negocio     TEXT NOT NULL,
   theme       TEXT NOT NULL DEFAULT '',
-  must_change INTEGER NOT NULL DEFAULT 0
+  must_change INTEGER NOT NULL DEFAULT 0,
+  nombre      TEXT NOT NULL DEFAULT '',
+  ci          TEXT NOT NULL DEFAULT '',
+  telefono    TEXT NOT NULL DEFAULT '',
+  correo      TEXT NOT NULL DEFAULT '',
+  cargo       TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS sesiones (
   token    TEXT PRIMARY KEY,

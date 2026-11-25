@@ -218,7 +218,12 @@ const cinta = document.getElementById('cinta');
 function modulosVisibles(modulos, actor, pleno, rol) {
     return (modulos || []).filter((m) => {
         if (!m.activo) return false;
-        if (rol === 'admin') return ['resumen', 'panel', 'cierre', 'gestor', 'informes', 'tasas', 'ayuda'].includes(m.id);
+        /* El administrador general es solo administración (2026-11-25):
+         * Panel y base de datos (adaptado a super admin), Tasas y
+         * Ayuda. Sin Resumen, Cierre, Gestor ni Informes: eso es
+         * operación del negocio, no administración de la app. El
+         * Gestor no lo ve nadie por ahora. */
+        if (rol === 'admin') return ['panel', 'tasas', 'ayuda'].includes(m.id);
         if (m.id === 'gestor' && rol !== 'admin') return false;
         if (actor === 'tcp') {
             if (m.id === 'registro') return true;
@@ -465,7 +470,7 @@ function mostrarLanzador(ses, acc) {
      * tipo de negocio (2026-11-25). */
     const nombreRol = (r) => (r === 'admin' ? 'Administrador' : r === 'editor' ? 'Editor' : r === 'consultor' ? 'Consultor' : (r || ''));
     document.getElementById('lzSesion').textContent = 'Usuario: ' + ses.username + ' · Rol: ' + nombreRol(ses.role);
-    document.getElementById('lzVer').textContent = '· v46';
+    document.getElementById('lzVer').textContent = '· v47';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     document.getElementById('lzBases').style.display = 'none';
     document.getElementById('lanzador').style.display = '';
