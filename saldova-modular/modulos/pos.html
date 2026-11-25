@@ -361,7 +361,7 @@ function pintarVentasDia() {
         const idx = pos.ventas.findIndex((x) => x.id === v.id);
         pos.ventas[idx] = anularVenta(v, hoy(), 'Anulada por el cajero');
         await guardar();
-        pintarTodo(); pintarDevoluciones();
+        pintarTodo(); pintarDevoluciones(); pintarArqueo();
         aviso('Venta ' + v.id + ' anulada: queda el rastro' + (restantes.length ? ' y se devolvió lo que quedaba por $' + fmt(restantes.reduce((s, l) => s + (Number(l.cant) || 0) * (Number(l.precio) || 0), 0)) : ''));
     }));
 }
@@ -676,7 +676,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); p
              * la factura quedaba sin su venta. */
             if (medioSel === 'credito') await guardarMultiple([{ slot: 'conta', valor: conta }, { slot: 'pos', valor: pos }]);
             else await guardar();
-            carrito = []; $('vVale').value = ''; pintarTodo(); pintarDevoluciones();
+            carrito = []; $('vVale').value = ''; pintarTodo(); pintarDevoluciones(); pintarArqueo();
             aviso('Venta cobrada: ' + fmt(total) + avisoExtra);
         });
         $('vBorrador').addEventListener('click', async () => {
@@ -795,7 +795,7 @@ function pintarTodo() { pintarProductos(); pintarCarrito(); pintarVentasDia(); p
             if (conta.candados && conta.candados[fHoy.slice(0, 7)]) { aviso('El mes actual está cerrado: no se puede crear el asiento de ajuste de la devolución', 'error'); return; }
             const r = await aplicarDevolucion(v, lineasDev, fHoy, 'Devolución');
             if (!r.ok) { aviso(r.motivo, 'error'); return; }
-            pintarTodo(); pintarDevoluciones();
+            pintarTodo(); pintarDevoluciones(); pintarArqueo();
             aviso('Devolución registrada por ' + fmt(r.total) + ': el stock quedó repuesto.' + (r.porPagarDev > 0 ? ' La deuda con el consignador bajó $' + fmt(r.porPagarDev) + '.' : '') + (r.numAsiento ? ' Asiento de ajuste nº ' + r.numAsiento + ' creado.' : ' Se neta en el asiento del día de la venta.'));
         });
         $('arqFecha').value = hoy();

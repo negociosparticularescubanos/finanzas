@@ -105,7 +105,8 @@ function pintarNegocios() {
                 if (inp.dataset.k === 'recuperacion') k.recuperacion = inp.checked;
                 else k[inp.dataset.k] = inp.value;
             });
-            await guardar(); aviso('Ficha de ' + nombre + ' guardada');
+            try { await guardar(); } catch (e) { aviso('No se pudo guardar la ficha: ' + String((e && e.message) || e), 'error'); return; }
+            aviso('Ficha de ' + nombre + ' guardada');
         });
     });
 }
@@ -115,7 +116,9 @@ function pintarRos() {
         '<button type="button" class="chico secundario" data-delr="' + i + '">Quitar</button></div>').join('') ||
         '<p class="tenue">Sin operaciones sospechosas registradas.</p>';
     $('ros').querySelectorAll('[data-delr]').forEach((b) => b.addEventListener('click', async () => {
-        gestor.ros.splice(Number(b.dataset.delr), 1); await guardar(); pintarRos();
+        const idx = Number(b.dataset.delr), quitado = gestor.ros.splice(idx, 1);
+        try { await guardar(); } catch (e) { gestor.ros.splice(idx, 0, ...quitado); aviso('No se pudo quitar: ' + String((e && e.message) || e), 'error'); return; }
+        pintarRos();
     }));
 }
 function pintarExcluidos() {
@@ -124,7 +127,9 @@ function pintarExcluidos() {
         '<button type="button" class="chico secundario" data-dele="' + i + '">Quitar</button></div>').join('') ||
         '<p class="tenue">La lista de exclusión está vacía.</p>';
     $('excluidos').querySelectorAll('[data-dele]').forEach((b) => b.addEventListener('click', async () => {
-        gestor.excluidos.splice(Number(b.dataset.dele), 1); await guardar(); pintarExcluidos();
+        const idx = Number(b.dataset.dele), quitado = gestor.excluidos.splice(idx, 1);
+        try { await guardar(); } catch (e) { gestor.excluidos.splice(idx, 0, ...quitado); aviso('No se pudo quitar: ' + String((e && e.message) || e), 'error'); return; }
+        pintarExcluidos();
     }));
 }
 (async () => {
@@ -147,14 +152,16 @@ function pintarExcluidos() {
             const negocio = $('rNegocio').value.trim(), detalle = $('rDetalle').value.trim();
             if (!negocio || !detalle) { aviso('El ROS necesita negocio y detalle', 'error'); return; }
             gestor.ros.push({ fecha: hoyLocal(), negocio, detalle, monto: Number($('rMonto').value) || 0 });
-            await guardar(); $('rNegocio').value = $('rDetalle').value = $('rMonto').value = '';
+            try { await guardar(); } catch (e) { gestor.ros.pop(); aviso('No se pudo registrar: ' + String((e && e.message) || e), 'error'); return; }
+            $('rNegocio').value = $('rDetalle').value = $('rMonto').value = '';
             pintarRos(); aviso('Operación registrada');
         });
         $('eAdd').addEventListener('click', async () => {
             const nombre = $('eNombre').value.trim();
             if (!nombre) { aviso('Escribe a quién se excluye', 'error'); return; }
             gestor.excluidos.push({ nombre, motivo: $('eMotivo').value.trim(), fecha: hoyLocal() });
-            await guardar(); $('eNombre').value = $('eMotivo').value = '';
+            try { await guardar(); } catch (e) { gestor.excluidos.pop(); aviso('No se pudo añadir: ' + String((e && e.message) || e), 'error'); return; }
+            $('eNombre').value = $('eMotivo').value = '';
             pintarExcluidos(); aviso('Añadido a la lista de exclusión');
         });
         pintarNegocios(); pintarRos(); pintarExcluidos();

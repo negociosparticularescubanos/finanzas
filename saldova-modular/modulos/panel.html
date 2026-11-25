@@ -57,6 +57,12 @@
     <button id="btnExportarGz">Guardar comprimido (.db.gz)</button>
     <button id="btnImportar">Abrir un archivo .db existente</button>
 </div>
+<div class="tarjeta">
+    <h2>Respaldos automáticos</h2>
+    <p class="tenue">Cada vez que abres un archivo .db, Saldova guarda una copia de la base anterior aquí mismo, con la fecha en el nombre. Puedes descargarla o volver a ella (al volver, la base actual se guarda primero como un respaldo nuevo).</p>
+    <div id="respaldos"><p class="tenue">Cargando respaldos…</p></div>
+    <button id="btnRespaldos" class="secundario">Actualizar la lista</button>
+</div>
 
 <div class="tarjeta">
     <h2>Acceso con huella o PIN del equipo (WebAuthn)</h2>
@@ -225,6 +231,36 @@ document.getElementById('btnExportarGz').addEventListener('click', async () => {
         aviso('Comprimido: de ' + bytes.length + ' a ' + gz.length + ' bytes');
     } catch (e) { if (e.name !== 'AbortError') aviso('No se pudo comprimir: ' + e.message, 'error'); }
 });
+/* Respaldos automáticos (solo el admin): descargar una copia o
+ * volver a ella. La restauración usa `importar`, que valida el
+ * archivo y guarda primero la base actual como un respaldo nuevo. */
+async function pintarRespaldos() {
+    const caja = document.getElementById('respaldos');
+    try {
+        const lista = await bd().listarRespaldos(tokenSesion());
+        if (!lista.length) { caja.innerHTML = '<p class="tenue">Todavía no hay respaldos: se crean al abrir un archivo .db.</p>'; return; }
+        caja.innerHTML = lista.map((r) => '<div class="fila"><span>' + esc(r.archivo) + '</span><span class="tenue">' + Math.round(r.bytes / 1024) + ' KB · ' + esc(String(r.modificado || '').slice(0, 10)) + '</span>' +
+            '<button type="button" class="chico secundario" data-res-desc="' + esc(r.archivo) + '">Descargar</button>' +
+            '<button type="button" class="chico" data-res-rest="' + esc(r.archivo) + '">Volver a este respaldo</button></div>').join('');
+        caja.querySelectorAll('[data-res-desc]').forEach((b) => b.addEventListener('click', async () => {
+            try {
+                const bytes = await bd().descargarRespaldo(tokenSesion(), b.dataset.resDesc);
+                const via = await guardarArchivoReal(bytes, b.dataset.resDesc, 'Respaldo de Saldova', '.db');
+                if (via !== 'cancelado') aviso(via === 'archivo' ? 'Respaldo guardado donde elegiste' : 'Respaldo descargado');
+            } catch (e) { aviso('No se pudo descargar: ' + String((e && e.message) || e), 'error'); }
+        }));
+        caja.querySelectorAll('[data-res-rest]').forEach((b) => b.addEventListener('click', async () => {
+            if (!confirm('¿Volver al respaldo ' + b.dataset.resRest + '? La base actual se guarda primero como un respaldo nuevo, así que no se pierde nada.')) return;
+            try {
+                const bytes = await bd().descargarRespaldo(tokenSesion(), b.dataset.resRest);
+                const r = await bd().importar(tokenSesion(), bytes);
+                aviso(mensajeImport(r)); pintarRespaldos(); refrescar();
+            } catch (e) { aviso('No se pudo restaurar: ' + String((e && e.message) || e), 'error'); }
+        }));
+    } catch (e) { caja.innerHTML = '<p class="tenue">No se pudo listar los respaldos: ' + esc(String((e && e.message) || e)) + '</p>'; }
+}
+document.getElementById('btnRespaldos').addEventListener('click', pintarRespaldos);
+pintarRespaldos();
 document.getElementById('btnImportar').addEventListener('click', async () => {
     try {
         const bytes = await abrirArchivoReal('.db');

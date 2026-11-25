@@ -84,6 +84,11 @@ async function aplicarEsquema(dbX) {
     }
 }
 
+/* Nombre de respaldo válido: lo crea `importar` al sustituir la
+ * base activa (respaldo-AAAAMMDDHHMMSS.db). Solo esos nombres se
+ * pueden descargar: nada fuera de ese patrón sale del
+ * almacenamiento. */
+function esRespaldoValido(nombre) { return /^respaldo-\d{14}\.db$/.test(String(nombre || '')); }
 async function abrirActiva(nombre, archivo) {
     if (db) { try { db.close(); } catch (e) {} db = null; }
     db = new poolUtil.OpfsSAHPoolDb(archivo);
@@ -363,6 +368,31 @@ const api = {
         await listo;
         if (!esAdmin(token)) throw new Error('Solo el administrador puede exportar la base');
         return poolUtil.exportFile(activaArchivo);
+    },
+    /* Respaldos automáticos: `importar` guarda la base anterior como
+     * /respaldo-AAAAMMDDHHMMSS.db en el almacenamiento del navegador.
+     * Listarlos y descargarlos es solo para el admin; la restauración
+     * usa `importar`, que valida el archivo y guarda primero la base
+     * actual como un respaldo nuevo, así que no se pierde nada. */
+    async listarRespaldos(token) {
+        await listo;
+        if (!esAdmin(token)) throw new Error('Solo el administrador puede ver los respaldos');
+        const root = await navigator.storage.getDirectory();
+        const out = [];
+        for await (const h of root.values()) {
+            if (h.kind === 'file' && esRespaldoValido(h.name)) {
+                const f = await h.getFile();
+                out.push({ archivo: h.name, bytes: f.size, modificado: new Date(f.lastModified).toISOString() });
+            }
+        }
+        out.sort((a, b) => b.archivo.localeCompare(a.archivo));
+        return out;
+    },
+    async descargarRespaldo(token, archivo) {
+        await listo;
+        if (!esAdmin(token)) throw new Error('Solo el administrador puede descargar respaldos');
+        if (!esRespaldoValido(archivo)) throw new Error('Respaldo no válido');
+        return poolUtil.exportFile('/' + archivo);
     },
     async importar(token, bytes) {
         await listo;
