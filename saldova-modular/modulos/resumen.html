@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldova — Resumen</title>
+<script type="importmap">
+{ "imports": { "nucleo": "../nucleo.js", "componentes": "../componentes.js", "fondos": "../fondos.js" } }
+</script>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #D8E6F3; color: #14324F; padding: 14px; }
+    h1 { font-size: 19px; margin: 2px 0 4px; color: #1A3E5E; }
+    h2 { font-size: 15.5px; margin: 14px 0 8px; color: #1A3E5E; }
+    .tarjeta { background: #F4F9FE; border: 1px solid #8FA8C8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(20,50,79,.18); }
+    button { background: linear-gradient(180deg, #FFC266, #F48C1E); border: 1px solid #B25F06; color: #1A1A1A; font-weight: 600; border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+    button.secundario { background: linear-gradient(180deg, #EBF3FC, #B7D0EC); border-color: #7E9CC0; font-weight: 400; }
+    button.chico { padding: 3px 9px; font-size: 12.5px; }
+    input { padding: 5px 7px; border: 1px solid #8FA8C8; border-radius: 5px; font-size: 13.5px; background: #fff; }
+    .tenue { color: #5A738C; font-size: 13px; }
+    saldova-indicador { font-size: 15px; font-weight: 600; }
+    .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    .expl { color: #3D5A76; font-size: 13px; margin: 2px 0 8px; }
+    .pest-bar { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 12px; }
+    .pest-bar button { background: linear-gradient(180deg, #DCE8F5, #C6D9EE); border: 1px solid #7E9CC0; color: #14324F; font-weight: 400; border-radius: 7px 7px 0 0; padding: 7px 15px; }
+    .pest-bar button.activa { background: linear-gradient(180deg, #3A87D4, #2B5B84); color: #fff; font-weight: 700; }
+    /* La tarjeta del porciento del mes (fase 1 del plan): misma lógica
+     * que la alerta financiera de Finanzas, con los números de Saldova. */
+    .pct { border-radius: 10px; padding: 14px 16px; border: 2px solid #8FA8C8; background: #fff; }
+    .pct-ok { border-color: #2FA84F; background: #EAF7EE; }
+    .pct-gastar { border-color: #D99400; background: #FFF6DE; }
+    .pct-ajustar { border-color: #D23B2E; background: #FDECEA; }
+    .pct-vacio { border-color: #8FA8C8; background: #F4F9FE; }
+    .pct-cabeza { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+    .pct-num { font-size: 44px; font-weight: 700; line-height: 1; color: #1A3E5E; min-width: 130px; }
+    .pct-titulo { font-size: 17px; font-weight: 700; color: #1A3E5E; }
+    .pct-cifras { display: flex; gap: 8px 22px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; }
+    .pct-cifras b { font-variant-numeric: tabular-nums; }
+    .pct-sugerencia { margin-top: 10px; font-size: 14px; line-height: 1.5; }
+    .pct-detalle { margin-top: 6px; font-size: 13px; color: #5A738C; }
+</style>
+</head>
+<body>
+<h1>Resumen</h1>
+<p class="no-imprimir"><saldova-indicador id="indicador"></saldova-indicador> · <span id="sesionTxt" class="tenue">Comprobando sesión…</span></p>
+
+<div class="pest-bar"><button type="button" class="activa" data-pest="resumen">Resumen</button></div>
+
+<div class="tarjeta">
+    <div class="fila"><input type="month" id="rMes"><button type="button" id="rVer" class="secundario chico">Ver</button></div>
+    <h2 id="titMes" style="margin-top:4px">El porciento del mes</h2>
+    <p class="expl">Qué es: cómo va tu negocio este mes, en un solo número — la utilidad entre los ingresos, contra tu objetivo. Para quién: para ti, al entrar, antes de meterte en los módulos.</p>
+    <div id="alertaMes" class="pct pct-vacio"><p class="tenue">Elige el mes.</p></div>
+    <p class="tenue" style="margin-top:10px">De dónde sale cada número: los ingresos, el costo de ventas y los gastos salen de tus asientos confirmados del mes, igual que el Estado de resultados de Informes. La ONAT es lo que pagaste en el mes según la Chequera. La utilidad es ingresos menos costo, menos gastos, menos ONAT. El porciento es la utilidad entre los ingresos.</p>
+</div>
+
+<div class="tarjeta" id="cardObjetivo">
+    <h2 style="margin-top:0">Objetivo de utilidad del mes</h2>
+    <p class="tenue">El porciento al que quieres llegar cada mes. Por defecto es 15 %, como en Finanzas; si lo cambias, la tarjeta se mide contra tu número.</p>
+    <div class="fila" id="filaObjetivo">
+        <label>Objetivo % <input id="rMeta" type="number" step="0.5" min="1" max="100" style="width:90px"></label>
+        <button type="button" id="rGuardarMeta">Guardar objetivo</button>
+    </div>
+    <p class="tenue" id="txtObjetivoSoloLectura" style="display:none"></p>
+</div>
+
+<script type="module">
+import { bd, aviso, sesionActual, tokenSesion, cuentaAuto, mesLocal } from 'nucleo';
+import 'componentes';
+import { aplicarFondo } from 'fondos';
+aplicarFondo(15);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+let conta = null, movs = [], cfg = { meta: 15, tolerancia: 0.5 }, sesion = null;
+
+async function pintarIndicador() {
+    const ind = $('indicador');
+    try {
+        const est = await bd().estado();
+        if (est.estado === 'conectada') ind.fijar('conectada', 'Base local conectada');
+        else if (est.estado === 'ocupada') ind.fijar('ocupada', 'Base abierta en otra pestaña');
+        else if (est.estado === 'error') ind.fijar('error', 'Base con error: ' + (est.detalle || ''));
+        else { ind.fijar('arrancando', 'Abriendo la base…'); setTimeout(pintarIndicador, 1500); }
+    } catch (e) { ind.fijar('error', 'Sin respuesta de la base'); }
+}
+function cuenta(cod) { return (conta.plan || []).find((c) => c.codigo === cod) || { nombre: '', grupo: '', naturaleza: 'deudora' }; }
+
+/* Las cifras del mes, con las mismas reglas que el Estado de
+ * resultados de Informes: ingresos = cuentas de grupo 'ingreso'
+ * (haber menos debe); costo = la cuenta de costo de ventas; gastos =
+ * cuentas de grupo 'gasto' (debe menos haber). La ONAT es lo pagado
+ * en el mes según la Chequera (movimientos con clase 'onat'), como
+ * hace el Vector fiscal. Utilidad = ingresos − costo − gastos − ONAT. */
+function resumenMes(mes) {
+    const porMes = new Map();
+    for (const a of conta.asientos || []) {
+        if ((a.fecha || '').slice(0, 7) !== mes) continue;
+        for (const l of a.lineas || []) {
+            const m = porMes.get(l.cuenta) || { debe: 0, haber: 0 };
+            m.debe += Number(l.debe) || 0; m.haber += Number(l.haber) || 0;
+            porMes.set(l.cuenta, m);
+        }
+    }
+    let ingresos = 0, costo = 0, gastos = 0;
+    const ctaCosto = cuentaAuto(conta.plan, 'costo_ventas', '695-000');
+    for (const [cod, g] of porMes.entries()) {
+        const c = cuenta(cod);
+        if (ctaCosto && cod === ctaCosto) costo = r2(costo + (g.debe - g.haber));
+        else if (c.grupo === 'ingreso') ingresos = r2(ingresos + (g.haber - g.debe));
+        else if (c.grupo === 'gasto') gastos = r2(gastos + (g.debe - g.haber));
+    }
+    const onat = r2(movs.filter((m) => m.clase === 'onat' && (m.fecha || '').slice(0, 7) === mes)
+        .reduce((s, m) => s + Math.abs(Number(m.monto) || 0), 0));
+    const utilidad = r2(ingresos - costo - gastos - onat);
+    return { ingresos, costo, gastos, onat, utilidad };
+}
+
+/* Los tres estados de Finanzas (renderAlertaFinanciera): en el margen
+ * ideal si el % está a menos de la tolerancia del objetivo; margen para
+ * gastar más si pasa el objetivo; si no, hay que ajustar. Sin ingresos
+ * no hay % que medir. */
+function analizar(r, meta, tol) {
+    const { ingresos, utilidad } = r;
+    if (!(ingresos > 0)) {
+        return { estado: 'vacio', clase: 'pct-vacio', titulo: 'No hay ingresos registrados en el mes.',
+            sugerencia: 'Registra tus ventas o tus movimientos para ver el análisis financiero.', detalle: '', porcentaje: 0 };
+    }
+    const porcentaje = (utilidad / ingresos) * 100;
+    const deseada = ingresos * (meta / 100);
+    const dif = porcentaje - meta;
+    const detalle = 'Objetivo: ' + fmt(meta) + ' % | Actual: ' + porcentaje.toFixed(1) + ' %';
+    if (Math.abs(dif) <= tol) {
+        return { estado: 'correcto', clase: 'pct-ok', titulo: 'Estás en el margen ideal.',
+            sugerencia: 'Utilidad del ' + porcentaje.toFixed(1) + ' % = $' + fmt(utilidad) + '.', detalle, porcentaje };
+    }
+    if (porcentaje > meta + tol) {
+        return { estado: 'gastar', clase: 'pct-gastar', titulo: 'Tienes margen para gastar más.',
+            sugerencia: 'Puedes gastar hasta $' + fmt(r2(utilidad - deseada)) + ' adicionales.', detalle, porcentaje };
+    }
+    const deficit = r2(deseada - utilidad);
+    return { estado: 'ajustar', clase: 'pct-ajustar', titulo: 'Necesitas ajustar tus finanzas.',
+        sugerencia: 'Para alcanzar el ' + fmt(meta) + ' %: aumenta ingresos en $' + fmt(r2(deficit / (1 - meta / 100))) + ' o reduce gastos en $' + fmt(deficit) + '.',
+        detalle, porcentaje };
+}
+function pintar() {
+    const mes = $('rMes').value;
+    if (!mes) return;
+    $('titMes').textContent = 'El porciento del mes de ' + mes;
+    const r = resumenMes(mes);
+    const a = analizar(r, Number(cfg.meta) || 15, Number(cfg.tolerancia) || 0.5);
+    $('alertaMes').className = 'pct ' + a.clase;
+    $('alertaMes').innerHTML =
+        '<div class="pct-cabeza"><div class="pct-num">' + a.porcentaje.toFixed(1) + ' %</div>' +
+        '<div class="pct-titulo">' + a.titulo + '</div></div>' +
+        '<div class="pct-cifras"><span>Ingresos: <b>$' + fmt(r.ingresos) + '</b></span>' +
+        '<span>Costo de ventas: <b>$' + fmt(r.costo) + '</b></span>' +
+        '<span>Gastos: <b>$' + fmt(r.gastos) + '</b></span>' +
+        '<span>ONAT: <b>$' + fmt(r.onat) + '</b></span>' +
+        '<span>Utilidad: <b>$' + fmt(r.utilidad) + '</b></span></div>' +
+        '<div class="pct-sugerencia">' + a.sugerencia + '</div>' +
+        (a.detalle ? '<div class="pct-detalle">' + a.detalle + '</div>' : '');
+}
+(async () => {
+    try {
+        pintarIndicador();
+        sesion = await sesionActual();
+        if (!sesion) { $('sesionTxt').textContent = 'Sin sesión: entra primero en la página principal.'; return; }
+        $('sesionTxt').textContent = 'Sesión de ' + sesion.username + ' (' + sesion.role + ') · Negocio: ' + sesion.negocio;
+        conta = (await bd().docLeer(tokenSesion(), 'conta')) || { asientos: [], plan: [] };
+        movs = (await bd().docLeer(tokenSesion(), 'mov')) || [];
+        cfg = (await bd().docLeer(tokenSesion(), 'resumen')) || {};
+        if (!(Number(cfg.meta) > 0)) cfg.meta = 15;
+        if (!(Number(cfg.tolerancia) > 0)) cfg.tolerancia = 0.5;
+        const soloLectura = sesion.role === 'consultor';
+        $('filaObjetivo').style.display = soloLectura ? 'none' : '';
+        $('txtObjetivoSoloLectura').style.display = soloLectura ? '' : 'none';
+        if (soloLectura) $('txtObjetivoSoloLectura').textContent = 'Objetivo actual: ' + fmt(cfg.meta) + ' %. Solo el administrador o el editor lo cambian.';
+        else $('rMeta').value = cfg.meta;
+        $('rGuardarMeta').addEventListener('click', async () => {
+            if (soloLectura) { aviso('El consultor no cambia el objetivo', 'error'); return; }
+            const meta = Number($('rMeta').value);
+            if (!(meta > 0) || meta > 100) { aviso('El objetivo tiene que ser un porciento entre 1 y 100', 'error'); return; }
+            cfg.meta = meta;
+            try { await bd().docGuardar(tokenSesion(), 'resumen', cfg); aviso('Objetivo guardado: ' + fmt(meta) + ' %'); pintar(); }
+            catch (e) { aviso('No se pudo guardar: ' + String((e && e.message) || e), 'error'); }
+        });
+        $('rMes').value = mesLocal();
+        $('rVer').addEventListener('click', pintar);
+        pintar();
+    } catch (e) {
+        $('sesionTxt').textContent = 'Error: ' + String((e && e.message) || e);
+    }
+})();
+</script>
+</body>
+</html>

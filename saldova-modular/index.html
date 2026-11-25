@@ -165,8 +165,13 @@ try {
     localStorage.setItem('saldova_fondo_turno', String(turno + 1));
 } catch (e) { /* sin fondo si el navegador lo impide */ }
 let haySesion = false;
+/* Fase 1 del plan: el Resumen abre solo al entrar, como la pestaña
+ * Resumen de Finanzas. Una sola vez por carga de la página: al cerrar
+ * el módulo se vuelve al lanzador y no se reabre solo. */
+let resumenAutoAbierto = false;
 
 const MODULOS = [
+    { id: 'resumen', titulo: 'Resumen · El mes en %', url: 'modulos/resumen.html', icono: 'iconos/resumen.svg', activo: true, ancho: 900, alto: 640 },
     { id: 'panel', titulo: 'Panel y base de datos', url: 'modulos/panel.html', icono: 'iconos/panel.svg', activo: true, ancho: 860, alto: 620 },
     { id: 'chequera', titulo: 'Chequera y tarjetas', url: 'modulos/chequera.html', icono: 'iconos/chequera.svg', activo: true, ancho: 920, alto: 640 },
     { id: 'conta', titulo: 'Contabilidad', url: 'modulos/contabilidad.html', icono: 'iconos/conta.svg', activo: true, ancho: 940, alto: 660 },
@@ -377,7 +382,7 @@ async function refrescarFechaYTasas() {
 }
 function mostrarLanzador(ses, acc) {
     document.getElementById('lzSesion').textContent = 'Sesión de ' + ses.username + ' (' + ses.role + ')';
-    document.getElementById('lzVer').textContent = '· v38';
+    document.getElementById('lzVer').textContent = '· v39';
     document.getElementById('lzBase').textContent = (acc && acc.activa) || '—';
     const g = document.getElementById('lzModulos');
     g.innerHTML = '';
@@ -514,6 +519,10 @@ async function pintarPuerta() {
         haySesion = true;
         document.getElementById('area').style.display = 'none';
         mostrarLanzador(ses, acc);
+        if (!resumenAutoAbierto) {
+            resumenAutoAbierto = true;
+            setTimeout(() => abrirModulo('resumen'), 60);
+        }
         return;
     }
     if (!acc.hayUsuarios) {
